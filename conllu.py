@@ -1,11 +1,13 @@
 import sys
 
+
 class ConllLine:
     def __init__(self, line):
         self.line = line.rstrip("\n")
         line = self.line.split("\t")
         self.id, self.form, self.lemma, self.upos, self.xpos = line[0:5]
         self.feats, self.head, self.deprel, self.deps, self.misc = line[5:10]
+        self.id, self.head = int(self.id), int(self.head)
 
     def __repr__(self):
         return self.line
@@ -23,6 +25,9 @@ class ConllBlock(list):
 
     def raw(self, separator=" "):
         return separator.join([line.form for line in self])
+
+    def rels(self):
+        return [(line.head, line.id) for line in self]
 
 
 class ConllParser(list):
