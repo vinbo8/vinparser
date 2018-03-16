@@ -1,12 +1,12 @@
 import sys
 import math
+import argparse
 import torch
 import torch.utils.data
 import torch.nn.functional as F
 from torch.autograd import Variable
 from conllu import ConllParser
 
-MAX_SENT = 500
 LSTM_DIM = 40
 LSTM_DEPTH = 3
 EMBEDDING_DIM = 100
@@ -14,7 +14,7 @@ REDUCE_DIM = 500
 BATCH_SIZE = 10
 EPOCHS = 1
 LEARNING_RATE = 2e-3
-DEBUG_SIZE = 500
+DEBUG_SIZE = 300
 
 
 class Network(torch.nn.Module):
@@ -61,56 +61,51 @@ def form_pad(l, max_len):
 
 
 def main():
-    # build data
-    c = ConllParser()
-    with open('data/sv-ud-train.conllu', 'r') as f:
-        c.build(f)
+    # args
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--debug', action='store_true')
+    args = parser.parse_args()
 
-    # vocab and indexes
-    vocab = set(' '.join(block.raw() for block in c).split())
-    vocab_size = len(vocab)
-    word_to_idx = {word: i + 2 for i, word in enumerate(vocab)}
-    word_to_idx['PAD'] = 0
+    # build data
+    with open('data/sv-ud-train.conllu', 'r') as f:
+        conll = ConllParser(f)
 
     # sentences
     print("Preparing data..")
-    sentence_list = [block.raw().split() for block in c]
-    deprel_list = [rel_pad(block.rels(), MAX_SENT) for block in c]
-
-    # forms
-    sent_idxs = [form_pad([word_to_idx[word] for word in sent], MAX_SENT) for sent in sentence_list]
-    forms = torch.stack(sent_idxs)[:DEBUG_SIZE].data
-    assert forms.shape == torch.Size([DEBUG_SIZE, MAX_SENT])
+    forms, rels = conll.get_tensors()
+    assert not args.debug
+    assert forms.shape == torch.Size([len(conll), conll.longest_sent])
 
     # labels
     # DEBUG_SIZE == TREEBANK_SIZE
     # ugly; rewrite loop?
-    rels = torch.stack(deprel_list)[:DEBUG_SIZE]
-    labels = torch.zeros(forms.shape[0], MAX_SENT, 1)
+    labels = torch.zeros(forms.shape[0], conll.longest_sent, 1)
     for batch_no, _ in enumerate(rels):
         for rel in rels[batch_no]:
-            if rel[1].data[0] == -1:
+            if rel[1].data[1] == 0:
                 continue
             labels[batch_no, rel[1].data[0]] = rel[0].data[0]
 
     labels = torch.squeeze(labels.type(torch.LongTensor))
-    assert labels.shape == torch.Size([DEBUG_SIZE, MAX_SENT])
+    assert labels.shape == torch.Size([sentence_count, MAX_SENT])
 
     # sizes
-    sizes_int = torch.zeros(DEBUG_SIZE).view(-1, 1).type(torch.LongTensor)
-    sizes = torch.zeros(DEBUG_SIZE, MAX_SENT)
+    sizes_int = torch.zeros(sentence_count).view(-1, 1).type(torch.LongTensor)
+    sizes = torch.zeros(sentence_count, MAX_SENT)
     for n, form in enumerate(forms):
         sizes_int[n] = form[form != 0].shape[0] + 1
 
     for n, size in enumerate(sizes_int):
         sizes[n, 0:size[0]] = 1
 
-    assert sizes.shape == torch.Size([DEBUG_SIZE, MAX_SENT])
+    assert sizes.shape == torch.Size([sentence_count, MAX_SENT])
+
+    # end here if debugging
+    assert not args.debug
 
     # build loader & model
     train_data = list(zip(forms, labels, sizes))[:DEBUG_SIZE]
     test_data = list(zip(forms, labels, sizes))[:DEBUG_SIZE]
-
     train_loader = torch.utils.data.DataLoader(train_data, batch_size=BATCH_SIZE, shuffle=True)
     test_loader = torch.utils.data.DataLoader(test_data, batch_size=BATCH_SIZE, shuffle=True)
 

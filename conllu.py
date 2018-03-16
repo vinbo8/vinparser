@@ -1,5 +1,6 @@
 import sys
-
+import torch
+import torch.nn.functional as F
 
 class ConllLine:
     def __init__(self, line):
@@ -23,7 +24,7 @@ class ConllBlock(list):
         else:
             raise TypeError("Elements must be ConllLine instances")
 
-    def raw(self, separator=" "):
+    def forms(self, separator=" "):
         return separator.join([line.form for line in self])
 
     def rels(self):
@@ -31,10 +32,11 @@ class ConllBlock(list):
 
 
 class ConllParser(list):
-    def __init__(self):
+    def __init__(self, buffer):
         super().__init__()
+        self.vocab = []
+        self.longest_sent = 0
 
-    def build(self, buffer):
         block = ConllBlock()
         for line in buffer:
             # skip comments for now
@@ -42,11 +44,37 @@ class ConllParser(list):
                 continue
 
             if not line.strip():
+                if len(block) > self.longest_sent:
+                    self.longest_sent = len(block)
                 self.append(block)
                 block = ConllBlock()
                 continue
 
-            block.append(ConllLine(line))
+            line = ConllLine(line)
+            block.append(line)
+            self.vocab.append(line.form)
+
+        self.vocab = set(self.vocab)
+        self.vocab_size = len(self.vocab)
+        self.word_to_idx = {word: i + 2 for i, word in enumerate(self.vocab)}
+        self.word_to_idx['ROOT'] = 1
+        self.word_to_idx['PAD'] = 0
+        # weird
+        self.longest_sent += 1
+
+    def get_id(self, word):
+        return self.word_to_idx[word]
+
+    def get_tensors(self):
+        sents = [[self.get_id('ROOT')] + [self.get_id(word) for word in block.forms().split()] for block in self]
+        rels = [block.rels() for block in self]
+        sents, rels = [list(i) for i in zip(*sorted(zip(sents, rels), key=lambda x: len(x[1])))]
+
+        # pad sents
+        sents = torch.stack([F.pad(torch.LongTensor(sent), (0, self.longest_sent - len(sent))) for sent in sents])
+        rels = torch.stack([F.pad(torch.LongTensor(rel), (0, 0, 0, self.longest_sent - len(rel))) for rel in rels])
+        print(rels[500])
+        return sents, rels
 
     def render(self):
         for block in self:
