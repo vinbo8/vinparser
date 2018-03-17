@@ -29,11 +29,12 @@ class Network(torch.nn.Module):
         self.softmax = torch.nn.LogSoftmax(dim=2)
         self.criterion = torch.nn.NLLLoss(reduce=False)
         self.optimiser = torch.optim.Adam(self.parameters(), lr=LEARNING_RATE)
+        self.dropout = torch.nn.Dropout(p=0.33)
 
     def forward(self, forms):
         # for debug:
         MAX_SENT = forms.size(1)
-        embeds = self.embeddings(forms)
+        embeds = self.dropout(self.embeddings(forms))
         # assert embeds.shape == torch.Size([BATCH_SIZE, MAX_SENT, EMBEDDING_DIM])
 
         output, (h_n, c_n) = self.lstm(embeds)
