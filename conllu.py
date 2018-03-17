@@ -2,6 +2,7 @@ import sys
 import torch
 import torch.nn.functional as F
 
+
 class ConllLine:
     def __init__(self, line):
         self.line = line.rstrip("\n")
@@ -32,7 +33,7 @@ class ConllBlock(list):
 
 
 class ConllParser(list):
-    def __init__(self, buffer):
+    def __init__(self, buffer, seed=42):
         super().__init__()
         self.vocab = []
         self.longest_sent = 0
@@ -63,7 +64,10 @@ class ConllParser(list):
         self.longest_sent += 1
 
     def get_id(self, word):
-        return self.word_to_idx[word]
+        try:
+            return self.word_to_idx[word]
+        except:
+            return self.unk
 
     def get_tensors(self):
         sents = [[self.get_id('ROOT')] + [self.get_id(word) for word in block.forms().split()] for block in self]
@@ -71,9 +75,8 @@ class ConllParser(list):
         sents, rels = [list(i) for i in zip(*sorted(zip(sents, rels), key=lambda x: len(x[1])))]
 
         # pad sents
-        sents = torch.stack([F.pad(torch.LongTensor(sent), (0, self.longest_sent - len(sent))) for sent in sents])
-        rels = torch.stack([F.pad(torch.LongTensor(rel), (0, 0, 0, self.longest_sent - len(rel))) for rel in rels])
-        print(rels[500])
+        sents = torch.stack([F.pad(torch.LongTensor(sent), (0, self.longest_sent - len(sent))).data for sent in sents])
+        rels = torch.stack([F.pad(torch.LongTensor(rel), (0, 0, 0, self.longest_sent - len(rel))).data for rel in rels])
         return sents, rels
 
     def render(self):

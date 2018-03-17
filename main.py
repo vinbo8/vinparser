@@ -7,12 +7,12 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 from conllu import ConllParser
 
-LSTM_DIM = 40
+LSTM_DIM = 400
 LSTM_DEPTH = 3
 EMBEDDING_DIM = 100
 REDUCE_DIM = 500
 BATCH_SIZE = 10
-EPOCHS = 1
+EPOCHS = 10
 LEARNING_RATE = 2e-3
 DEBUG_SIZE = 300
 
@@ -25,22 +25,24 @@ class Network(torch.nn.Module):
         self.mlp_head = torch.nn.Linear(LSTM_DIM, REDUCE_DIM)
         self.mlp_dep = torch.nn.Linear(LSTM_DIM, REDUCE_DIM)
         self.biaffine_weight = torch.nn.Parameter(torch.rand(BATCH_SIZE, REDUCE_DIM + 1, REDUCE_DIM))
-        self.softmax = torch.nn.Softmax(dim=2)
+        self.softmax = torch.nn.LogSoftmax(dim=2)
 
     def forward(self, forms):
+        # for debug:
+        MAX_SENT = forms.size(1)
         embeds = self.embeddings(forms)
-        assert embeds.shape == torch.Size([BATCH_SIZE, MAX_SENT, EMBEDDING_DIM])
+        # assert embeds.shape == torch.Size([BATCH_SIZE, MAX_SENT, EMBEDDING_DIM])
 
         output, (h_n, c_n) = self.lstm(embeds)
-        assert output.shape == torch.Size([BATCH_SIZE, MAX_SENT, LSTM_DIM])
+        # assert output.shape == torch.Size([BATCH_SIZE, MAX_SENT, LSTM_DIM])
 
         reduced_head = F.relu(self.mlp_head(output))
-        assert reduced_head.shape == torch.Size([BATCH_SIZE, MAX_SENT, REDUCE_DIM])
+        # assert reduced_head.shape == torch.Size([BATCH_SIZE, MAX_SENT, REDUCE_DIM])
 
         reduced_dep = F.relu(self.mlp_dep(output))
         bias = Variable(torch.ones(BATCH_SIZE, MAX_SENT, 1))
         reduced_dep = torch.cat([reduced_dep, bias], 2)
-        assert reduced_dep.shape == torch.Size([BATCH_SIZE, MAX_SENT, REDUCE_DIM + 1])
+        # assert reduced_dep.shape == torch.Size([BATCH_SIZE, MAX_SENT, REDUCE_DIM + 1])
 
         # ROW IS DEP, COL IS HEAD
         y_pred = self.softmax(reduced_dep @ self.biaffine_weight @ reduced_head.transpose(1, 2))
@@ -73,7 +75,6 @@ def main():
     # sentences
     print("Preparing data..")
     forms, rels = conll.get_tensors()
-    assert not args.debug
     assert forms.shape == torch.Size([len(conll), conll.longest_sent])
 
     # labels
@@ -82,35 +83,31 @@ def main():
     labels = torch.zeros(forms.shape[0], conll.longest_sent, 1)
     for batch_no, _ in enumerate(rels):
         for rel in rels[batch_no]:
-            if rel[1].data[1] == 0:
+            if rel[1] == 0:
                 continue
-            labels[batch_no, rel[1].data[0]] = rel[0].data[0]
+            labels[batch_no, rel[1]] = rel[0]
 
     labels = torch.squeeze(labels.type(torch.LongTensor))
-    assert labels.shape == torch.Size([sentence_count, MAX_SENT])
+    assert labels.shape == torch.Size([len(conll), conll.longest_sent])
 
     # sizes
-    sizes_int = torch.zeros(sentence_count).view(-1, 1).type(torch.LongTensor)
-    sizes = torch.zeros(sentence_count, MAX_SENT)
+    sizes_int = torch.zeros(len(conll)).view(-1, 1).type(torch.LongTensor)
+    sizes = torch.zeros(len(conll), conll.longest_sent)
     for n, form in enumerate(forms):
-        sizes_int[n] = form[form != 0].shape[0] + 1
+        sizes_int[n] = form[form != 0].shape[0]
 
     for n, size in enumerate(sizes_int):
-        sizes[n, 0:size[0]] = 1
+        sizes[n, 1:size[0]] = 1
 
-    assert sizes.shape == torch.Size([sentence_count, MAX_SENT])
-
-    # end here if debugging
-    assert not args.debug
+    assert sizes.shape == torch.Size([len(conll), conll.longest_sent])
 
     # build loader & model
     train_data = list(zip(forms, labels, sizes))[:DEBUG_SIZE]
     test_data = list(zip(forms, labels, sizes))[:DEBUG_SIZE]
-    train_loader = torch.utils.data.DataLoader(train_data, batch_size=BATCH_SIZE, shuffle=True)
-    test_loader = torch.utils.data.DataLoader(test_data, batch_size=BATCH_SIZE, shuffle=True)
+    train_loader = torch.utils.data.DataLoader(train_data, batch_size=BATCH_SIZE, drop_last=True)
+    test_loader = torch.utils.data.DataLoader(test_data, batch_size=BATCH_SIZE, drop_last=True)
 
-    parser = Network(vocab_size, EMBEDDING_DIM)
-
+    parser = Network(conll.vocab_size, EMBEDDING_DIM)
     # training
     print("Training..")
     parser.train()
@@ -139,9 +136,13 @@ def main():
         forms, labels, sizes = data
         X = Variable(forms)
         y = Variable(labels, requires_grad=False)
+        mask = Variable(sizes.type(torch.ByteTensor))
         y_pred = parser(X)
-        total_deps = y.nonzero().size(0)
-        correct = (y_pred.max(2)[1] * y).nonzero().size(0)
+        try:
+            correct += ((y == y_pred.max(2)[1]) * mask).nonzero().size(0)
+        except RuntimeError:
+            correct += 0
+        total_deps += mask.nonzero().size(0)
 
     print("Accuracy = {}/{} = {}".format(correct, total_deps, (correct / total_deps)))
 
