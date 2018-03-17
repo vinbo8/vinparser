@@ -13,9 +13,9 @@ LSTM_DEPTH = 3
 EMBEDDING_DIM = 100
 REDUCE_DIM = 500
 BATCH_SIZE = 50
-EPOCHS = 1
+EPOCHS = 2
 LEARNING_RATE = 2e-3
-DEBUG_SIZE = -1
+DEBUG_SIZE = 100
 
 
 class Network(torch.nn.Module):
@@ -27,6 +27,8 @@ class Network(torch.nn.Module):
         self.mlp_dep = torch.nn.Linear(LSTM_DIM, REDUCE_DIM)
         self.biaffine_weight = torch.nn.Parameter(torch.rand(BATCH_SIZE, REDUCE_DIM + 1, REDUCE_DIM))
         self.softmax = torch.nn.LogSoftmax(dim=2)
+        self.criterion = torch.nn.NLLLoss(reduce=False)
+        self.optimiser = torch.optim.Adam(self.parameters(), lr=LEARNING_RATE)
 
     def forward(self, forms):
         # for debug:
@@ -48,6 +50,41 @@ class Network(torch.nn.Module):
         # ROW IS DEP, COL IS HEAD
         y_pred = self.softmax(reduced_dep @ self.biaffine_weight @ reduced_head.transpose(1, 2))
         return y_pred
+
+    def train_(self, epoch, train_loader):
+        print("Training..")
+        self.train()
+        for i, (forms, labels, sizes) in enumerate(train_loader):
+            X = Variable(forms)
+            y = Variable(labels, requires_grad=False)
+            mask = Variable(sizes)
+            y_pred = self(X)
+            train_loss = (self.criterion(y_pred, y) * mask).sum().sum() / mask.nonzero().size(0)
+            self.optimiser.zero_grad()
+            train_loss.backward()
+            self.optimiser.step()
+
+            print("Epoch: {}\t{}/{}\tloss: {}".format(epoch, (i + 1) * len(forms), len(train_loader.dataset), train_loss.data[0]))
+
+    def evaluate_(self, test_loader):
+        print("Evaluating..")
+        correct = 0
+        total_deps = 0
+        self.eval()
+        for i, data in enumerate(test_loader):
+            forms, labels, sizes = data
+            X = Variable(forms)
+            y = Variable(labels, requires_grad=False)
+            mask = Variable(sizes.type(torch.ByteTensor))
+            y_pred = self(X)
+            try:
+                correct += ((y == y_pred.max(2)[1]) * mask).nonzero().size(0)
+            except RuntimeError:
+                correct += 0
+            total_deps += mask.nonzero().size(0)
+
+        print("Accuracy = {}/{} = {}".format(correct, total_deps, (correct / total_deps)))
+
 
 
 def build_data(fname):
@@ -99,45 +136,12 @@ def main():
     _, test_loader = build_data('sv-ud-test.conllu')
 
     parser = Network(conll.vocab_size, EMBEDDING_DIM)
-    print(conll.vocab_size)
     # training
-    print("Training..")
-    parser.train()
-    criterion = torch.nn.NLLLoss(reduce=False)
-    optimiser = torch.optim.Adam(parser.parameters(), lr=LEARNING_RATE)
     for epoch in range(EPOCHS):
-        for i, data in enumerate(train_loader):
-            forms, labels, sizes = data
-            X = Variable(forms)
-            print(X.size())
-            y = Variable(labels, requires_grad=False)
-            mask = Variable(sizes)
-            y_pred = parser(X)
-            train_loss = (criterion(y_pred, y) * mask).sum().sum() / mask.nonzero().size(0)
-            optimiser.zero_grad()
-            train_loss.backward()
-            optimiser.step()
-
-        print("Epoch: {}\tloss: {}".format(epoch, train_loss.data[0]))
+        parser.train_(epoch, train_loader)
 
     # test
-    print("Eval..")
-    correct = 0
-    total_deps = 0
-    parser.eval()
-    for i, data in enumerate(test_loader):
-        forms, labels, sizes = data
-        X = Variable(forms)
-        y = Variable(labels, requires_grad=False)
-        mask = Variable(sizes.type(torch.ByteTensor))
-        y_pred = parser(X)
-        try:
-            correct += ((y == y_pred.max(2)[1]) * mask).nonzero().size(0)
-        except RuntimeError:
-            correct += 0
-        total_deps += mask.nonzero().size(0)
-
-    print("Accuracy = {}/{} = {}".format(correct, total_deps, (correct / total_deps)))
+    parser.evaluate_(test_loader)
 
 
 if __name__ == '__main__':
