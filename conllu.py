@@ -58,7 +58,7 @@ class ConllParser(list):
             self.vocab.append(line.form)
 
         self.vocab = set(self.vocab)
-        self.vocab_size = len(self.vocab)
+        self.vocab_size = len(self.vocab) + 3
         self.word_to_idx = {word: i + 2 for i, word in enumerate(self.vocab)}
         self.word_to_idx['ROOT'] = 1
         self.word_to_idx['PAD'] = 0
