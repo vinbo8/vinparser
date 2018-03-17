@@ -1,3 +1,4 @@
+import os
 import sys
 import math
 import argparse
@@ -7,14 +8,14 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 from conllu import ConllParser
 
-LSTM_DIM = 400
+LSTM_DIM = 40
 LSTM_DEPTH = 3
 EMBEDDING_DIM = 100
 REDUCE_DIM = 500
 BATCH_SIZE = 10
-EPOCHS = 10
+EPOCHS = 1
 LEARNING_RATE = 2e-3
-DEBUG_SIZE = 300
+DEBUG_SIZE = -1
 
 
 class Network(torch.nn.Module):
@@ -49,37 +50,17 @@ class Network(torch.nn.Module):
         return y_pred
 
 
-def rel_pad(l, max_len):
-    tensor = torch.LongTensor(l)
-    diff = max_len - tensor.shape[0]
-    return F.pad(tensor, (0, 0, 0, diff), value=-1)
-
-
-def form_pad(l, max_len):
-    tensor = torch.LongTensor(l)
-    diff = max_len - tensor.shape[0]
-    l, r = math.floor(diff / 2), math.ceil(diff / 2)
-    return F.pad(tensor, (1, diff - 1))
-
-
-def main():
-    # args
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--debug', action='store_true')
-    args = parser.parse_args()
-
+def build_data(fname):
     # build data
-    with open('data/sv-ud-train.conllu', 'r') as f:
+    with open(os.path.join('data', fname), 'r') as f:
         conll = ConllParser(f)
 
     # sentences
-    print("Preparing data..")
+    print("Preparing %s.." % fname)
     forms, rels = conll.get_tensors()
     assert forms.shape == torch.Size([len(conll), conll.longest_sent])
 
     # labels
-    # DEBUG_SIZE == TREEBANK_SIZE
-    # ugly; rewrite loop?
     labels = torch.zeros(forms.shape[0], conll.longest_sent, 1)
     for batch_no, _ in enumerate(rels):
         for rel in rels[batch_no]:
@@ -102,12 +83,23 @@ def main():
     assert sizes.shape == torch.Size([len(conll), conll.longest_sent])
 
     # build loader & model
-    train_data = list(zip(forms, labels, sizes))[:DEBUG_SIZE]
-    test_data = list(zip(forms, labels, sizes))[:DEBUG_SIZE]
-    train_loader = torch.utils.data.DataLoader(train_data, batch_size=BATCH_SIZE, drop_last=True)
-    test_loader = torch.utils.data.DataLoader(test_data, batch_size=BATCH_SIZE, drop_last=True)
+    data = list(zip(forms, labels, sizes))[:DEBUG_SIZE]
+    loader = torch.utils.data.DataLoader(data, batch_size=BATCH_SIZE, drop_last=True)
+
+    return conll, loader
+
+
+def main():
+    # args
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--debug', action='store_true')
+    args = parser.parse_args()
+
+    conll, train_loader = build_data('sv-ud-train.conllu')
+    _, test_loader = build_data('sv-ud-test.conllu')
 
     parser = Network(conll.vocab_size, EMBEDDING_DIM)
+    print(conll.vocab_size)
     # training
     print("Training..")
     parser.train()
@@ -117,6 +109,7 @@ def main():
         for i, data in enumerate(train_loader):
             forms, labels, sizes = data
             X = Variable(forms)
+            print(X.size())
             y = Variable(labels, requires_grad=False)
             mask = Variable(sizes)
             y_pred = parser(X)

@@ -1,5 +1,7 @@
 import sys
 import torch
+import config
+import numpy as np
 import torch.nn.functional as F
 
 
@@ -60,14 +62,15 @@ class ConllParser(list):
         self.word_to_idx = {word: i + 2 for i, word in enumerate(self.vocab)}
         self.word_to_idx['ROOT'] = 1
         self.word_to_idx['PAD'] = 0
+        self.word_to_idx['UNK'] = len(self.word_to_idx)
         # weird
         self.longest_sent += 1
 
     def get_id(self, word):
         try:
             return self.word_to_idx[word]
-        except:
-            return self.unk
+        except KeyError:
+            return self.word_to_idx['UNK']
 
     def get_tensors(self):
         sents = [[self.get_id('ROOT')] + [self.get_id(word) for word in block.forms().split()] for block in self]
