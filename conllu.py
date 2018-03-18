@@ -30,6 +30,9 @@ class ConllBlock(list):
     def forms(self, separator=" "):
         return separator.join([line.form for line in self])
 
+    def upos(self, separator=" "):
+        return separator.join([line.upos for line in self])
+
     def rels(self):
         return [(line.head, line.id) for line in self]
 
@@ -38,6 +41,7 @@ class ConllParser(list):
     def __init__(self, buffer, seed=42):
         super().__init__()
         self.vocab = []
+        self.postags = []
         self.longest_sent = 0
 
         block = ConllBlock()
@@ -56,13 +60,19 @@ class ConllParser(list):
             line = ConllLine(line)
             block.append(line)
             self.vocab.append(line.form)
+            self.postags.append(line.upos)
 
-        self.vocab = set(self.vocab)
+        self.vocab, self.postags = set(self.vocab), set(self.postags)
         self.vocab_size = len(self.vocab) + 3
+        self.pos_size = len(self.postags) + 2   # no 'UNK'
         self.word_to_idx = {word: i + 2 for i, word in enumerate(self.vocab)}
         self.word_to_idx['ROOT'] = 1
         self.word_to_idx['PAD'] = 0
         self.word_to_idx['UNK'] = len(self.word_to_idx)
+
+        self.pos_to_idx = {pos: i + 2 for i, pos in enumerate(self.postags)}
+        self.pos_to_idx['ROOT'] = 1
+        self.pos_to_idx['PAD'] = 0
         # weird
         self.longest_sent += 1
 
@@ -72,15 +82,22 @@ class ConllParser(list):
         except KeyError:
             return self.word_to_idx['UNK']
 
+    def get_pos_id(self, tag):
+        return self.pos_to_idx[tag]
+
     def get_tensors(self):
         sents = [[self.get_id('ROOT')] + [self.get_id(word) for word in block.forms().split()] for block in self]
+        tags = [[self.get_pos_id('ROOT')] + [self.get_pos_id(tag) for tag in block.upos().split()] for block in self]
         rels = [block.rels() for block in self]
-        sents, rels = [list(i) for i in zip(*sorted(zip(sents, rels), key=lambda x: len(x[1])))]
+
+        sents, rels, tags = [list(i) for i in zip(*sorted(zip(sents, rels, tags), key=lambda x: len(x[1])))]
 
         # pad sents
         sents = torch.stack([F.pad(torch.LongTensor(sent), (0, self.longest_sent - len(sent))).data for sent in sents])
         rels = torch.stack([F.pad(torch.LongTensor(rel), (0, 0, 0, self.longest_sent - len(rel))).data for rel in rels])
-        return sents, rels
+        tags = torch.stack([F.pad(torch.LongTensor(tag), (0, self.longest_sent - len(tag))).data for tag in tags])
+
+        return sents, rels, tags
 
     def render(self):
         for block in self:
