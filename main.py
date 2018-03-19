@@ -12,10 +12,21 @@ LSTM_DIM = 40
 LSTM_DEPTH = 3
 EMBEDDING_DIM = 100
 REDUCE_DIM = 500
-BATCH_SIZE = 50
+BATCH_SIZE = 10
 EPOCHS = 2
 LEARNING_RATE = 2e-3
-DEBUG_SIZE = 100
+DEBUG_SIZE = 200
+
+
+class BiasedBilinear(torch.nn.Module):
+    def __init__(self, batch_size, dim_features):
+        super().__init__()
+        self.batch_size = batch_size
+        self.dim_features = dim_features
+        self.weight = torch.nn.Parameter(torch.Tensor(batch_size, dim_features + 1, dim_features))
+
+    def forward(self, reduced_dep, reduced_head):
+        return reduced_dep @ self.weight @ reduced_head.transpose(1, 2)
 
 
 class Network(torch.nn.Module):
@@ -27,10 +38,11 @@ class Network(torch.nn.Module):
                                   batch_first=True, bidirectional=True, dropout=0.33)
         self.mlp_head = torch.nn.Linear(2 * LSTM_DIM, REDUCE_DIM)
         self.mlp_dep = torch.nn.Linear(2 * LSTM_DIM, REDUCE_DIM)
-        self.biaffine_weight = torch.nn.Parameter(torch.rand(BATCH_SIZE, REDUCE_DIM + 1, REDUCE_DIM))
+        self.biaffine_weight = torch.nn.Parameter(torch.rand(BATCH_SIZE, REDUCE_DIM + 1, REDUCE_DIM), requires_grad=True)
         self.softmax = torch.nn.LogSoftmax(dim=2)
         self.criterion = torch.nn.NLLLoss(reduce=False)
         self.optimiser = torch.optim.Adam(self.parameters(), lr=LEARNING_RATE, betas=(0.9, 0.9))
+        self.weird_thing = BiasedBilinear(BATCH_SIZE, REDUCE_DIM)
         self.dropout = torch.nn.Dropout(p=0.33)
 
     def forward(self, forms, tags):
@@ -55,11 +67,11 @@ class Network(torch.nn.Module):
         assert reduced_dep.shape == torch.Size([BATCH_SIZE, MAX_SENT, REDUCE_DIM + 1])
 
         # ROW IS DEP, COL IS HEAD
-        y_pred = self.softmax(reduced_dep @ self.biaffine_weight @ reduced_head.transpose(1, 2))
+        # y_pred = self.softmax(reduced_dep @ self.biaffine_weight @ reduced_head.transpose(1, 2))
+        y_pred = self.softmax(self.weird_thing(reduced_dep, reduced_head))
         return y_pred
 
     def train_(self, epoch, train_loader):
-        print("Training..")
         self.train()
         for i, (forms, tags, labels, sizes) in enumerate(train_loader):
             X1 = Variable(forms)
@@ -75,7 +87,6 @@ class Network(torch.nn.Module):
             print("Epoch: {}\t{}/{}\tloss: {}".format(epoch, (i + 1) * len(forms), len(train_loader.dataset), train_loss.data[0]))
 
     def evaluate_(self, test_loader):
-        print("Evaluating..")
         correct = 0
         total_deps = 0
         self.eval()
@@ -129,7 +140,7 @@ def build_data(fname):
 
     # build loader & model
     data = list(zip(forms, tags, labels, sizes))[:DEBUG_SIZE]
-    loader = torch.utils.data.DataLoader(data, batch_size=BATCH_SIZE, drop_last=True)
+    loader = torch.utils.data.DataLoader(data, batch_size=BATCH_SIZE, shuffle=True, drop_last=True)
 
     return conll, loader
 
@@ -145,10 +156,12 @@ def main():
 
     parser = Network(conll.vocab_size)
     # training
+    print("Training")
     for epoch in range(EPOCHS):
         parser.train_(epoch, train_loader)
 
     # test
+    print("Eval")
     parser.evaluate_(test_loader)
 
 
