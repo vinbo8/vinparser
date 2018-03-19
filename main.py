@@ -24,6 +24,11 @@ class BiasedBilinear(torch.nn.Module):
         self.batch_size = batch_size
         self.dim_features = dim_features
         self.weight = torch.nn.Parameter(torch.Tensor(batch_size, dim_features + 1, dim_features))
+        self.reset_params()
+
+    def reset_params(self):
+        stdv = 1. / math.sqrt(self.weight.size(1))
+        self.weight.data.uniform_(-stdv, stdv)
 
     def forward(self, reduced_dep, reduced_head):
         return reduced_dep @ self.weight @ reduced_head.transpose(1, 2)
