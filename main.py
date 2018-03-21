@@ -8,14 +8,14 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 from conllu import ConllParser
 
-LSTM_DIM = 40
+LSTM_DIM = 200
 LSTM_DEPTH = 3
 EMBEDDING_DIM = 100
 REDUCE_DIM = 500
-BATCH_SIZE = 10
-EPOCHS = 2
+BATCH_SIZE = 50
+EPOCHS = 10
 LEARNING_RATE = 2e-3
-DEBUG_SIZE = 200
+DEBUG_SIZE = 1000
 
 
 class BiasedBilinear(torch.nn.Module):
@@ -23,7 +23,7 @@ class BiasedBilinear(torch.nn.Module):
         super().__init__()
         self.batch_size = batch_size
         self.dim_features = dim_features
-        self.weight = torch.nn.Parameter(torch.Tensor(batch_size, dim_features + 1, dim_features))
+        self.weight = torch.nn.Parameter(torch.Tensor(batch_size, dim_features + 1, dim_features), requires_grad=True)
         self.reset_params()
 
     def reset_params(self):
@@ -50,8 +50,12 @@ class Network(torch.nn.Module):
         self.weird_thing = BiasedBilinear(BATCH_SIZE, REDUCE_DIM)
         self.dropout = torch.nn.Dropout(p=0.33)
 
-    def forward(self, forms, tags):
+    def forward(self, forms, tags, sizes):
         # for debug:
+        # sizes[0, :, 0] = 1
+        sizes[:, 0] = 1
+        sizes = torch.stack([sizes for i in range(2 * LSTM_DIM)], dim=2)
+
         MAX_SENT = forms.size(1)
         form_embeds = self.dropout(self.embeddings_forms(forms))
         assert form_embeds.shape == torch.Size([BATCH_SIZE, MAX_SENT, EMBEDDING_DIM])
@@ -60,16 +64,18 @@ class Network(torch.nn.Module):
         assert tag_embeds.shape == torch.Size([BATCH_SIZE, MAX_SENT, EMBEDDING_DIM])
 
         embeds = torch.cat([form_embeds, tag_embeds], dim=2)
+        # embeds = torch.nn.utils.rnn.pack_padded_sequence(embeds, sizes, batch_first=True)
         output, (h_n, c_n) = self.lstm(embeds)
-        assert output.shape == torch.Size([BATCH_SIZE, MAX_SENT, 2 * LSTM_DIM])
-
+        output = output * sizes
+        # assert output.shape == torch.Size([BATCH_SIZE, MAX_SENT, 2 * LSTM_DIM])
+        # output, _ = torch.nn.utils.rnn.pad_packed_sequence(output, batch_first=True)
         reduced_head = F.relu(self.mlp_head(output))
-        assert reduced_head.shape == torch.Size([BATCH_SIZE, MAX_SENT, REDUCE_DIM])
+        # assert reduced_head.shape == torch.Size([BATCH_SIZE, MAX_SENT, REDUCE_DIM])
 
         reduced_dep = F.relu(self.mlp_dep(output))
-        bias = Variable(torch.ones(BATCH_SIZE, MAX_SENT, 1))
+        bias = Variable(torch.ones(BATCH_SIZE, output.size(1), 1))
         reduced_dep = torch.cat([reduced_dep, bias], 2)
-        assert reduced_dep.shape == torch.Size([BATCH_SIZE, MAX_SENT, REDUCE_DIM + 1])
+        # assert reduced_dep.shape == torch.Size([BATCH_SIZE, MAX_SENT, REDUCE_DIM + 1])
 
         # ROW IS DEP, COL IS HEAD
         # y_pred = self.softmax(reduced_dep @ self.biaffine_weight @ reduced_head.transpose(1, 2))
@@ -79,13 +85,15 @@ class Network(torch.nn.Module):
     def train_(self, epoch, train_loader):
         self.train()
         for i, (forms, tags, labels, sizes) in enumerate(train_loader):
-            X1 = Variable(forms)
-            X2 = Variable(tags)
-            y = Variable(labels, requires_grad=False)
-            mask = Variable(sizes)
-            y_pred = self(X1, X2)
+            trunc = max([i.nonzero().size(0) + 1 for i in sizes])
+            X1 = Variable(forms[:, :trunc])
+            X2 = Variable(tags[:, :trunc])
+            y = Variable(labels[:, :trunc], requires_grad=False)
+            mask = Variable(sizes[:, :trunc])
+            # squeezing
+            y_pred = self(X1, X2, mask)
             train_loss = (self.criterion(y_pred, y) * mask).sum().sum() / mask.nonzero().size(0)
-            self.optimiser.zero_grad()
+            self.zero_grad()
             train_loss.backward()
             self.optimiser.step()
 
@@ -96,13 +104,15 @@ class Network(torch.nn.Module):
         total_deps = 0
         self.eval()
         for i, (forms, tags, labels, sizes) in enumerate(test_loader):
-            X1 = Variable(forms)
-            X2 = Variable(tags)
-            y = Variable(labels, requires_grad=False)
-            mask = Variable(sizes.type(torch.ByteTensor))
-            y_pred = self(X1, X2)
+            trunc = max([i.nonzero().size(0) + 1 for i in sizes])
+            X1 = Variable(forms[:, :trunc])
+            X2 = Variable(tags[:, :trunc])
+            y = Variable(labels[:, :trunc], requires_grad=False)
+            mask = Variable(sizes[:, :trunc])
+            y_pred = self(X1, X2, mask)
+            temp = y_pred.max(2)[1]
             try:
-                correct += ((y == y_pred.max(2)[1]) * mask).nonzero().size(0)
+                correct += ((y == y_pred.max(2)[1]) * mask.type(torch.ByteTensor)).nonzero().size(0)
             except RuntimeError:
                 correct += 0
             total_deps += mask.nonzero().size(0)
