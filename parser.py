@@ -1,5 +1,4 @@
 import os
-import sys
 import math
 import argparse
 import torch
@@ -15,16 +14,93 @@ REDUCE_DIM = 500
 BATCH_SIZE = 10
 EPOCHS = 5
 LEARNING_RATE = 2e-3
-DEBUG_SIZE = 1000
+DEBUG_SIZE = 100
 
 
-class CustomLoss(torch.nn.Module):
-    def __init__(self):
-        super().__init__()
+class Biaffine(torch.nn.Module):
+    """
+    https://github.com/tdozat/Parser/blob/0739216129cd39d69997d28cbc4133b360ea3934/lib/linalg.py#L116  # NOQA
+    """
 
-    def forward(self, input, target, mask):
-        return (F.nll_loss(input, target, reduce=False) * mask).sum() / mask.nonzero().size(0)
+    def __init__(self, in1_features, in2_features, out_features,
+                 bias=(True, True, True)):
+        super(Biaffine, self).__init__()
+        self.in1_features = in1_features
+        self.in2_features = in2_features
+        self.out_features = out_features
+        self._use_bias = bias
 
+        shape = (in1_features + int(bias[0]),
+                 in2_features + int(bias[1]),
+                 out_features)
+        self.weight = torch.nn.Parameter(torch.Tensor(*shape))
+        if bias[2]:
+            self.bias = torch.nn.Parameter(torch.Tensor(out_features))
+        else:
+            self.register_parameter('bias', None)
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        stdv = 1. / math.sqrt(self.weight.size(0))
+        self.weight.data.uniform_(-stdv, stdv)
+        if self.bias is not None:
+            self.bias.data.uniform_(-stdv, stdv)
+
+    def forward(self, input1, input2):
+        is_cuda = next(self.parameters()).is_cuda
+        device_id = next(self.parameters()).get_device() if is_cuda else None
+        out_size = self.out_features
+        batch_size, len1, dim1 = input1.size()
+        if self._use_bias[0]:
+            ones = torch.ones(batch_size, len1, 1)
+            if is_cuda:
+                ones = ones.cuda(device_id)
+            input1 = torch.cat((input1, Variable(ones)), dim=2)
+            dim1 += 1
+        len2, dim2 = input2.size()[1:]
+        if self._use_bias[1]:
+            ones = torch.ones(batch_size, len2, 1)
+            if is_cuda:
+                ones = ones.cuda(device_id)
+            input2 = torch.cat((input2, Variable(ones)), dim=2)
+            dim2 += 1
+        input1_reshaped = input1.contiguous().view(batch_size * len1, dim1)
+        W_reshaped = torch.transpose(self.weight, 1, 2) \
+            .contiguous().view(dim1, out_size * dim2)
+        affine = torch.mm(input1_reshaped, W_reshaped) \
+            .view(batch_size, len1 * out_size, dim2)
+        biaffine = torch.transpose(
+            torch.bmm(affine, torch.transpose(input2, 1, 2))
+            .view(batch_size, len1, out_size, len2), 2, 3)
+        if self._use_bias[2]:
+            biaffine += self.bias.expand_as(biaffine)
+        return biaffine
+
+    def __repr__(self):
+        return self.__class__.__name__ + ' (' \
+            + 'in1_features=' + str(self.in1_features) \
+            + ', in2_features=' + str(self.in2_features) \
+            + ', out_features=' + str(self.out_features) + ')'
+
+
+class BilinearFunc(torch.autograd.Function):
+
+    @staticmethod
+    def forward(ctx, m1, m2, weight, bias=None):
+        ctx.save_for_backward(m1, m2, weight, bias)
+        output = m1 @ weight @ m2
+        return output
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        m1, m2, weight, bias = ctx.saved_variables
+        grad_m1 = grad_m2 = grad_weight = grad_bias = None
+
+        grad_m1 = grad_output @ m2.transpose(1, 2) @ weight.transpose(1, 2)
+        grad_m2 = weight.transpose(1, 2) @ m1.transpose(1, 2) @ grad_output
+        grad_weight = m1.transpose(1, 2) @ grad_output @ m2.transpose(1, 2)
+
+        return grad_m1, grad_m2, grad_weight, grad_bias
 
 
 class BiasedBilinear(torch.nn.Module):
@@ -32,7 +108,7 @@ class BiasedBilinear(torch.nn.Module):
         super().__init__()
         self.batch_size = batch_size
         self.dim_features = dim_features
-        self.weight = torch.nn.Parameter(torch.Tensor(batch_size, dim_features + 1, dim_features), requires_grad=True)
+        self.weight = torch.nn.Parameter(torch.Tensor(batch_size, dim_features, dim_features))
         self.reset_params()
 
     def reset_params(self):
@@ -40,7 +116,7 @@ class BiasedBilinear(torch.nn.Module):
         self.weight.data.uniform_(-stdv, stdv)
 
     def forward(self, reduced_dep, reduced_head):
-        return reduced_dep @ self.weight @ reduced_head.transpose(1, 2)
+        return BilinearFunc.apply(reduced_dep, reduced_head.transpose(1, 2), self.weight)
 
 
 class Network(torch.nn.Module):
@@ -49,17 +125,22 @@ class Network(torch.nn.Module):
         self.embeddings_forms = torch.nn.Embedding(vocab_size, EMBEDDING_DIM)
         self.embeddings_tags = torch.nn.Embedding(tag_vocab, EMBEDDING_DIM)
         self.lstm = torch.nn.LSTM(EMBEDDING_DIM, LSTM_DIM, LSTM_DEPTH,
-                                  batch_first=True, bidirectional=True, dropout=0.33)
+                                  batch_first=True, bidirectional=True)
+        self.lstm_2 = torch.nn.LSTM(EMBEDDING_DIM, LSTM_DIM, LSTM_DEPTH, batch_first=True, bidirectional=True)
         self.mlp_head = torch.nn.Linear(2 * LSTM_DIM, REDUCE_DIM)
         self.mlp_dep = torch.nn.Linear(2 * LSTM_DIM, REDUCE_DIM)
         self.biaffine_weight = torch.nn.Parameter(torch.rand(BATCH_SIZE, REDUCE_DIM + 1, REDUCE_DIM), requires_grad=True)
         self.softmax = torch.nn.LogSoftmax(dim=2)
         # self.criterion = torch.nn.NLLLoss(reduce=False)
-        self.criterion = CustomLoss()
+        self.criterion = torch.nn.NLLLoss()
         self.relu = torch.nn.ReLU()
         self.optimiser = torch.optim.Adam(self.parameters(), lr=LEARNING_RATE, betas=(0.9, 0.9))
         self.weird_thing = BiasedBilinear(BATCH_SIZE, REDUCE_DIM)
         self.dropout = torch.nn.Dropout(p=0.33)
+        self.bilinear = torch.nn.Bilinear(REDUCE_DIM, REDUCE_DIM, 500, bias=False)
+        self.compose = torch.nn.Linear(REDUCE_DIM, REDUCE_DIM)
+        self.final = torch.nn.Linear(REDUCE_DIM, REDUCE_DIM)
+        self.ripoff = Biaffine(REDUCE_DIM, REDUCE_DIM, 1, bias=(True, False, False))
 
     def forward(self, forms, tags, sizes, pack):
         # for debug:
@@ -68,33 +149,30 @@ class Network(torch.nn.Module):
         # sizes = torch.stack([sizes for i in range(2 * LSTM_DIM)], dim=2)
 
         MAX_SENT = forms.size(1)
-        form_embeds = self.dropout(self.embeddings_forms(forms))
+        form_embeds = self.embeddings_forms(forms)
         assert form_embeds.shape == torch.Size([BATCH_SIZE, MAX_SENT, EMBEDDING_DIM])
 
         tag_embeds = self.dropout(self.embeddings_tags(tags))
         assert tag_embeds.shape == torch.Size([BATCH_SIZE, MAX_SENT, EMBEDDING_DIM])
 
-        #embeds = torch.cat([form_embeds, tag_embeds], dim=2)
-        embeds = tag_embeds
-        #embeds = torch.autograd.Variable(torch.rand(BATCH_SIZE, MAX_SENT, EMBEDDING_DIM))
+        embeds = form_embeds
+
         embeds = torch.nn.utils.rnn.pack_padded_sequence(embeds, pack, batch_first=True)
-        output, (h_n, c_n) = self.lstm(embeds)
-        # output = output * sizes
-        # assert output.shape == torch.Size([BATCH_SIZE, MAX_SENT, 2 * LSTM_DIM])
+        output, _ = self.lstm(embeds)
         output, _ = torch.nn.utils.rnn.pad_packed_sequence(output, batch_first=True)
-        # output = torch.autograd.Variable(torch.rand(BATCH_SIZE, MAX_SENT, 2 * LSTM_DIM))
+
         reduced_head = self.relu(self.mlp_head(output))
-        # assert reduced_head.shape == torch.Size([BATCH_SIZE, MAX_SENT, REDUCE_DIM])
-
         reduced_dep = self.relu(self.mlp_dep(output))
-        bias = Variable(torch.ones(BATCH_SIZE, output.size(1), 1))
-        reduced_dep = torch.cat([reduced_dep, bias], 2)
-        # assert reduced_dep.shape == torch.Size([BATCH_SIZE, MAX_SENT, REDUCE_DIM + 1])
-
+        # bias = Variable(torch.ones(BATCH_SIZE, output.size(1), 1))
+        # reduced_dep = torch.cat([reduced_dep, bias], 2)
         # ROW IS DEP, COL IS HEAD
-        # y_pred = self.softmax(reduced_dep @ self.biaffine_weight @ reduced_head.transpose(1, 2))
-        y_pred = self.weird_thing(reduced_dep, reduced_head)
-        y_pred = self.softmax(y_pred)
+        # y_pred = reduced_dep @ self.biaffine_weight @ reduced_head.transpose(1, 2)
+        # y_pred = self.weird_thing(reduced_dep, reduced_head)
+        # y_pred = self.final(reduced_dep) @ self.compose(reduced_head).transpose(1, 2)
+        y_pred = self.ripoff(reduced_head, reduced_dep).squeeze(3)
+        # y_pred = self.bilinear(reduced_dep.transpose(1, 2), reduced_head.transpose(1, 2))
+
+        # y_pred = self.softmax(y_pred)
         return y_pred
 
     def train_(self, epoch, train_loader):
@@ -105,12 +183,15 @@ class Network(torch.nn.Module):
             X1 = Variable(forms[:, :trunc])
             X2 = Variable(tags[:, :trunc])
             y = Variable(labels[:, :trunc], requires_grad=False)
+            y[:, 0] = 0
             mask = Variable(sizes[:, :trunc])
             pack = [i.nonzero().size(0) + 1 for i in sizes]
             # squeezing
             y_pred = self(X1, X2, mask, pack)
-            # temp = self.criterion(y_pred, y)
-            train_loss = (self.criterion(y_pred, y, mask))# * mask).sum().sum() / mask.nonzero().size(0)
+            dims = y.size()
+            a = y_pred.view(BATCH_SIZE * dims[1], dims[1])
+            b = y.contiguous().view(BATCH_SIZE * dims[1])
+            train_loss = F.cross_entropy(a, b, ignore_index=-1)
             self.zero_grad()
             train_loss.backward()
             self.optimiser.step()
@@ -153,11 +234,11 @@ def build_data(fname, train_conll=None):
     assert tags.shape == torch.Size([len(conll), conll.longest_sent])
 
     # labels
-    labels = torch.zeros(forms.shape[0], conll.longest_sent, 1)
+    labels = -torch.ones(forms.shape[0], conll.longest_sent, 1)
     for batch_no, _ in enumerate(rels):
         for rel in rels[batch_no]:
-            if rel[1] == 0:
-                continue
+            # if rel[1] == 0:
+            #   con
             labels[batch_no, rel[1]] = rel[0]
 
     labels = torch.squeeze(labels.type(torch.LongTensor))
@@ -188,7 +269,7 @@ def main():
     args = parser.parse_args()
 
     conll, train_loader = build_data('sv-ud-train.conllu')
-    # _, test_loader = build_data('sv-ud-test.conllu')
+    _, test_loader = build_data('sv-ud-test.conllu', conll)
 
     parser = Network(conll.vocab_size, conll.pos_size)
     # training

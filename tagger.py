@@ -10,25 +10,28 @@ LSTM_DIM = 400
 LSTM_LAYERS = 2
 MLP_DIM = 400
 LEARNING_RATE = 2e-3
-EPOCHS = 10
+EPOCHS = 5
 
 
 class Tagger(torch.nn.Module):
     def __init__(self, vocab_size, tag_vocab):
         super().__init__()
         self.embeds = torch.nn.Embedding(vocab_size, EMBED_DIM)
-        self.lstm = torch.nn.LSTM(EMBED_DIM, LSTM_DIM, LSTM_LAYERS, batch_first=True)
+        self.lstm = torch.nn.LSTM(EMBED_DIM, LSTM_DIM, LSTM_LAYERS, batch_first=True, bidirectional=True, dropout=0.5)
         self.relu = torch.nn.ReLU()
-        self.mlp = torch.nn.Linear(LSTM_DIM, MLP_DIM)
+        self.mlp = torch.nn.Linear(2 * LSTM_DIM, MLP_DIM)
         self.out = torch.nn.Linear(MLP_DIM, tag_vocab)
         self.softmax = torch.nn.LogSoftmax(dim=2)
         self.criterion = torch.nn.NLLLoss()
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=LEARNING_RATE)
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=LEARNING_RATE, betas=(0.9, 0.9))
+        self.dropout = torch.nn.Dropout(p=0.5)
 
-    def forward(self, forms):
-        form_embeds = self.embeds(forms)
+    def forward(self, forms, mask):
+        form_embeds = self.dropout(self.embeds(forms))
+        packed = torch.nn.utils.rnn.pack_padded_sequence(form_embeds, mask, batch_first=True)
         lstm_out, _ = self.lstm(form_embeds)
-        mlp_out = self.relu(self.mlp(lstm_out))
+        # lstm_out, _ = torch.nn.utils.rnn.pad_packed_sequence(lstm_out, batch_first=True)
+        mlp_out = self.dropout(self.relu(self.mlp(lstm_out)))
         debug = self.out(mlp_out)
         y_pred = self.softmax(debug).transpose(1, 2)
         return y_pred
@@ -42,7 +45,9 @@ class Tagger(torch.nn.Module):
             trunc = max([i.nonzero().size(0) + 1 for i in sizes])
             X = Variable(forms[:, :trunc])
             y = Variable(tags[:, :trunc])
-            y_pred = self(X)
+            sizes = Variable(sizes[:, :trunc])
+            mask = [i.nonzero().size(0) + 1 for i in sizes]
+            y_pred = self(X, mask)
             train_loss = self.criterion(y_pred, y)
             self.zero_grad()
             train_loss.backward()
@@ -62,7 +67,8 @@ class Tagger(torch.nn.Module):
             X = Variable(forms[:, :trunc])
             y = Variable(tags[:, :trunc])
             sizes = Variable(sizes[:, :trunc])
-            y_pred = self(X)
+            mask = [i.nonzero().size(0) + 1 for i in sizes]
+            y_pred = self(X, mask)
             temp = y_pred.max(1)[1]
             try:
                 correct += ((y == temp) * sizes.type(torch.ByteTensor)).nonzero().size(0)
@@ -72,6 +78,7 @@ class Tagger(torch.nn.Module):
             total += sizes.nonzero().size(0)
 
         print("Accuracy = {}/{} = {}".format(correct, total, (correct / total)))
+
 
 def main():
     parser = argparse.ArgumentParser()

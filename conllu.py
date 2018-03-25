@@ -1,6 +1,5 @@
 import sys
 import torch
-import config
 import numpy as np
 import torch.nn.functional as F
 
@@ -100,7 +99,7 @@ class ConllParser(list):
 
         # pad sents
         sents = torch.stack([F.pad(torch.LongTensor(sent), (0, self.longest_sent - len(sent))).data for sent in sents])
-        rels = torch.stack([F.pad(torch.LongTensor(rel), (0, 0, 0, self.longest_sent - len(rel))).data for rel in rels])
+        rels = torch.stack([F.pad(torch.LongTensor(rel), (0, 0, 0, self.longest_sent - len(rel)), value=-1).data for rel in rels])
         tags = torch.stack([F.pad(torch.LongTensor(tag), (0, self.longest_sent - len(tag))).data for tag in tags])
         return sents, rels, tags
 
