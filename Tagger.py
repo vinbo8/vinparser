@@ -3,7 +3,7 @@ import argparse
 import torch
 import torch.nn.functional as F
 from torch.autograd import Variable
-from parser import build_data
+from Parser import build_data
 
 EMBED_DIM = 100
 LSTM_DIM = 400

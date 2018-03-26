@@ -6,7 +6,7 @@ import torch.utils.data
 import torch.nn.functional as F
 import numpy as np
 from torch.autograd import Variable
-from Helpers import build_data
+from Helpers import build_data, process_batch
 
 LSTM_DIM = 200
 LSTM_DEPTH = 3
@@ -25,7 +25,7 @@ class Biaffine(torch.nn.Module):
         self.in1_features = in1_features
         self.in2_features = in2_features
 
-        self.weight = torch.nn.Parameter(torch.Tensor(BATCH_SIZE, in1_features, in2_features))
+        self.weight = torch.nn.Parameter(torch.rand(BATCH_SIZE, in1_features, in2_features))
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -56,30 +56,17 @@ class Network(torch.nn.Module):
                                   batch_first=True, bidirectional=True, dropout=0.33)
         self.mlp_head = torch.nn.Linear(2 * LSTM_DIM, REDUCE_DIM)
         self.mlp_dep = torch.nn.Linear(2 * LSTM_DIM, REDUCE_DIM)
-        self.biaffine_weight = torch.nn.Parameter(torch.rand(BATCH_SIZE, REDUCE_DIM + 1, REDUCE_DIM), requires_grad=True)
-        self.softmax = torch.nn.LogSoftmax(dim=2)
-        # self.criterion = torch.nn.NLLLoss(reduce=False)
-        self.criterion = torch.nn.NLLLoss()
         self.relu = torch.nn.ReLU()
-        self.optimiser = torch.optim.Adam(self.parameters(), lr=LEARNING_RATE, betas=(0.9, 0.9))
         self.dropout = torch.nn.Dropout(p=0.33)
-        self.bilinear = torch.nn.Bilinear(REDUCE_DIM, REDUCE_DIM, 500, bias=False)
-        self.compose = torch.nn.Linear(REDUCE_DIM, REDUCE_DIM)
-        self.final = torch.nn.Linear(REDUCE_DIM, REDUCE_DIM)
         self.ripoff = Biaffine(REDUCE_DIM + 1, REDUCE_DIM)
 
-    def forward(self, forms, tags, sizes, pack):
-        # for debug:
-        # sizes[0, :, 0] = 1
-        # sizes = torch.stack([sizes for i in range(EMBEDDING_DIM)], dim=2)
-        # sizes = torch.stack([sizes for i in range(2 * LSTM_DIM)], dim=2)
+        self.criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
+        self.optimiser = torch.optim.Adam(self.parameters(), lr=LEARNING_RATE, betas=(0.9, 0.9))
 
-        MAX_SENT = forms.size(1)
+    def forward(self, forms, tags, pack):
         form_embeds = self.dropout(self.embeddings_forms(forms))
-        assert form_embeds.shape == torch.Size([BATCH_SIZE, MAX_SENT, EMBEDDING_DIM])
 
         tag_embeds = self.dropout(self.embeddings_tags(tags))
-        assert tag_embeds.shape == torch.Size([BATCH_SIZE, MAX_SENT, EMBEDDING_DIM])
 
         embeds = torch.cat([form_embeds, tag_embeds], dim=2)
 
@@ -95,50 +82,37 @@ class Network(torch.nn.Module):
 
     def train_(self, epoch, train_loader):
         self.train()
-        for i, (forms, tags, labels, sizes) in enumerate(train_loader):
-            forms, tags, labels, sizes = [torch.stack(list(i)) for i in zip(
-                *sorted(zip(forms, tags, labels, sizes), key=lambda x: x[3].nonzero().size(0), reverse=True))]
-            trunc = max([i.nonzero().size(0) + 1 for i in sizes])
-            X1 = Variable(forms[:, :trunc])
-            X2 = Variable(tags[:, :trunc])
-            y = Variable(labels[:, :trunc], requires_grad=False)
-            y[:, 0] = 0
-            mask = Variable(sizes[:, :trunc])
-            pack = [i.nonzero().size(0) + 1 for i in sizes]
-            # squeezing
-            y_pred = self(X1, X2, mask, pack)
-            dims = y.size()
-            a = y_pred.view(BATCH_SIZE * dims[1], dims[1])
-            b = y.contiguous().view(BATCH_SIZE * dims[1])
-            train_loss = F.cross_entropy(a, b, ignore_index=-1)
+        for i, batch in enumerate(train_loader):
+            x_forms, x_tags, mask, pack, y = process_batch(batch)
+
+            y_pred = self(x_forms, x_tags, pack)
+            longest_sentence_in_batch = y.size()[1]
+            y_pred = y_pred.view(BATCH_SIZE * longest_sentence_in_batch, -1)
+            y = y.contiguous().view(BATCH_SIZE * longest_sentence_in_batch)
+            train_loss = self.criterion(y_pred, y)
             self.zero_grad()
             train_loss.backward()
             self.optimiser.step()
 
-            print("Epoch: {}\t{}/{}\tloss: {}".format(epoch, (i + 1) * len(forms), len(train_loader.dataset), train_loss.data[0]))
+            print("Epoch: {}\t{}/{}\tloss: {}".format(epoch, (i + 1) * len(x_forms), len(train_loader.dataset), train_loss.data[0]))
 
     def evaluate_(self, test_loader):
-        correct = 0
-        total_deps = 0
+        correct, total = 0, 0
         self.eval()
-        for i, (forms, tags, labels, sizes) in enumerate(test_loader):
-            forms, tags, labels, sizes = [torch.stack(list(i)) for i in zip(*sorted(zip(forms, tags, labels, sizes), key=lambda x: x[3].nonzero().size(0), reverse=True))]
-            trunc = max([i.nonzero().size(0) + 1 for i in sizes])
-            X1 = Variable(forms[:, :trunc])
-            X2 = Variable(tags[:, :trunc])
-            y = Variable(labels[:, :trunc], requires_grad=False)
-            mask = Variable(sizes[:, :trunc])
-            pack = [i.nonzero().size(0) + 1 for i in sizes]
-            y_pred = self(X1, X2, mask, pack)
-            temp = y_pred.max(2)[1]
+        for i, batch in enumerate(test_loader):
+            x_forms, x_tags, mask, pack, y = process_batch(batch)
+
+            # get labels
+            y_pred = self(x_forms, x_tags, pack).max(2)[1]
+
             try:
-                correct += ((y == y_pred.max(2)[1]) * mask.type(torch.ByteTensor)).nonzero().size(0)
+                correct += ((y == y_pred) * mask.type(torch.ByteTensor)).nonzero().size(0)
             except RuntimeError:
                 print("fail")
                 correct += 0
-            total_deps += mask.nonzero().size(0)
+            total += mask.nonzero().size(0)
 
-        print("Accuracy = {}/{} = {}".format(correct, total_deps, (correct / total_deps)))
+        print("Accuracy = {}/{} = {}".format(correct, total, (correct / total)))
 
 
 if __name__ == '__main__':
@@ -159,4 +133,4 @@ if __name__ == '__main__':
 
     # test
     print("Eval")
-    parser.evaluate_(test_loader)
+    parser.evaluate_(train_loader)

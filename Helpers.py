@@ -1,6 +1,8 @@
 import os
 import torch
-from conllu import ConllParser
+import torch.utils.data
+from torch.autograd import Variable
+from Conllu import ConllParser
 
 DEBUG_SIZE = 1000
 
@@ -16,15 +18,13 @@ def build_data(fname, batch_size, train_conll=None):
     assert forms.shape == torch.Size([len(conll), conll.longest_sent])
     assert tags.shape == torch.Size([len(conll), conll.longest_sent])
 
-    # labels
-    labels = -torch.ones(forms.shape[0], conll.longest_sent, 1)
-    for batch_no, _ in enumerate(rels):
-        for rel in rels[batch_no]:
-            # if rel[1] == 0:
-            #   con
-            labels[batch_no, rel[1]] = rel[0]
 
-    labels = torch.squeeze(labels.type(torch.LongTensor))
+    # labels
+    labels = -torch.ones(forms.shape[0], conll.longest_sent)
+    labels.scatter_(1, rels[:, :, 1], rels[:, :, 0].type(torch.FloatTensor))
+    labels[:, 0] = 0
+    labels = labels.type(torch.LongTensor)
+
     assert labels.shape == torch.Size([len(conll), conll.longest_sent])
 
     # sizes
@@ -43,3 +43,18 @@ def build_data(fname, batch_size, train_conll=None):
     loader = torch.utils.data.DataLoader(data, batch_size=batch_size, shuffle=True, drop_last=True)
 
     return conll, loader
+
+
+def process_batch(batch):
+    forms, tags, labels, sizes = [torch.stack(list(i)) for i in zip(*sorted(zip(*batch),
+                                                                            key=lambda x: x[3].nonzero().size(0),
+                                                                            reverse=True))]
+    trunc = max([i.nonzero().size(0) + 1 for i in sizes])
+    x_forms = Variable(forms[:, :trunc])
+    x_tags = Variable(tags[:, :trunc])
+    mask = Variable(sizes[:, :trunc])
+    pack = [i.nonzero().size(0) + 1 for i in sizes]
+    y = Variable(labels[:, :trunc], requires_grad=False)
+
+    return x_forms, x_tags, mask, pack, y
+
