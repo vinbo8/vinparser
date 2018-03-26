@@ -83,13 +83,13 @@ class Network(torch.nn.Module):
     def train_(self, epoch, train_loader):
         self.train()
         for i, batch in enumerate(train_loader):
-            x_forms, x_tags, mask, pack, y = process_batch(batch)
+            x_forms, x_tags, mask, pack, y_heads, y_deprels = process_batch(batch)
 
             y_pred = self(x_forms, x_tags, pack)
-            longest_sentence_in_batch = y.size()[1]
+            longest_sentence_in_batch = y_heads.size()[1]
             y_pred = y_pred.view(BATCH_SIZE * longest_sentence_in_batch, -1)
-            y = y.contiguous().view(BATCH_SIZE * longest_sentence_in_batch)
-            train_loss = self.criterion(y_pred, y)
+            y_heads = y_heads.contiguous().view(BATCH_SIZE * longest_sentence_in_batch)
+            train_loss = self.criterion(y_pred, y_heads)
             self.zero_grad()
             train_loss.backward()
             self.optimiser.step()
@@ -100,13 +100,13 @@ class Network(torch.nn.Module):
         correct, total = 0, 0
         self.eval()
         for i, batch in enumerate(test_loader):
-            x_forms, x_tags, mask, pack, y = process_batch(batch)
+            x_forms, x_tags, mask, pack, y_heads, y_deprels = process_batch(batch)
 
             # get labels
             y_pred = self(x_forms, x_tags, pack).max(2)[1]
 
             try:
-                correct += ((y == y_pred) * mask.type(torch.ByteTensor)).nonzero().size(0)
+                correct += ((y_heads == y_pred) * mask.type(torch.ByteTensor)).nonzero().size(0)
             except RuntimeError:
                 print("fail")
                 correct += 0

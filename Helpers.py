@@ -14,18 +14,18 @@ def build_data(fname, batch_size, train_conll=None):
 
     # sentences
     print("Preparing %s.." % fname)
-    forms, rels, tags = conll.get_tensors()
+    forms, rels, tags, deprels = conll.get_tensors()
     assert forms.shape == torch.Size([len(conll), conll.longest_sent])
     assert tags.shape == torch.Size([len(conll), conll.longest_sent])
+    assert deprels.shape == torch.Size([len(conll), conll.longest_sent])
 
+    # heads
+    heads = -torch.ones(forms.shape[0], conll.longest_sent)
+    heads.scatter_(1, rels[:, :, 1], rels[:, :, 0].type(torch.FloatTensor))
+    heads[:, 0] = 0
+    heads = heads.type(torch.LongTensor)
 
-    # labels
-    labels = -torch.ones(forms.shape[0], conll.longest_sent)
-    labels.scatter_(1, rels[:, :, 1], rels[:, :, 0].type(torch.FloatTensor))
-    labels[:, 0] = 0
-    labels = labels.type(torch.LongTensor)
-
-    assert labels.shape == torch.Size([len(conll), conll.longest_sent])
+    assert heads.shape == torch.Size([len(conll), conll.longest_sent])
 
     # sizes
     sizes_int = torch.zeros(len(conll)).view(-1, 1).type(torch.LongTensor)
@@ -39,22 +39,23 @@ def build_data(fname, batch_size, train_conll=None):
     assert sizes.shape == torch.Size([len(conll), conll.longest_sent])
 
     # build loader & model
-    data = list(zip(forms, tags, labels, sizes))[:DEBUG_SIZE]
+    data = list(zip(forms, tags, heads, deprels, sizes))[:DEBUG_SIZE]
     loader = torch.utils.data.DataLoader(data, batch_size=batch_size, shuffle=True, drop_last=True)
 
     return conll, loader
 
 
 def process_batch(batch):
-    forms, tags, labels, sizes = [torch.stack(list(i)) for i in zip(*sorted(zip(*batch),
-                                                                            key=lambda x: x[3].nonzero().size(0),
+    forms, tags, heads, deprels, sizes = [torch.stack(list(i)) for i in zip(*sorted(zip(*batch),
+                                                                            key=lambda x: x[4].nonzero().size(0),
                                                                             reverse=True))]
     trunc = max([i.nonzero().size(0) + 1 for i in sizes])
     x_forms = Variable(forms[:, :trunc])
     x_tags = Variable(tags[:, :trunc])
     mask = Variable(sizes[:, :trunc])
     pack = [i.nonzero().size(0) + 1 for i in sizes]
-    y = Variable(labels[:, :trunc], requires_grad=False)
+    y_heads = Variable(heads[:, :trunc], requires_grad=False)
+    y_deprels = Variable(deprels[:, :trunc], requires_grad=False)
 
-    return x_forms, x_tags, mask, pack, y
+    return x_forms, x_tags, mask, pack, y_heads, y_deprels
 
