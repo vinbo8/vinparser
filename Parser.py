@@ -47,8 +47,69 @@ class Biaffine(torch.nn.Module):
             + ', out_features=' + str(self.out_features) + ')'
 
 
+class RowBiaffine(torch.nn.Module):
+    def __init__(self, in1_features, in2_features, dep_labels):
+        super().__init__()
+        self.in1_features = in1_features
+        self.in2_features = in2_features
+        self.dep_labels = dep_labels
+        self.weight = torch.nn.Parameter(torch.rand(dep_labels, in1_features, in2_features))
+        self.bias = torch.nn.Parameter(torch.rand(dep_labels))
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        stdv = 1. / math.sqrt(self.weight.size(0))
+        self.weight.data.uniform_(-stdv, stdv)
+        self.bias.data.uniform_(-stdv, stdv)
+
+    def forward(self, input1, input2):
+        batch_size, sent_len, dim = input1.size()
+        S = []
+        for batch in range(batch_size):
+            s_i = []
+            for word in range(sent_len):
+                h_head = input1[batch, word].view(1, -1)
+                h_dep = input2[batch, word]
+                s_i.append(h_head @ self.weight @ h_dep)
+            s_i = torch.stack(s_i)
+            S.append(s_i)
+        S = torch.stack(S)
+        return S.squeeze(3)
+
+
+class LongerBiaffine(torch.nn.Module):
+    def __init__(self, in1_features, in2_features, dep_labels):
+        super().__init__()
+        self.in1_features = in1_features
+        self.in2_features = in2_features
+        self.dep_labels = dep_labels
+        self.weight = torch.nn.Parameter(torch.rand(in1_features, in2_features, dep_labels))
+        self.bias = torch.nn.Parameter(torch.rand(dep_labels))
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        stdv = 1. / math.sqrt(self.weight.size(0))
+        self.weight.data.uniform_(-stdv, stdv)
+        self.bias.data.uniform_(-stdv, stdv)
+
+    def forward(self, input1, input2):
+        batch_size, len1, dim1 = input1.size()
+        batch_size, len2, dim2 = input2.size()
+        ones = torch.ones(batch_size, len1, 1)
+        input1 = torch.cat((input1, Variable(ones)), dim=2)
+        input2 = torch.cat((input2, Variable(ones)), dim=2)
+        dim1 += 1
+        dim2 += 1
+        input1 = input1.view(batch_size * len1, dim1)
+        weight = self.weight.transpose(1, 2).contiguous().view(dim1, self.dep_labels * dim2)
+        affine = (input1 @ weight).view(batch_size, len1 * self.dep_labels, dim2)
+        biaffine = (affine @ input2.transpose(1, 2)).view(batch_size, len1, self.dep_labels, len2).transpose(2, 3)
+        biaffine += self.bias.expand_as(biaffine)
+        return biaffine
+
+
 class Network(torch.nn.Module):
-    def __init__(self, vocab_size, tag_vocab):
+    def __init__(self, vocab_size, tag_vocab, deprel_vocab):
         super().__init__()
         self.embeddings_forms = torch.nn.Embedding(vocab_size, EMBEDDING_DIM)
         self.embeddings_tags = torch.nn.Embedding(tag_vocab, EMBEDDING_DIM)
@@ -56,10 +117,12 @@ class Network(torch.nn.Module):
                                   batch_first=True, bidirectional=True, dropout=0.33)
         self.mlp_head = torch.nn.Linear(2 * LSTM_DIM, REDUCE_DIM)
         self.mlp_dep = torch.nn.Linear(2 * LSTM_DIM, REDUCE_DIM)
+        self.mlp_deprel_head = torch.nn.Linear(2 * LSTM_DIM, REDUCE_DIM)
+        self.mlp_deprel_dep = torch.nn.Linear(2 * LSTM_DIM, REDUCE_DIM)
         self.relu = torch.nn.ReLU()
         self.dropout = torch.nn.Dropout(p=0.33)
-        self.ripoff = Biaffine(REDUCE_DIM + 1, REDUCE_DIM)
-
+        self.biaffine = Biaffine(REDUCE_DIM + 1, REDUCE_DIM)
+        self.label_biaffine = RowBiaffine(REDUCE_DIM, REDUCE_DIM, deprel_vocab)
         self.criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
         self.optimiser = torch.optim.Adam(self.parameters(), lr=LEARNING_RATE, betas=(0.9, 0.9))
 
@@ -77,19 +140,33 @@ class Network(torch.nn.Module):
         reduced_head = self.dropout(self.relu(self.mlp_head(output)))
         reduced_dep = self.dropout(self.relu(self.mlp_dep(output)))
 
-        y_pred = self.ripoff(reduced_head, reduced_dep)
-        return y_pred
+        reduced_deprel_head = self.dropout(self.relu(self.mlp_deprel_head(output)))
+        reduced_deprel_dep = self.dropout(self.relu(self.mlp_deprel_dep(output)))
+
+        y_pred_head = self.biaffine(reduced_head, reduced_dep)
+
+        # DEBUGGING
+        predicted_labels = y_pred_head.max(2)[1]
+        selected_heads = torch.stack([torch.index_select(reduced_deprel_head[n], 0, predicted_labels[n])
+                                        for n, _ in enumerate(predicted_labels)])
+        y_pred_label = self.label_biaffine(selected_heads, reduced_deprel_dep)
+
+        return y_pred_head, y_pred_label
 
     def train_(self, epoch, train_loader):
         self.train()
         for i, batch in enumerate(train_loader):
             x_forms, x_tags, mask, pack, y_heads, y_deprels = process_batch(batch)
 
-            y_pred = self(x_forms, x_tags, pack)
+            y_pred_head, y_pred_deprel = self(x_forms, x_tags, pack)
             longest_sentence_in_batch = y_heads.size()[1]
-            y_pred = y_pred.view(BATCH_SIZE * longest_sentence_in_batch, -1)
+            y_pred_head = y_pred_head.view(BATCH_SIZE * longest_sentence_in_batch, -1)
+            y_pred_deprel = y_pred_deprel.view(BATCH_SIZE * longest_sentence_in_batch, -1)
             y_heads = y_heads.contiguous().view(BATCH_SIZE * longest_sentence_in_batch)
-            train_loss = self.criterion(y_pred, y_heads)
+            y_deprels = y_deprels.contiguous().view(BATCH_SIZE * longest_sentence_in_batch)
+
+            train_loss = self.criterion(y_pred_head, y_heads) + self.criterion(y_pred_deprel, y_deprels)
+            
             self.zero_grad()
             train_loss.backward()
             self.optimiser.step()
@@ -124,7 +201,7 @@ if __name__ == '__main__':
     conll, train_loader = build_data('sv-ud-train.conllu', BATCH_SIZE)
     _, test_loader = build_data('sv-ud-test.conllu', BATCH_SIZE, conll)
 
-    parser = Network(conll.vocab_size, conll.pos_size)
+    parser = Network(conll.vocab_size, conll.pos_size, conll.deprel_size)
 
     # training
     print("Training")
