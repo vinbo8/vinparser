@@ -4,7 +4,7 @@ import torch.utils.data
 from torch.autograd import Variable
 from Conllu import ConllParser
 
-DEBUG_SIZE = 1000
+DEBUG_SIZE = -1
 
 
 def build_data(fname, batch_size, train_conll=None):
@@ -58,4 +58,15 @@ def process_batch(batch):
     y_deprels = Variable(deprels[:, :trunc], requires_grad=False)
 
     return x_forms, x_tags, mask, pack, y_heads, y_deprels
+
+
+def extract_best_label_logits(pred_arcs, label_logits, lengths):
+    # pred_arcs = torch.squeeze(torch.max(arc_logits, dim=1)[1], dim=1).data.cpu().numpy()
+    pred_arcs = pred_arcs.data.cpu().numpy()
+    size = label_logits.size()
+    output_logits = Variable(torch.zeros(size[0], size[1], size[3]))
+    for batch_index, (_logits, _arcs, _length) in enumerate(zip(label_logits, pred_arcs, lengths)):
+        for i in range(_length):
+            output_logits[batch_index] = _logits[_arcs[i]]
+    return output_logits
 

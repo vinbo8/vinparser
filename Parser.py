@@ -7,15 +7,15 @@ import torch.nn.functional as F
 import numpy as np
 from torch.autograd import Variable
 from Helpers import build_data, process_batch
+import Helpers
 
-LSTM_DIM = 200
+LSTM_DIM = 400
 LSTM_DEPTH = 3
 EMBEDDING_DIM = 100
 REDUCE_DIM = 500
-BATCH_SIZE = 10
-EPOCHS = 5
+BATCH_SIZE = 50
+EPOCHS = 2
 LEARNING_RATE = 2e-3
-DEBUG_SIZE = 100
 
 
 class Biaffine(torch.nn.Module):
@@ -76,6 +76,20 @@ class RowBiaffine(torch.nn.Module):
         S = torch.stack(S)
         return S.squeeze(3)
 
+    def forward_(self, input1, input2):
+        batch_size, sent_len, dim = input1.size()
+        S = []
+        for batch in range(batch_size):
+            s_i = []
+            for word in range(sent_len):
+                h_head = input1[batch, word].view(1, -1)
+                h_dep = input2[batch, word]
+                s_i.append(h_head @ self.weight @ h_dep)
+            s_i = torch.stack(s_i)
+            S.append(s_i)
+        S = torch.stack(S)
+        return S.squeeze(3)
+
 
 class LongerBiaffine(torch.nn.Module):
     def __init__(self, in1_features, in2_features, dep_labels):
@@ -83,7 +97,7 @@ class LongerBiaffine(torch.nn.Module):
         self.in1_features = in1_features
         self.in2_features = in2_features
         self.dep_labels = dep_labels
-        self.weight = torch.nn.Parameter(torch.rand(in1_features, in2_features, dep_labels))
+        self.weight = torch.nn.Parameter(torch.rand(in1_features + 1, in2_features + 1, dep_labels))
         self.bias = torch.nn.Parameter(torch.rand(dep_labels))
         self.reset_parameters()
 
@@ -122,7 +136,7 @@ class Network(torch.nn.Module):
         self.relu = torch.nn.ReLU()
         self.dropout = torch.nn.Dropout(p=0.33)
         self.biaffine = Biaffine(REDUCE_DIM + 1, REDUCE_DIM)
-        self.label_biaffine = RowBiaffine(REDUCE_DIM, REDUCE_DIM, deprel_vocab)
+        self.label_biaffine = LongerBiaffine(REDUCE_DIM, REDUCE_DIM, deprel_vocab)
         self.criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
         self.optimiser = torch.optim.Adam(self.parameters(), lr=LEARNING_RATE, betas=(0.9, 0.9))
 
@@ -140,17 +154,16 @@ class Network(torch.nn.Module):
         reduced_head = self.dropout(self.relu(self.mlp_head(output)))
         reduced_dep = self.dropout(self.relu(self.mlp_dep(output)))
 
+        y_pred_head = self.biaffine(reduced_head, reduced_dep)
         reduced_deprel_head = self.dropout(self.relu(self.mlp_deprel_head(output)))
         reduced_deprel_dep = self.dropout(self.relu(self.mlp_deprel_dep(output)))
-
-        y_pred_head = self.biaffine(reduced_head, reduced_dep)
 
         # DEBUGGING
         predicted_labels = y_pred_head.max(2)[1]
         selected_heads = torch.stack([torch.index_select(reduced_deprel_head[n], 0, predicted_labels[n])
                                         for n, _ in enumerate(predicted_labels)])
         y_pred_label = self.label_biaffine(selected_heads, reduced_deprel_dep)
-
+        y_pred_label = Helpers.extract_best_label_logits(predicted_labels, y_pred_label, pack)
         return y_pred_head, y_pred_label
 
     def train_(self, epoch, train_loader):
@@ -161,12 +174,12 @@ class Network(torch.nn.Module):
             y_pred_head, y_pred_deprel = self(x_forms, x_tags, pack)
             longest_sentence_in_batch = y_heads.size()[1]
             y_pred_head = y_pred_head.view(BATCH_SIZE * longest_sentence_in_batch, -1)
-            y_pred_deprel = y_pred_deprel.view(BATCH_SIZE * longest_sentence_in_batch, -1)
             y_heads = y_heads.contiguous().view(BATCH_SIZE * longest_sentence_in_batch)
+            y_pred_deprel = y_pred_deprel.view(BATCH_SIZE * longest_sentence_in_batch, -1)
             y_deprels = y_deprels.contiguous().view(BATCH_SIZE * longest_sentence_in_batch)
 
             train_loss = self.criterion(y_pred_head, y_heads) + self.criterion(y_pred_deprel, y_deprels)
-            
+
             self.zero_grad()
             train_loss.backward()
             self.optimiser.step()
@@ -174,22 +187,30 @@ class Network(torch.nn.Module):
             print("Epoch: {}\t{}/{}\tloss: {}".format(epoch, (i + 1) * len(x_forms), len(train_loader.dataset), train_loss.data[0]))
 
     def evaluate_(self, test_loader):
-        correct, total = 0, 0
+        LAS_correct, UAS_correct, total = 0, 0, 0
         self.eval()
         for i, batch in enumerate(test_loader):
             x_forms, x_tags, mask, pack, y_heads, y_deprels = process_batch(batch)
 
             # get labels
-            y_pred = self(x_forms, x_tags, pack).max(2)[1]
+            y_pred_head, y_pred_deprel = [i.max(2)[1] for i in self(x_forms, x_tags, pack)]
+
+            heads_correct = ((y_heads == y_pred_head) * mask.type(torch.ByteTensor))
+            deprels_correct = ((y_deprels == y_pred_deprel) * mask.type(torch.ByteTensor))
+            try:
+                UAS_correct += heads_correct.nonzero().size(0)
+            except RuntimeError:
+                UAS_correct += 0
 
             try:
-                correct += ((y_heads == y_pred) * mask.type(torch.ByteTensor)).nonzero().size(0)
+                LAS_correct += (heads_correct * deprels_correct) .nonzero().size(0)
             except RuntimeError:
-                print("fail")
-                correct += 0
+                LAS_correct += 0
+
             total += mask.nonzero().size(0)
 
-        print("Accuracy = {}/{} = {}".format(correct, total, (correct / total)))
+        print("UAS = {}/{} = {}\nLAS = {}/{} = {}".format(UAS_correct, total, UAS_correct / total,
+                                                          LAS_correct, total, LAS_correct / total))
 
 
 if __name__ == '__main__':
@@ -210,4 +231,4 @@ if __name__ == '__main__':
 
     # test
     print("Eval")
-    parser.evaluate_(train_loader)
+    parser.evaluate_(test_loader)
