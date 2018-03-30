@@ -36,7 +36,7 @@ class Biaffine(torch.nn.Module):
     def forward(self, input1, input2):
         batch_size, len1, dim1 = input1.size()
         ones = torch.ones(batch_size, len1, 1)
-        input1 = torch.cat((input1, Variable(ones)), dim=2)
+        input1 = torch.cat((input1, torch.nn.Parameter(ones)), dim=2)
 
         biaffine = input1 @ self.weight @ input2.transpose(1, 2)
         return biaffine
@@ -65,6 +65,7 @@ class RowBiaffine(torch.nn.Module):
 
     def forward(self, input1, input2):
         batch_size, sent_len, dim = input1.size()
+        '''
         S = []
         for batch in range(batch_size):
             s_i = []
@@ -76,6 +77,9 @@ class RowBiaffine(torch.nn.Module):
             S.append(s_i)
         S = torch.stack(S)
         return S.squeeze(3)
+        '''
+        return (input1 @ self.weight).transpose(1, 2) @ input2
+
 
     def forward_(self, input1, input2):
         batch_size, sent_len, dim = input1.size()
@@ -111,8 +115,8 @@ class LongerBiaffine(torch.nn.Module):
         batch_size, len1, dim1 = input1.size()
         batch_size, len2, dim2 = input2.size()
         ones = torch.ones(batch_size, len1, 1)
-        input1 = torch.cat((input1, Variable(ones)), dim=2)
-        input2 = torch.cat((input2, Variable(ones)), dim=2)
+        input1 = torch.cat((input1, torch.nn.Parameter(ones)), dim=2)
+        input2 = torch.cat((input2, torch.nn.Parameter(ones)), dim=2)
         dim1 += 1
         dim2 += 1
         input1 = input1.view(batch_size * len1, dim1)
@@ -123,9 +127,10 @@ class LongerBiaffine(torch.nn.Module):
         return biaffine
 
 
-class Network(torch.nn.Module):
-    def __init__(self, vocab_size, tag_vocab, deprel_vocab):
+class Parser(torch.nn.Module):
+    def __init__(self, vocab_size, tag_vocab, deprel_vocab, use_cuda):
         super().__init__()
+        self.use_cuda = use_cuda
         self.embeddings_forms = torch.nn.Embedding(vocab_size, EMBEDDING_DIM)
         self.embeddings_tags = torch.nn.Embedding(tag_vocab, EMBEDDING_DIM)
         self.lstm = torch.nn.LSTM(2 * EMBEDDING_DIM, LSTM_DIM, LSTM_DEPTH,
@@ -141,6 +146,10 @@ class Network(torch.nn.Module):
         self.criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
         self.optimiser = torch.optim.Adam(self.parameters(), lr=LEARNING_RATE, betas=(0.9, 0.9))
 
+        if self.use_cuda:
+            self.biaffine.cuda()
+            self.label_biaffine.cuda()
+
     def forward(self, forms, tags, pack):
         # embed and dropout forms and tags; concat
         # TODO: same mask embedding
@@ -149,7 +158,7 @@ class Network(torch.nn.Module):
         embeds = torch.cat([form_embeds, tag_embeds], dim=2)
 
         # pack/unpack for LSTM
-        embeds = torch.nn.utils.rnn.pack_padded_sequence(embeds, pack, batch_first=True)
+        embeds = torch.nn.utils.rnn.pack_padded_sequence(embeds, pack.data.tolist(), batch_first=True)
         output, _ = self.lstm(embeds)
         output, _ = torch.nn.utils.rnn.pad_packed_sequence(output, batch_first=True)
 
@@ -172,7 +181,7 @@ class Network(torch.nn.Module):
     def train_(self, epoch, train_loader):
         self.train()
         for i, batch in enumerate(train_loader):
-            x_forms, x_tags, mask, pack, y_heads, y_deprels = process_batch(batch)
+            x_forms, x_tags, mask, pack, y_heads, y_deprels = process_batch(batch, cuda=self.use_cuda)
 
             y_pred_head, y_pred_deprel = self(x_forms, x_tags, pack)
 
@@ -208,6 +217,10 @@ class Network(torch.nn.Module):
             # TODO: ensure well-formed tree
             y_pred_head, y_pred_deprel = [i.max(2)[1] for i in self(x_forms, x_tags, pack)]
 
+            mask = mask.type(torch.ByteTensor)
+            if self.cuda:
+                mask.cuda()
+
             heads_correct = ((y_heads == y_pred_head) * mask.type(torch.ByteTensor))
             deprels_correct = ((y_deprels == y_pred_deprel) * mask.type(torch.ByteTensor))
 
@@ -232,12 +245,15 @@ if __name__ == '__main__':
     # args
     parser = argparse.ArgumentParser()
     parser.add_argument('--debug', action='store_true')
+    parser.add_argument('--cuda', action='store_true')
     args = parser.parse_args()
 
     conll, train_loader = build_data('sv-ud-train.conllu', BATCH_SIZE)
     _, test_loader = build_data('sv-ud-test.conllu', BATCH_SIZE, conll)
 
-    parser = Network(conll.vocab_size, conll.pos_size, conll.deprel_size)
+    parser = Parser(conll.vocab_size, conll.pos_size, conll.deprel_size, args.cuda)
+    if args.cuda:
+        parser.cuda()
 
     # training
     print("Training")

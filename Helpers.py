@@ -45,7 +45,7 @@ def build_data(fname, batch_size, train_conll=None):
     return conll, loader
 
 
-def process_batch(batch):
+def process_batch(batch, cuda=False):
     forms, tags, heads, deprels, sizes = [torch.stack(list(i)) for i in zip(*sorted(zip(*batch),
                                                                             key=lambda x: x[4].nonzero().size(0),
                                                                             reverse=True))]
@@ -53,11 +53,14 @@ def process_batch(batch):
     x_forms = Variable(forms[:, :trunc])
     x_tags = Variable(tags[:, :trunc])
     mask = Variable(sizes[:, :trunc])
-    pack = [i.nonzero().size(0) + 1 for i in sizes]
+    pack = Variable(torch.LongTensor([i.nonzero().size(0) + 1 for i in sizes]))
     y_heads = Variable(heads[:, :trunc], requires_grad=False)
     y_deprels = Variable(deprels[:, :trunc], requires_grad=False)
 
-    return x_forms, x_tags, mask, pack, y_heads, y_deprels
+    output = [x_forms, x_tags, mask, pack, y_heads, y_deprels]
+    if cuda:
+        return [i.cuda() for i in output]
+    return output
 
 
 def extract_best_label_logits(pred_arcs, label_logits, lengths):
@@ -66,7 +69,7 @@ def extract_best_label_logits(pred_arcs, label_logits, lengths):
     size = label_logits.size()
     output_logits = Variable(torch.zeros(size[0], size[1], size[3]))
     for batch_index, (_logits, _arcs, _length) in enumerate(zip(label_logits, pred_arcs, lengths)):
-        for i in range(_length):
+        for i in range(int(_length.data[0])):
             output_logits[batch_index] = _logits[_arcs[i]]
     return output_logits
 
