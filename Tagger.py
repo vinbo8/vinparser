@@ -1,9 +1,11 @@
 import sys
+import configparser
 import argparse
 import torch
 import torch.nn.functional as F
 from torch.autograd import Variable
 from Parser import build_data
+from Helpers import process_batch
 
 EMBED_DIM = 100
 LSTM_DIM = 400
@@ -21,34 +23,41 @@ class Tagger(torch.nn.Module):
         self.relu = torch.nn.ReLU()
         self.mlp = torch.nn.Linear(2 * LSTM_DIM, MLP_DIM)
         self.out = torch.nn.Linear(MLP_DIM, tag_vocab)
-        self.softmax = torch.nn.LogSoftmax(dim=2)
-        self.criterion = torch.nn.NLLLoss()
+        self.criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
         self.optimizer = torch.optim.Adam(self.parameters(), lr=LEARNING_RATE, betas=(0.9, 0.9))
         self.dropout = torch.nn.Dropout(p=0.5)
 
-    def forward(self, forms, mask):
+    def forward(self, forms, pack):
+        # embeds + dropout
         form_embeds = self.dropout(self.embeds(forms))
-        packed = torch.nn.utils.rnn.pack_padded_sequence(form_embeds, mask, batch_first=True)
-        lstm_out, _ = self.lstm(form_embeds)
-        # lstm_out, _ = torch.nn.utils.rnn.pad_packed_sequence(lstm_out, batch_first=True)
+
+        # pack/unpack for LSTM
+        packed = torch.nn.utils.rnn.pack_padded_sequence(form_embeds, pack, batch_first=True)
+        lstm_out, _ = self.lstm(packed)
+        lstm_out, _ = torch.nn.utils.rnn.pad_packed_sequence(lstm_out, batch_first=True)
+
+        # LSTM => dense ReLU
         mlp_out = self.dropout(self.relu(self.mlp(lstm_out)))
-        debug = self.out(mlp_out)
-        y_pred = self.softmax(debug).transpose(1, 2)
-        return y_pred
+
+        # reduce to dim no_of_tags
+        return self.out(mlp_out)
 
     def train_(self, epoch, train_loader):
         self.train()
-        for i, (forms, tags, labels, sizes) in enumerate(train_loader):
-            forms, tags, labels, sizes = [torch.stack(list(i)) for i in zip(
-                *sorted(zip(forms, tags, labels, sizes), key=lambda x: x[3].nonzero().size(0), reverse=True))]
+        for i, batch in enumerate(train_loader):
+            forms, tags, mask, pack, y_heads, y_deprels = process_batch(batch)
+            y_pred = self(forms, pack)
 
-            trunc = max([i.nonzero().size(0) + 1 for i in sizes])
-            X = Variable(forms[:, :trunc])
-            y = Variable(tags[:, :trunc])
-            sizes = Variable(sizes[:, :trunc])
-            mask = [i.nonzero().size(0) + 1 for i in sizes]
-            y_pred = self(X, mask)
-            train_loss = self.criterion(y_pred, y)
+            # reshape for cross-entropy
+            batch_size, longest_sentence_in_batch = forms.size()
+
+            # predictions: (B x S x T) => (B * S, T)
+            # heads: (B x S) => (B * S)
+            y_pred = y_pred.view(batch_size * longest_sentence_in_batch, -1)
+            tags = tags.contiguous().view(batch_size * longest_sentence_in_batch)
+
+            train_loss = self.criterion(y_pred, tags)
+
             self.zero_grad()
             train_loss.backward()
             self.optimizer.step()
@@ -59,23 +68,18 @@ class Tagger(torch.nn.Module):
     def evaluate_(self, test_loader):
         correct, total = 0, 0
         self.eval()
-        for i, (forms, tags, labels, sizes) in enumerate(test_loader):
-            forms, tags, labels, sizes = [torch.stack(list(i)) for i in zip(
-                *sorted(zip(forms, tags, labels, sizes), key=lambda x: x[3].nonzero().size(0), reverse=True))]
+        for i, batch in enumerate(test_loader):
+            forms, tags, mask, pack, y_heads, y_deprels = process_batch(batch)
 
-            trunc = max([i.nonzero().size(0) + 1 for i in sizes])
-            X = Variable(forms[:, :trunc])
-            y = Variable(tags[:, :trunc])
-            sizes = Variable(sizes[:, :trunc])
-            mask = [i.nonzero().size(0) + 1 for i in sizes]
-            y_pred = self(X, mask)
-            temp = y_pred.max(1)[1]
+            # get tags
+            y_pred = self(forms, pack).max(2)[1]
+
             try:
-                correct += ((y == temp) * sizes.type(torch.ByteTensor)).nonzero().size(0)
+                correct += ((tags == y_pred) * mask.type(torch.ByteTensor)).nonzero().size(0)
             except RuntimeError:
-                print("fail")
+                pass
 
-            total += sizes.nonzero().size(0)
+            total += mask.nonzero().size(0)
 
         print("Accuracy = {}/{} = {}".format(correct, total, (correct / total)))
 
@@ -85,11 +89,12 @@ def main():
     parser.add_argument('--debug', action='store_true')
     args = parser.parse_args()
 
-    conll, train_loader = build_data('sv-ud-train.conllu')
-    # _, test_loader = build_data('sv-ud-test.conllu')
+    config = configparser.ConfigParser()
+    config.read('config.ini')
+    conll, train_loader = build_data('sv-ud-train.conllu', int(config['tagger']['BATCH_SIZE']))
 
     tagger = Tagger(conll.vocab_size, conll.pos_size)
-    _, test_loader = build_data('sv-ud-test.conllu', conll)
+    _, test_loader = build_data('sv-ud-test.conllu', int(config['tagger']['BATCH_SIZE']), conll)
 
     # training
     print("Training")

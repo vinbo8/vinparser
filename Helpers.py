@@ -4,7 +4,7 @@ import torch.utils.data
 from torch.autograd import Variable
 from Conllu import ConllParser
 
-DEBUG_SIZE = -1
+DEBUG_SIZE = 1000
 
 
 def build_data(fname, batch_size, train_conll=None):
