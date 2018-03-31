@@ -252,10 +252,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--debug', action='store_true')
     parser.add_argument('--cuda', action='store_true')
+    parser.add_argument('--train', default='./data/sv-ud-train.conllu')
+    parser.add_argument('--test', default='./data/sv-ud-test.conllu')
     args = parser.parse_args()
 
-    conll, train_loader = build_data('sv-ud-train.conllu', BATCH_SIZE)
-    _, test_loader = build_data('sv-ud-test.conllu', BATCH_SIZE, conll)
+    conll, train_loader = build_data(args.train, BATCH_SIZE)
+    _, test_loader = build_data(args.test, BATCH_SIZE, conll)
 
     parser = Parser(conll.vocab_size, conll.pos_size, conll.deprel_size, args.cuda)
     if args.cuda:

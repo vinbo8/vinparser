@@ -9,7 +9,7 @@ DEBUG_SIZE = 1000
 
 def build_data(fname, batch_size, train_conll=None):
     # build data
-    with open(os.path.join('data', fname), 'r') as f:
+    with open(fname, 'r') as f:
         conll = ConllParser(f) if not train_conll else ConllParser(f, train_conll)
 
     # sentences
