@@ -34,6 +34,7 @@ class Biaffine(torch.nn.Module):
         self.weight.data.uniform_(-stdv, stdv)
 
     def forward(self, input1, input2):
+        is_cuda = next(self.parameters()).is_cuda
         batch_size, len1, dim1 = input1.size()
         ones = torch.ones(batch_size, len1, 1)
         input1 = torch.cat((input1, torch.nn.Parameter(ones)), dim=2)
