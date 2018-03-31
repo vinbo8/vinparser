@@ -37,7 +37,9 @@ class Biaffine(torch.nn.Module):
         is_cuda = next(self.parameters()).is_cuda
         batch_size, len1, dim1 = input1.size()
         ones = torch.ones(batch_size, len1, 1)
-        input1 = torch.cat((input1, torch.nn.Parameter(ones)), dim=2)
+        if is_cuda:
+            ones = ones.cuda()
+        input1 = torch.cat((input1, Variable(ones)), dim=2)
 
         biaffine = input1 @ self.weight @ input2.transpose(1, 2)
         return biaffine
@@ -113,11 +115,14 @@ class LongerBiaffine(torch.nn.Module):
         self.bias.data.uniform_(-stdv, stdv)
 
     def forward(self, input1, input2):
+        is_cuda = next(self.parameters()).is_cuda
         batch_size, len1, dim1 = input1.size()
         batch_size, len2, dim2 = input2.size()
         ones = torch.ones(batch_size, len1, 1)
-        input1 = torch.cat((input1, torch.nn.Parameter(ones)), dim=2)
-        input2 = torch.cat((input2, torch.nn.Parameter(ones)), dim=2)
+        if is_cuda:
+            ones = ones.cuda()
+        input1 = torch.cat((input1, Variable(ones)), dim=2)
+        input2 = torch.cat((input2, Variable(ones)), dim=2)
         dim1 += 1
         dim2 += 1
         input1 = input1.view(batch_size * len1, dim1)
