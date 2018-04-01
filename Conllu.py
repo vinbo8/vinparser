@@ -72,9 +72,9 @@ class ConllParser(list):
         else:
             self.vocab, self.postags, self.deprels = map(set, [self.vocab, self.postags, self.deprels]) #
             self.vocab_size = len(self.vocab) + 3   # PAD, ROOT, UNK
-            self.pos_size = len(self.postags) + 2   # PAD, ROOT
+            self.pos_size = len(self.postags) + 3   # PAD, ROOT, UNK
             # TODO - try using deprel embeddings
-            self.deprel_size = len(self.deprels) + 2    # PAD, ROOT
+            self.deprel_size = len(self.deprels) + 3    # PAD, ROOT, UNK
 
             self.word_to_idx = {word: i + 2 for i, word in enumerate(self.vocab)}
             self.word_to_idx['ROOT'] = 1
@@ -85,10 +85,12 @@ class ConllParser(list):
             self.pos_to_idx = {pos: i + 2 for i, pos in enumerate(self.postags)}
             self.pos_to_idx['ROOT'] = 1
             self.pos_to_idx['PAD'] = 0
+            self.pos_to_idx['UNK'] = len(self.pos_to_idx)
 
             self.deprel_to_idx = {deprel: i + 2 for i, deprel in enumerate(self.deprels)}
             self.deprel_to_idx['_ROOT'] = 1  # not the same as @root
             self.deprel_to_idx['PAD'] = -1
+            self.deprel_to_idx['UNK'] = len(self.deprel_to_idx)
 
         # weird
         self.longest_sent += 1
@@ -103,7 +105,10 @@ class ConllParser(list):
         return self.pos_to_idx[tag]
 
     def get_deprel_id(self, deprel):
-        return self.deprel_to_idx[deprel]
+        try:
+            return self.deprel_to_idx[deprel]
+        except KeyError:
+            return self.deprel_to_idx['UNK']
 
     def get_tensors(self):
         sents = [[self.get_id('ROOT')] + [self.get_id(word) for word in block.forms().split()] for block in self]

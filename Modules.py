@@ -1,9 +1,8 @@
 import math
 import torch
 from torch.autograd import Variable
-from config import config
 
-BATCH_SIZE = config['parser']['BATCH_SIZE']
+BATCH_SIZE = 10
 
 
 class Biaffine(torch.nn.Module):

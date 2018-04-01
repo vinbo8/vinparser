@@ -10,20 +10,23 @@ from Helpers import build_data, process_batch
 import Helpers
 from Modules import Biaffine, LongerBiaffine
 
-LSTM_DIM = 400
+LSTM_DIM = 200
 LSTM_DEPTH = 3
 EMBEDDING_DIM = 100
-REDUCE_DIM_ARC = 400
+REDUCE_DIM_ARC = 500
 REDUCE_DIM_LABEL = 100
-BATCH_SIZE = 50
+BATCH_SIZE = 10
 EPOCHS = 5
 LEARNING_RATE = 2e-3
 
 
 class Parser(torch.nn.Module):
-    def __init__(self, vocab_size, tag_vocab, deprel_vocab, use_cuda):
+    def __init__(self, vocab_size, tag_vocab, deprel_vocab, args):
         super().__init__()
-        self.use_cuda = use_cuda
+
+        self.use_cuda = args.cuda
+        self.debug = args.debug
+
         self.embeddings_forms = torch.nn.Embedding(vocab_size, EMBEDDING_DIM)
         self.embeddings_tags = torch.nn.Embedding(tag_vocab, EMBEDDING_DIM)
         self.lstm = torch.nn.LSTM(2 * EMBEDDING_DIM, LSTM_DIM, LSTM_DEPTH,
@@ -60,6 +63,9 @@ class Parser(torch.nn.Module):
         reduced_head_dep = self.dropout(self.relu(self.mlp_dep(output)))
         y_pred_head = self.biaffine(reduced_head_head, reduced_head_dep)
 
+        if self.debug:
+            return y_pred_head, Variable(torch.rand(y_pred_head.size()))
+
         # predict deprels using heads
         reduced_deprel_head = self.dropout(self.relu(self.mlp_deprel_head(output)))
         reduced_deprel_dep = self.dropout(self.relu(self.mlp_deprel_dep(output)))
@@ -92,7 +98,9 @@ class Parser(torch.nn.Module):
             y_deprels = y_deprels.contiguous().view(batch_size * longest_sentence_in_batch)
 
             # sum losses
-            train_loss = self.criterion(y_pred_head, y_heads) + self.criterion(y_pred_deprel, y_deprels)
+            train_loss = self.criterion(y_pred_head, y_heads)
+            if not self.debug:
+                train_loss += self.criterion(y_pred_deprel, y_deprels)
 
             self.zero_grad()
             train_loss.backward()
@@ -111,7 +119,7 @@ class Parser(torch.nn.Module):
             y_pred_head, y_pred_deprel = [i.max(2)[1] for i in self(x_forms, x_tags, pack)]
 
             mask = mask.type(torch.ByteTensor)
-            if self.cuda:
+            if self.use_cuda:
                 mask.cuda()
 
             heads_correct = ((y_heads == y_pred_head) * mask.type(torch.ByteTensor))
@@ -148,7 +156,7 @@ if __name__ == '__main__':
     _, dev_loader = build_data(args.dev, BATCH_SIZE, conll)
     _, test_loader = build_data(args.test, BATCH_SIZE, conll)
 
-    parser = Parser(conll.vocab_size, conll.pos_size, conll.deprel_size, args.cuda)
+    parser = Parser(conll.vocab_size, conll.pos_size, conll.deprel_size, args)
     if args.cuda:
         parser.cuda()
 
@@ -156,7 +164,8 @@ if __name__ == '__main__':
     print("Training")
     for epoch in range(EPOCHS):
         parser.train_(epoch, train_loader)
-        parser.evaluate_(dev_loader)
+        if not args.cuda:
+            parser.evaluate_(dev_loader)
 
     # test
     print("Eval")
