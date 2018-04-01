@@ -10,25 +10,25 @@ from Helpers import build_data, process_batch
 import Helpers
 from Modules import Biaffine, LongerBiaffine
 
-LSTM_DIM = 200
+LSTM_DIM = 400
 LSTM_DEPTH = 3
 EMBEDDING_DIM = 100
 REDUCE_DIM_ARC = 500
 REDUCE_DIM_LABEL = 100
-BATCH_SIZE = 10
-EPOCHS = 5
+BATCH_SIZE = 50
+EPOCHS = 10
 LEARNING_RATE = 2e-3
 
 
 class Parser(torch.nn.Module):
-    def __init__(self, vocab_size, tag_vocab, deprel_vocab, args):
+    def __init__(self, sizes, args):
         super().__init__()
 
         self.use_cuda = args.cuda
         self.debug = args.debug
 
-        self.embeddings_forms = torch.nn.Embedding(vocab_size, EMBEDDING_DIM)
-        self.embeddings_tags = torch.nn.Embedding(tag_vocab, EMBEDDING_DIM)
+        self.embeddings_forms = torch.nn.Embedding(sizes['vocab'], EMBEDDING_DIM)
+        self.embeddings_tags = torch.nn.Embedding(sizes['postags'], EMBEDDING_DIM)
         self.lstm = torch.nn.LSTM(2 * EMBEDDING_DIM, LSTM_DIM, LSTM_DEPTH,
                                   batch_first=True, bidirectional=True, dropout=0.33)
         self.mlp_head = torch.nn.Linear(2 * LSTM_DIM, REDUCE_DIM_ARC)
@@ -38,7 +38,7 @@ class Parser(torch.nn.Module):
         self.relu = torch.nn.ReLU()
         self.dropout = torch.nn.Dropout(p=0.33)
         self.biaffine = Biaffine(REDUCE_DIM_ARC + 1, REDUCE_DIM_ARC)
-        self.label_biaffine = LongerBiaffine(REDUCE_DIM_LABEL, REDUCE_DIM_LABEL, deprel_vocab)
+        self.label_biaffine = LongerBiaffine(REDUCE_DIM_LABEL, REDUCE_DIM_LABEL, sizes['deprels'])
         self.criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
         self.optimiser = torch.optim.Adam(self.parameters(), lr=LEARNING_RATE, betas=(0.9, 0.9))
 
@@ -156,7 +156,7 @@ if __name__ == '__main__':
     _, dev_loader = build_data(args.dev, BATCH_SIZE, conll)
     _, test_loader = build_data(args.test, BATCH_SIZE, conll)
 
-    parser = Parser(conll.vocab_size, conll.pos_size, conll.deprel_size, args)
+    parser = Parser(conll.sizes, args)
     if args.cuda:
         parser.cuda()
 

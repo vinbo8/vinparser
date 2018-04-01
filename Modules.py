@@ -69,7 +69,6 @@ class RowBiaffine(torch.nn.Module):
         '''
         return (input1 @ self.weight).transpose(1, 2) @ input2
 
-
     def forward_(self, input1, input2):
         batch_size, sent_len, dim = input1.size()
         S = []

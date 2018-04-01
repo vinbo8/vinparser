@@ -3,6 +3,8 @@ import torch
 import numpy as np
 import torch.nn.functional as F
 
+ROOT_LINE = "0\t__ROOT\t_\t__ROOT\t_\t_\t0\t__ROOT\t_\t_\n"
+
 
 class ConllLine:
     def __init__(self, line):
@@ -17,8 +19,11 @@ class ConllLine:
 
 
 class ConllBlock(list):
-    def __init__(self):
+    def __init__(self, pad_with_root=False):
         super().__init__()
+        if pad_with_root:
+            line = ConllLine(ROOT_LINE)
+            super().append(line)
 
     def append(self, p_object):
         if isinstance(p_object, ConllLine):
@@ -26,16 +31,16 @@ class ConllBlock(list):
         else:
             raise TypeError("Elements must be ConllLine instances")
 
-    def forms(self, separator=" "):
+    def forms(self, separator="---"):
         return separator.join([line.form for line in self])
 
-    def upos(self, separator=" "):
+    def upos(self, separator="---"):
         return separator.join([line.upos for line in self])
 
     def heads(self):
         return [(line.head, line.id) for line in self]
 
-    def deprels(self, separator=" "):
+    def deprels(self, separator="---"):
         return separator.join([line.deprel for line in self])
 
 
@@ -43,10 +48,13 @@ class ConllParser(list):
     def __init__(self, buffer, orig=None, seed=42):
         super().__init__()
         if not orig:
-            self.vocab, self.postags, self.deprels = [], [], []
+            # self.vocab, self.postags, self.deprels = [], [], []
+            self.sizes = {'vocab': 0, 'postags': 0, 'deprels': 0}
+            self.sets = {'vocab': [], 'postags': [], 'deprels': []}
+            self.maps = {'vocab': {}, 'postags': {}, 'deprels': {}}
         self.longest_sent = 0
 
-        block = ConllBlock()
+        block = ConllBlock(pad_with_root=True)
         for line in buffer:
             if line[0] == '#':
                 continue
@@ -55,75 +63,74 @@ class ConllParser(list):
                 if len(block) > self.longest_sent:
                     self.longest_sent = len(block)
                 self.append(block)
-                block = ConllBlock()
+                block = ConllBlock(pad_with_root=True)
                 continue
 
             line = ConllLine(line)
             block.append(line)
             if not orig:
-                self.vocab.append(line.form)
-                self.postags.append(line.upos)
-                self.deprels.append(line.deprel)
+                self.sets['vocab'].append(line.form)
+                self.sets['postags'].append(line.upos)
+                self.sets['deprels'].append(line.deprel)
 
         if orig:
-            self.vocab, self.postags, self.deprels = orig.vocab, orig.postags, orig.deprels
-            self.word_to_idx, self.pos_to_idx, self.deprel_to_idx = orig.word_to_idx, orig.pos_to_idx, orig.deprel_to_idx
+            self.sets = orig.sets
+            self.maps = orig.maps
 
         else:
-            self.vocab, self.postags, self.deprels = map(set, [self.vocab, self.postags, self.deprels]) #
-            self.vocab_size = len(self.vocab) + 3   # PAD, ROOT, UNK
-            self.pos_size = len(self.postags) + 3   # PAD, ROOT, UNK
-            # TODO - try using deprel embeddings
-            self.deprel_size = len(self.deprels) + 3    # PAD, ROOT, UNK
-
-            self.word_to_idx = {word: i + 2 for i, word in enumerate(self.vocab)}
-            self.word_to_idx['ROOT'] = 1
-            self.word_to_idx['PAD'] = 0
-            # TODO - replace with normal std. distrib.
-            self.word_to_idx['UNK'] = len(self.word_to_idx)
-
-            self.pos_to_idx = {pos: i + 2 for i, pos in enumerate(self.postags)}
-            self.pos_to_idx['ROOT'] = 1
-            self.pos_to_idx['PAD'] = 0
-            self.pos_to_idx['UNK'] = len(self.pos_to_idx)
-
-            self.deprel_to_idx = {deprel: i + 2 for i, deprel in enumerate(self.deprels)}
-            self.deprel_to_idx['_ROOT'] = 1  # not the same as @root
-            self.deprel_to_idx['PAD'] = -1
-            self.deprel_to_idx['UNK'] = len(self.deprel_to_idx)
+            self.sets = {k: set(self.sets[k]) for k in self.sets}
+            self.sizes = {k: len(self.sets[k]) + 3 for k in self.sets}   # PAD, ROOT, UNK
+            self.maps = {k: {word: i + 3 for i, word in enumerate(self.sets[k])} for k in self.sets}
+            for key in self.maps.keys():
+                self.maps[key]['PAD'] = 0
+                self.maps[key]['__ROOT'] = 1
+                self.maps[key]['UNK'] = 2
 
         # weird
         self.longest_sent += 1
 
     def get_id(self, word):
         try:
-            return self.word_to_idx[word]
+            return self.maps['vocab'][word]
         except KeyError:
-            return self.word_to_idx['UNK']
+            return self.maps['vocab']['UNK']
 
     def get_pos_id(self, tag):
-        return self.pos_to_idx[tag]
+        return self.maps['postags'][tag]
 
     def get_deprel_id(self, deprel):
         try:
-            return self.deprel_to_idx[deprel]
+            return self.maps['deprels'][deprel]
         except KeyError:
-            return self.deprel_to_idx['UNK']
+            return self.maps['deprels']['UNK']
 
     def get_tensors(self):
-        sents = [[self.get_id('ROOT')] + [self.get_id(word) for word in block.forms().split()] for block in self]
-        tags = [[self.get_pos_id('ROOT')] + [self.get_pos_id(tag) for tag in block.upos().split()] for block in self]
-        deprels = [[self.get_deprel_id('_ROOT')] + [self.get_deprel_id(deprel) for deprel in block.deprels().split()]
-                   for block in self]
-        heads = [block.heads() for block in self]
+        words, forms, postags, deprels, heads = [], [], [], [], []
+        # iterate thru blocks
+        # returns file list of block lists
+        for block in self:
+            words.append([word for word in block.forms().split('---')])
+            forms.append([self.get_id(word) for word in block.forms().split('---')])
+            postags.append([self.get_pos_id(tag) for tag in block.upos().split('---')])
+            deprels.append([self.get_deprel_id(deprel) for deprel in block.deprels().split('---')])
+            heads.append(block.heads())
 
-        # pad sents
-        sents = torch.stack([F.pad(torch.LongTensor(sent), (0, self.longest_sent - len(sent))).data for sent in sents])
-        heads = torch.stack([F.pad(torch.LongTensor(rel), (0, 0, 0, self.longest_sent - len(rel)), value=0).data for rel in heads])
-        tags = torch.stack([F.pad(torch.LongTensor(tag), (0, self.longest_sent - len(tag))).data for tag in tags])
-        deprels = torch.stack([F.pad(torch.LongTensor(deprel), (0, self.longest_sent - len(deprel)), value=-1).data for deprel in deprels])
+        package = zip(words, forms, postags, deprels, heads)
+        words, forms, postags, deprels, heads = [], [], [], [], []
+        for w, f, p, d, h in package:
+            diff = self.longest_sent - len(f)
+            for i in range(diff):
+                w.append('PAD')
+            words.append(w)
+            forms.append(F.pad(torch.LongTensor(f), (0, diff)).data)
+            postags.append(F.pad(torch.LongTensor(p), (0, diff)).data)
+            deprels.append(F.pad(torch.LongTensor(d), (0, diff)).data)
+            heads.append(F.pad(torch.LongTensor(h), (0, 0, 0, diff)).data)
+            assert forms[-1].size()[0] == postags[-1].size()[0] == deprels[-1].size()[0] == heads[-1].size()[0]
 
-        return sents, heads, tags, deprels
+        forms, postags, deprels, heads = map(torch.stack, [forms, postags, deprels, heads])
+
+        return words, forms, postags, deprels, heads
 
     def render(self):
         for block in self:

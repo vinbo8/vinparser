@@ -14,7 +14,8 @@ def build_data(fname, batch_size, train_conll=None):
 
     # sentences
     print("Preparing %s.." % fname)
-    forms, rels, tags, deprels = conll.get_tensors()
+    # rels turns into heads later
+    words, forms, tags, deprels, rels = conll.get_tensors()
     assert forms.shape == torch.Size([len(conll), conll.longest_sent])
     assert tags.shape == torch.Size([len(conll), conll.longest_sent])
     assert deprels.shape == torch.Size([len(conll), conll.longest_sent])
