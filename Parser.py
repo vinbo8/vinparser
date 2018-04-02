@@ -16,7 +16,7 @@ EMBEDDING_DIM = 100
 REDUCE_DIM_ARC = 500
 REDUCE_DIM_LABEL = 100
 BATCH_SIZE = 50
-EPOCHS = 10
+EPOCHS = 1
 LEARNING_RATE = 2e-3
 
 
@@ -74,6 +74,8 @@ class Parser(torch.nn.Module):
                                         for n, _ in enumerate(predicted_labels)])
         y_pred_label = self.label_biaffine(selected_heads, reduced_deprel_dep)
         y_pred_label = Helpers.extract_best_label_logits(predicted_labels, y_pred_label, pack)
+        if self.use_cuda:
+            y_pred_label = y_pred_label.cuda()
 
         return y_pred_head, y_pred_label
 
@@ -112,21 +114,18 @@ class Parser(torch.nn.Module):
         las_correct, uas_correct, total = 0, 0, 0
         self.eval()
         for i, batch in enumerate(test_loader):
-            x_forms, x_tags, mask, pack, y_heads, y_deprels = process_batch(batch)
+            x_forms, x_tags, mask, pack, y_heads, y_deprels = process_batch(batch, cuda=self.use_cuda)
 
             # get labels
             # TODO: ensure well-formed tree
-            if self.cuda:
-                y_pred_head, y_pred_deprel = [i.max(2)[1] for i in self(x_forms, x_tags, pack).cuda()]
-            else:
-                y_pred_head, y_pred_deprel = [i.max(2)[1] for i in self(x_forms, x_tags, pack)]
+            y_pred_head, y_pred_deprel = [i.max(2)[1] for i in self(x_forms, x_tags, pack)]
 
             mask = mask.type(torch.ByteTensor)
             if self.use_cuda:
-                mask.cuda()
+                mask = mask.cuda()
 
-            heads_correct = ((y_heads == y_pred_head) * mask.type(torch.ByteTensor))
-            deprels_correct = ((y_deprels == y_pred_deprel) * mask.type(torch.ByteTensor))
+            heads_correct = ((y_heads == y_pred_head) * mask)
+            deprels_correct = ((y_deprels == y_pred_deprel) * mask)
 
             # excepts should never trigger; leave them in just in case
             try:
