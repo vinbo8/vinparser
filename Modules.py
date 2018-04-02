@@ -2,7 +2,7 @@ import math
 import torch
 from torch.autograd import Variable
 
-BATCH_SIZE = 10
+BATCH_SIZE = 50
 
 
 class Biaffine(torch.nn.Module):
