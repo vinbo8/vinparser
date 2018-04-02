@@ -1,6 +1,7 @@
 import os
 import torch
 import torch.utils.data
+import torch.nn.functional as F
 from torch.autograd import Variable
 from Conllu import ConllParser
 
@@ -15,7 +16,7 @@ def build_data(fname, batch_size, train_conll=None):
     # sentences
     print("Preparing %s.." % fname)
     # rels turns into heads later
-    words, forms, tags, deprels, rels = conll.get_tensors()
+    words, forms, chars, tags, deprels, rels = conll.get_tensors()
     assert forms.shape == torch.Size([len(conll), conll.longest_sent])
     assert tags.shape == torch.Size([len(conll), conll.longest_sent])
     assert deprels.shape == torch.Size([len(conll), conll.longest_sent])
@@ -40,25 +41,26 @@ def build_data(fname, batch_size, train_conll=None):
     assert sizes.shape == torch.Size([len(conll), conll.longest_sent])
 
     # build loader & model
-    data = list(zip(forms, tags, heads, deprels, sizes))[:DEBUG_SIZE]
+    data = list(zip(forms, tags, chars, heads, deprels, sizes))[:DEBUG_SIZE]
     loader = torch.utils.data.DataLoader(data, batch_size=batch_size, shuffle=True, drop_last=True)
 
     return conll, loader
 
 
 def process_batch(batch, cuda=False):
-    forms, tags, heads, deprels, sizes = [torch.stack(list(i)) for i in zip(*sorted(zip(*batch),
-                                                                            key=lambda x: x[4].nonzero().size(0),
+    forms, tags, chars, heads, deprels, sizes = [torch.stack(list(i)) for i in zip(*sorted(zip(*batch),
+                                                                            key=lambda x: x[5].nonzero().size(0),
                                                                             reverse=True))]
     trunc = max([i.nonzero().size(0) + 1 for i in sizes])
     x_forms = Variable(forms[:, :trunc])
     x_tags = Variable(tags[:, :trunc])
+    x_chars = Variable(chars[:, :trunc])
     mask = Variable(sizes[:, :trunc])
     pack = Variable(torch.LongTensor([i.nonzero().size(0) + 1 for i in sizes]))
     y_heads = Variable(heads[:, :trunc], requires_grad=False)
     y_deprels = Variable(deprels[:, :trunc], requires_grad=False)
 
-    output = [x_forms, x_tags, mask, pack, y_heads, y_deprels]
+    output = [x_forms, x_tags, x_chars, mask, pack, y_heads, y_deprels]
     if cuda:
         return [i.cuda() for i in output]
     return output
@@ -77,3 +79,45 @@ def extract_best_label_logits(pred_arcs, label_logits, lengths):
             output_logits[batch_index] = _logits[_arcs[i]]
     return output_logits
 
+
+def build_character_dict(vocab):
+    charset = []
+    longest_word_len = -1
+    for sentence in vocab:
+        for word in sentence:
+            if word.startswith('__'):
+                continue
+            word = list(word)
+            charset.extend(word)
+            if len(word) > longest_word_len:
+                longest_word_len = len(word)
+
+    charset = set(charset)
+    char_dict = {char: i + 1 for i, char in enumerate(charset)}
+
+    out = []
+    for sentence in vocab:
+        sent_tensor = []
+        for word in sentence:
+            if word == '__ROOT':
+                word_tensor = F.pad(Variable(torch.LongTensor([1])), (0, longest_word_len - 1))
+            elif word == '__PAD':
+                word_tensor = Variable(torch.zeros(longest_word_len).type(torch.LongTensor))
+            else:
+                try:
+                    word_tensor = F.pad(Variable(torch.LongTensor([safe_char_lookup(char_dict, char) for char in word])), (0, longest_word_len - len(word)))
+                except AssertionError:
+                    temp = torch.LongTensor([safe_char_lookup(char_dict, char) for char in word])
+                    pass
+            sent_tensor.append(word_tensor)
+        out.append(torch.stack(sent_tensor))
+    out = torch.stack(out)
+
+    return char_dict
+
+
+def safe_char_lookup(char_dict, char):
+    try:
+        return char_dict[char]
+    except KeyError:
+        return 2

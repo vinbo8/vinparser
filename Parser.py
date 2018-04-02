@@ -20,6 +20,23 @@ EPOCHS = 1
 LEARNING_RATE = 2e-3
 
 
+class CharEmbedding(torch.nn.Module):
+    def __init__(self, sizes, args):
+        super().__init__()
+        self.embedding_chars = torch.nn.Embedding(sizes['chars'], EMBEDDING_DIM)
+
+    def forward(self, forms):
+        # input: B x S x W
+        batch_size, max_words, max_chars = forms.size()
+        forms = forms.contiguous().view(batch_size * max_words, -1)
+        indexes = (forms == 0).sum(dim=1).type(torch.LongTensor)
+        y, indexes = torch.sort(indexes, 0)
+        temp = forms[indexes]
+        restore = temp[np.argsort(indexes)]
+        forms.size()
+        out = self.embedding_chars(forms)
+
+
 class Parser(torch.nn.Module):
     def __init__(self, sizes, args):
         super().__init__()
@@ -27,6 +44,7 @@ class Parser(torch.nn.Module):
         self.use_cuda = args.cuda
         self.debug = args.debug
 
+        self.embeddings_chars = CharEmbedding(sizes, EMBEDDING_DIM)
         self.embeddings_forms = torch.nn.Embedding(sizes['vocab'], EMBEDDING_DIM)
         self.embeddings_tags = torch.nn.Embedding(sizes['postags'], EMBEDDING_DIM)
         self.lstm = torch.nn.LSTM(2 * EMBEDDING_DIM, LSTM_DIM, LSTM_DEPTH,
@@ -46,9 +64,10 @@ class Parser(torch.nn.Module):
             self.biaffine.cuda()
             self.label_biaffine.cuda()
 
-    def forward(self, forms, tags, pack):
+    def forward(self, forms, tags, chars, pack):
         # embed and dropout forms and tags; concat
         # TODO: same mask embedding
+        char_embeds = self.embeddings_chars(chars)
         form_embeds = self.dropout(self.embeddings_forms(forms))
         tag_embeds = self.dropout(self.embeddings_tags(tags))
         embeds = torch.cat([form_embeds, tag_embeds], dim=2)
@@ -82,9 +101,9 @@ class Parser(torch.nn.Module):
     def train_(self, epoch, train_loader):
         self.train()
         for i, batch in enumerate(train_loader):
-            x_forms, x_tags, mask, pack, y_heads, y_deprels = process_batch(batch, cuda=self.use_cuda)
+            x_forms, x_tags, x_chars, mask, pack, y_heads, y_deprels = process_batch(batch, cuda=self.use_cuda)
 
-            y_pred_head, y_pred_deprel = self(x_forms, x_tags, pack)
+            y_pred_head, y_pred_deprel = self(x_forms, x_tags, x_chars, pack)
 
             # reshape for cross-entropy
             batch_size, longest_sentence_in_batch = y_heads.size()
@@ -114,11 +133,11 @@ class Parser(torch.nn.Module):
         las_correct, uas_correct, total = 0, 0, 0
         self.eval()
         for i, batch in enumerate(test_loader):
-            x_forms, x_tags, mask, pack, y_heads, y_deprels = process_batch(batch, cuda=self.use_cuda)
+            x_forms, x_tags, x_chars, mask, pack, y_heads, y_deprels = process_batch(batch, cuda=self.use_cuda)
 
             # get labels
             # TODO: ensure well-formed tree
-            y_pred_head, y_pred_deprel = [i.max(2)[1] for i in self(x_forms, x_tags, pack)]
+            y_pred_head, y_pred_deprel = [i.max(2)[1] for i in self(x_forms, x_tags, x_chars, pack)]
 
             mask = mask.type(torch.ByteTensor)
             if self.use_cuda:
