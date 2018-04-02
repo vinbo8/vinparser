@@ -66,7 +66,7 @@ def process_batch(batch, cuda=False):
 
 def extract_best_label_logits(pred_arcs, label_logits, lengths):
     # pred_arcs = torch.squeeze(torch.max(arc_logits, dim=1)[1], dim=1).data.cpu().numpy()
-    pred_arcs = pred_arcs.data.cpu().numpy()
+    pred_arcs = pred_arcs.data
     size = label_logits.size()
     output_logits = Variable(torch.zeros(size[0], size[1], size[3]))
     for batch_index, (_logits, _arcs, _length) in enumerate(zip(label_logits, pred_arcs, lengths)):
