@@ -1,8 +1,27 @@
 import math
 import torch
 from torch.autograd import Variable
+import torch.nn.functional as F
 
 BATCH_SIZE = 50
+
+
+class LinearAttention(torch.nn.Module):
+
+    def __init__(self, lstm_features):
+        super().__init__()
+        self.lstm_features = lstm_features
+
+        self.weight = torch.nn.Parameter(torch.rand(self.lstm_features, 1))
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        stdv = 1. / math.sqrt(self.weight.size(0))
+        self.weight.data.uniform_(-stdv, stdv)
+
+    def forward(self, input1):
+        soft = F.softmax(input1 @ self.weight, dim=0)
+        return input1.transpose(0, 1) @ soft
 
 
 class Biaffine(torch.nn.Module):

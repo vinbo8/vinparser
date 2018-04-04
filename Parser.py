@@ -8,7 +8,7 @@ import numpy as np
 from torch.autograd import Variable
 from Helpers import build_data, process_batch
 import Helpers
-from Modules import Biaffine, LongerBiaffine
+from Modules import Biaffine, LongerBiaffine, LinearAttention
 
 LSTM_DIM = 400
 LSTM_DEPTH = 3
@@ -24,17 +24,34 @@ class CharEmbedding(torch.nn.Module):
     def __init__(self, sizes, args):
         super().__init__()
         self.embedding_chars = torch.nn.Embedding(sizes['chars'], EMBEDDING_DIM)
+        self.lstm = torch.nn.LSTM(EMBEDDING_DIM, LSTM_DIM, LSTM_DEPTH,
+                                  batch_first=True, bidirectional=False, dropout=0.33)
+        self.attention = LinearAttention(LSTM_DIM)
 
-    def forward(self, forms):
+    def forward(self, forms, pack_sent):
         # input: B x S x W
         batch_size, max_words, max_chars = forms.size()
         forms = forms.contiguous().view(batch_size * max_words, -1)
         indexes = (forms == 0).sum(dim=1).type(torch.LongTensor)
         y, indexes = torch.sort(indexes, 0)
         temp = forms[indexes]
-        restore = temp[np.argsort(indexes)]
+
+        restore = temp[np.argsort(indexes.data)]
+        assert restore.data.tolist() == forms.data.tolist()
         forms.size()
         out = self.embedding_chars(forms)
+        pack = (temp != 0).sum(dim=1)
+        pack[pack == 0] = 1
+
+        # embeds = torch.nn.utils.rnn.pack_padded_sequence(out, pack.data.tolist(), batch_first=True)
+        embeds, (_, c) = self.lstm(out)
+        # embeds = embeds.contiguous().view(batch_size, max_words, max_chars, -1)
+        embeds = self.attention(embeds)
+        c = c[:, -1, :]
+        # embeds, _ = torch.nn.utils.rnn.pad_packed_sequence(embeds, batch_first=True)
+
+        return embeds
+
 
 
 class Parser(torch.nn.Module):
@@ -67,7 +84,7 @@ class Parser(torch.nn.Module):
     def forward(self, forms, tags, chars, pack):
         # embed and dropout forms and tags; concat
         # TODO: same mask embedding
-        char_embeds = self.embeddings_chars(chars)
+        # char_embeds = self.embeddings_chars(chars, pack)
         form_embeds = self.dropout(self.embeddings_forms(forms))
         tag_embeds = self.dropout(self.embeddings_tags(tags))
         embeds = torch.cat([form_embeds, tag_embeds], dim=2)
