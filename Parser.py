@@ -53,7 +53,6 @@ class CharEmbedding(torch.nn.Module):
         return embeds
 
 
-
 class Parser(torch.nn.Module):
     def __init__(self, sizes, args):
         super().__init__()
@@ -61,7 +60,7 @@ class Parser(torch.nn.Module):
         self.use_cuda = args.cuda
         self.debug = args.debug
 
-        self.embeddings_chars = CharEmbedding(sizes, EMBEDDING_DIM)
+        # self.embeddings_chars = CharEmbedding(sizes, EMBEDDING_DIM)
         self.embeddings_forms = torch.nn.Embedding(sizes['vocab'], EMBEDDING_DIM)
         self.embeddings_tags = torch.nn.Embedding(sizes['postags'], EMBEDDING_DIM)
         self.lstm = torch.nn.LSTM(2 * EMBEDDING_DIM, LSTM_DIM, LSTM_DEPTH,
