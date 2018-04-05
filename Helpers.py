@@ -75,7 +75,7 @@ def extract_best_label_logits(pred_arcs, label_logits, lengths):
         output_logits = output_logits.cuda()
 
     for batch_index, (_logits, _arcs, _length) in enumerate(zip(label_logits, pred_arcs, lengths)):
-        for i in range(int(_length.data[0])):
+        for i in range(int(_length)):
             output_logits[batch_index] = _logits[_arcs[i]]
     return output_logits
 

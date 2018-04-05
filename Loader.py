@@ -23,22 +23,27 @@ def conll_to_csv(fname):
                 blokk = list(map(lambda x, y: x + y, blokk, ROOT_LINE.split("\t")))
                 continue
 
-            cols = line.rstrip("\n").split("\t")
+            cols = [i.replace(',', '<cm>') for i in line.rstrip("\n").split("\t")]
             blokk = list(map(lambda x, y: x + ',' + y, blokk, cols))
 
     return "\n".join(rows)
 
 
-def get_iterators():
-    a = conll_to_csv('data/sv-ud-train.conllu')
+def get_iterators(args):
+    device = -(not args.cuda)
+
     if not os.path.exists(".tmp"):
         os.makedirs(".tmp")
 
-    with open(os.path.join(".tmp", "train.csv"), "w") as f:
-        f.write(a)
+    train_csv = conll_to_csv(args.train)
+    dev_csv = conll_to_csv(args.dev)
+    test_csv = conll_to_csv(args.test)
+
+    for file in ["train", "dev", "test"]:
+        with open(os.path.join(".tmp", file + ".csv"), "w") as f:
+            f.write(train_csv)
 
     tokeniser = lambda x: x.split(',')
-    tokint = lambda x: list(map(lambda y: int(y), x.split(',')))
     ID = data.Field(tokenize=tokeniser, batch_first=True)
     FORM = data.Field(tokenize=tokeniser, batch_first=True, include_lengths=True)
     LEMMA = data.Field(tokenize=tokeniser, batch_first=True)
@@ -49,21 +54,19 @@ def get_iterators():
     DEPREL = data.Field(tokenize=tokeniser, batch_first=True)
     DEPS = data.Field(tokenize=tokeniser, batch_first=True)
     MISC = data.Field(tokenize=tokeniser, batch_first=True)
+
+    train, dev, test = data.TabularDataset.splits(path=".tmp", train='train.csv', validation='dev.csv', test='test.csv',
+                                                  format="csv", fields=[('id', ID), ('form', FORM),
+                                                                        ('lemma', LEMMA), ('upos', UPOS),
+                                                                        ('xpos', XPOS), ('feats', FEATS),
+                                                                        ('head', HEAD), ('deprel', DEPREL),
+                                                                        ('deps', DEPS), ('misc', MISC)])
+
     fields = [ID, FORM, LEMMA, UPOS, XPOS, FEATS, HEAD, DEPREL, DEPS, MISC]
-
-
-    train = data.TabularDataset(path=".tmp/train.csv", format="csv", fields=[('id', ID), ('form', FORM),
-                                                                             ('lemma', LEMMA), ('upos', UPOS),
-                                                                             ('xpos', XPOS), ('feats', FEATS),
-                                                                             ('head', HEAD), ('deprel', DEPREL),
-                                                                             ('deps', DEPS), ('misc', MISC)])
-
     [i.build_vocab(train) for i in fields]
-    (train_iter,) = data.Iterator.splits((train,), batch_sizes=(32,), device=-1)
-    for i, batch in enumerate(train_iter):
-        (forms, sizes), tags, heads, deprels = batch.form, batch.upos, batch.head, batch.deprel
-        mask = torch.zeros(sizes.size()[0], max(sizes)).type(torch.LongTensor)
-        for n, i in enumerate(sizes):
-            mask[n, 0:i] = 1
 
+    (train_iter, dev_iter, test_iter) = data.Iterator.splits((train, dev, test), batch_sizes=(50, 50, 50), device=device,
+                                                             sort_key=lambda x: len(x.form), sort_within_batch=True)
+    sizes = {'vocab': len(FORM.vocab), 'postags': len(UPOS.vocab), 'deprels': len(DEPREL.vocab)}
 
+    return (train_iter, dev_iter, test_iter), sizes
