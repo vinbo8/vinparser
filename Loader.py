@@ -1,5 +1,6 @@
 import os
 import codecs
+import torch
 from torchtext import data, datasets
 
 
@@ -28,7 +29,7 @@ def conll_to_csv(fname):
     return "\n".join(rows)
 
 
-if __name__ == '__main__':
+def get_iterators():
     a = conll_to_csv('data/sv-ud-train.conllu')
     if not os.path.exists(".tmp"):
         os.makedirs(".tmp")
@@ -61,5 +62,8 @@ if __name__ == '__main__':
     (train_iter,) = data.Iterator.splits((train,), batch_sizes=(32,), device=-1)
     for i, batch in enumerate(train_iter):
         (forms, sizes), tags, heads, deprels = batch.form, batch.upos, batch.head, batch.deprel
+        mask = torch.zeros(sizes.size()[0], max(sizes)).type(torch.LongTensor)
+        for n, i in enumerate(sizes):
+            mask[n, 0:i] = 1
 
 
