@@ -17,7 +17,7 @@ EMBEDDING_DIM = 100
 REDUCE_DIM_ARC = 500
 REDUCE_DIM_LABEL = 100
 BATCH_SIZE = 50
-EPOCHS = 1
+EPOCHS = 10
 LEARNING_RATE = 2e-3
 
 
@@ -74,7 +74,7 @@ class Parser(torch.nn.Module):
         self.dropout = torch.nn.Dropout(p=0.33)
         self.biaffine = Biaffine(REDUCE_DIM_ARC + 1, REDUCE_DIM_ARC)
         self.label_biaffine = LongerBiaffine(REDUCE_DIM_LABEL, REDUCE_DIM_LABEL, sizes['deprels'])
-        self.criterion = torch.nn.CrossEntropyLoss(ignore_index=1)
+        self.criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
         self.optimiser = torch.optim.Adam(self.parameters(), lr=LEARNING_RATE, betas=(0.9, 0.9))
 
         if self.use_cuda:

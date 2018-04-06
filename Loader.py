@@ -1,6 +1,6 @@
 import os
 import codecs
-import torch
+import numpy as np
 from torchtext import data, datasets
 
 
@@ -43,6 +43,10 @@ def get_iterators(args):
         with open(os.path.join(".tmp", file + ".csv"), "w") as f:
             f.write(train_csv)
 
+    def dep_to_int(tensor, vocab, _):
+        fn = np.vectorize(lambda x: int(vocab.itos[x]))
+        return fn(tensor)
+
     tokeniser = lambda x: x.split(',')
     ID = data.Field(tokenize=tokeniser, batch_first=True)
     FORM = data.Field(tokenize=tokeniser, batch_first=True, include_lengths=True)
@@ -50,7 +54,7 @@ def get_iterators(args):
     UPOS = data.Field(tokenize=tokeniser, batch_first=True)
     XPOS = data.Field(tokenize=tokeniser, batch_first=True)
     FEATS = data.Field(tokenize=tokeniser, batch_first=True)
-    HEAD = data.Field(tokenize=tokeniser, batch_first=True)
+    HEAD = data.Field(tokenize=tokeniser, batch_first=True, pad_token='-1', postprocessing=lambda x, y, z: dep_to_int(x, y, z))
     DEPREL = data.Field(tokenize=tokeniser, batch_first=True)
     DEPS = data.Field(tokenize=tokeniser, batch_first=True)
     MISC = data.Field(tokenize=tokeniser, batch_first=True)
