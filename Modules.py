@@ -3,8 +3,6 @@ import torch
 from torch.autograd import Variable
 import torch.nn.functional as F
 
-BATCH_SIZE = 50
-
 
 class LinearAttention(torch.nn.Module):
 
@@ -26,12 +24,12 @@ class LinearAttention(torch.nn.Module):
 
 class Biaffine(torch.nn.Module):
 
-    def __init__(self, in1_features, in2_features):
+    def __init__(self, in1_features, in2_features, batch_size):
         super(Biaffine, self).__init__()
         self.in1_features = in1_features
         self.in2_features = in2_features
 
-        self.weight = torch.nn.Parameter(torch.rand(BATCH_SIZE, in1_features, in2_features))
+        self.weight = torch.nn.Parameter(torch.rand(batch_size, in1_features, in2_features))
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -101,6 +99,35 @@ class RowBiaffine(torch.nn.Module):
             S.append(s_i)
         S = torch.stack(S)
         return S.squeeze(3)
+
+
+class ShorterBiaffine(torch.nn.Module):
+    def __init__(self, in_features):
+        super().__init__()
+        self.in_features = in_features,
+        self.weight = torch.nn.Parameter(torch.rand(in_features + 1, in_features, 1))
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        stdv = 1. / math.sqrt(self.weight.size(0))
+        self.weight.data.uniform_(-stdv, stdv)
+
+    def forward(self, input1, input2):
+        is_cuda = next(self.parameters()).is_cuda
+        batch_size, len1, dim1 = input1.size()
+
+        ones = torch.ones(batch_size, len1, 1)
+        if is_cuda:
+            ones = ones.cuda()
+        input1 = torch.cat((input1, Variable(ones)), dim=2)
+        dim1 += 1
+
+        input1 = input1.contiguous().view(batch_size * len1, dim1)
+        W = self.weight.transpose(1, 2).contiguous().view(dim1, dim1 - 1)
+        affine = (input1 @ W).view(batch_size, len1, dim1 - 1)
+        biaffine = (affine @ input2.transpose(1, 2)).view(batch_size, len1, 1, len1).transpose(2, 3).squeeze(3)
+
+        return biaffine
 
 
 class LongerBiaffine(torch.nn.Module):

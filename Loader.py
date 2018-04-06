@@ -29,7 +29,7 @@ def conll_to_csv(fname):
     return "\n".join(rows)
 
 
-def get_iterators(args):
+def get_iterators(args, batch_size):
     device = -(not args.cuda)
 
     if not os.path.exists(".tmp"):
@@ -39,9 +39,9 @@ def get_iterators(args):
     dev_csv = conll_to_csv(args.dev)
     test_csv = conll_to_csv(args.test)
 
-    for file in ["train", "dev", "test"]:
+    for file, text in zip(["train", "dev", "test"], [train_csv, dev_csv, test_csv]):
         with open(os.path.join(".tmp", file + ".csv"), "w") as f:
-            f.write(train_csv)
+            f.write(text)
 
     def dep_to_int(tensor, vocab, _):
         fn = np.vectorize(lambda x: int(vocab.itos[x]))
@@ -54,7 +54,7 @@ def get_iterators(args):
     UPOS = data.Field(tokenize=tokeniser, batch_first=True)
     XPOS = data.Field(tokenize=tokeniser, batch_first=True)
     FEATS = data.Field(tokenize=tokeniser, batch_first=True)
-    HEAD = data.Field(tokenize=tokeniser, batch_first=True, pad_token='-1', postprocessing=lambda x, y, z: dep_to_int(x, y, z))
+    HEAD = data.Field(tokenize=tokeniser, batch_first=True, pad_token='-1', unk_token='-1', postprocessing=lambda x, y, z: dep_to_int(x, y, z))
     DEPREL = data.Field(tokenize=tokeniser, batch_first=True)
     DEPS = data.Field(tokenize=tokeniser, batch_first=True)
     MISC = data.Field(tokenize=tokeniser, batch_first=True)
@@ -69,8 +69,9 @@ def get_iterators(args):
     fields = [ID, FORM, LEMMA, UPOS, XPOS, FEATS, HEAD, DEPREL, DEPS, MISC]
     [i.build_vocab(train) for i in fields]
 
-    (train_iter, dev_iter, test_iter) = data.Iterator.splits((train, dev, test), batch_sizes=(50, 50, 50), device=device,
-                                                             sort_key=lambda x: len(x.form), sort_within_batch=True)
+    (train_iter, dev_iter, test_iter) = data.Iterator.splits((train, dev, test), batch_sizes=(batch_size, batch_size, batch_size), device=device,
+                                                             sort_key=lambda x: len(x.form), sort_within_batch=True,
+                                                             repeat=False)
     sizes = {'vocab': len(FORM.vocab), 'postags': len(UPOS.vocab), 'deprels': len(DEPREL.vocab)}
 
     return (train_iter, dev_iter, test_iter), sizes

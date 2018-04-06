@@ -9,15 +9,15 @@ from torch.autograd import Variable
 from Helpers import build_data, process_batch
 import Helpers
 import Loader
-from Modules import Biaffine, LongerBiaffine, LinearAttention
+from Modules import Biaffine, LongerBiaffine, LinearAttention, ShorterBiaffine
 
-LSTM_DIM = 400
-LSTM_DEPTH = 3
+LSTM_DIM = 100
+LSTM_DEPTH = 1
 EMBEDDING_DIM = 100
-REDUCE_DIM_ARC = 500
+REDUCE_DIM_ARC = 100
 REDUCE_DIM_LABEL = 100
 BATCH_SIZE = 50
-EPOCHS = 10
+EPOCHS = 2
 LEARNING_RATE = 2e-3
 
 
@@ -72,7 +72,8 @@ class Parser(torch.nn.Module):
         self.mlp_deprel_dep = torch.nn.Linear(2 * LSTM_DIM, REDUCE_DIM_LABEL)
         self.relu = torch.nn.ReLU()
         self.dropout = torch.nn.Dropout(p=0.33)
-        self.biaffine = Biaffine(REDUCE_DIM_ARC + 1, REDUCE_DIM_ARC)
+        # self.biaffine = Biaffine(REDUCE_DIM_ARC + 1, REDUCE_DIM_ARC, BATCH_SIZE)
+        self.biaffine = ShorterBiaffine(REDUCE_DIM_ARC)
         self.label_biaffine = LongerBiaffine(REDUCE_DIM_LABEL, REDUCE_DIM_LABEL, sizes['deprels'])
         self.criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
         self.optimiser = torch.optim.Adam(self.parameters(), lr=LEARNING_RATE, betas=(0.9, 0.9))
@@ -117,6 +118,8 @@ class Parser(torch.nn.Module):
 
     def train_(self, epoch, train_loader):
         self.train()
+        train_loader.init_epoch()
+
         for i, batch in enumerate(train_loader):
             (x_forms, pack), x_tags, y_heads, y_deprels = batch.form, batch.upos, batch.head, batch.deprel
 
@@ -168,6 +171,7 @@ class Parser(torch.nn.Module):
             if self.use_cuda:
                 mask = mask.cuda()
 
+            mask = Variable(mask)
             heads_correct = ((y_heads == y_pred_head) * mask)
             deprels_correct = ((y_deprels == y_pred_deprel) * mask)
 
@@ -198,7 +202,7 @@ if __name__ == '__main__':
     parser.add_argument('--test', default='./data/sv-ud-test.conllu')
     args = parser.parse_args()
 
-    (train_loader, dev_loader, test_loader), sizes = Loader.get_iterators(args)
+    (train_loader, dev_loader, test_loader), sizes = Loader.get_iterators(args, BATCH_SIZE)
 
     parser = Parser(sizes, args)
     if args.cuda:
