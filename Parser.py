@@ -1,6 +1,7 @@
 import os
 import math
 import argparse
+import configparser
 import torch
 import torch.utils.data
 import torch.nn.functional as F
@@ -11,21 +12,24 @@ import Helpers
 import Loader
 from Modules import Biaffine, LongerBiaffine, LinearAttention, ShorterBiaffine
 
-LSTM_DIM = 100
-LSTM_DEPTH = 1
-EMBEDDING_DIM = 100
-REDUCE_DIM_ARC = 100
-REDUCE_DIM_LABEL = 100
-BATCH_SIZE = 50
-EPOCHS = 2
-LEARNING_RATE = 2e-3
+config = configparser.ConfigParser()
+config.read('config.ini')
+
+BATCH_SIZE = int(config['parser']['BATCH_SIZE'])
+EMBED_DIM = int(config['parser']['EMBED_DIM'])
+LSTM_DIM = int(config['parser']['LSTM_DIM'])
+LSTM_LAYERS = int(config['parser']['LSTM_LAYERS'])
+REDUCE_DIM_ARC = int(config['parser']['REDUCE_DIM_ARC'])
+REDUCE_DIM_LABEL = int(config['parser']['REDUCE_DIM_LABEL'])
+LEARNING_RATE = float(config['parser']['LEARNING_RATE'])
+EPOCHS = int(config['parser']['EPOCHS'])
 
 
 class CharEmbedding(torch.nn.Module):
     def __init__(self, sizes, args):
         super().__init__()
-        self.embedding_chars = torch.nn.Embedding(sizes['chars'], EMBEDDING_DIM)
-        self.lstm = torch.nn.LSTM(EMBEDDING_DIM, LSTM_DIM, LSTM_DEPTH,
+        self.embedding_chars = torch.nn.Embedding(sizes['chars'], EMBED_DIM)
+        self.lstm = torch.nn.LSTM(EMBED_DIM, LSTM_DIM, LSTM_LAYERS,
                                   batch_first=True, bidirectional=False, dropout=0.33)
         self.attention = LinearAttention(LSTM_DIM)
 
@@ -61,10 +65,10 @@ class Parser(torch.nn.Module):
         self.use_cuda = args.cuda
         self.debug = args.debug
 
-        # self.embeddings_chars = CharEmbedding(sizes, EMBEDDING_DIM)
-        self.embeddings_forms = torch.nn.Embedding(sizes['vocab'], EMBEDDING_DIM)
-        self.embeddings_tags = torch.nn.Embedding(sizes['postags'], EMBEDDING_DIM)
-        self.lstm = torch.nn.LSTM(2 * EMBEDDING_DIM, LSTM_DIM, LSTM_DEPTH,
+        # self.embeddings_chars = CharEmbedding(sizes, EMBED_DIM)
+        self.embeddings_forms = torch.nn.Embedding(sizes['vocab'], EMBED_DIM)
+        self.embeddings_tags = torch.nn.Embedding(sizes['postags'], EMBED_DIM)
+        self.lstm = torch.nn.LSTM(2 * EMBED_DIM, LSTM_DIM, LSTM_LAYERS,
                                   batch_first=True, bidirectional=True, dropout=0.33)
         self.mlp_head = torch.nn.Linear(2 * LSTM_DIM, REDUCE_DIM_ARC)
         self.mlp_dep = torch.nn.Linear(2 * LSTM_DIM, REDUCE_DIM_ARC)

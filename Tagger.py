@@ -8,18 +8,22 @@ from torch.autograd import Variable
 from Parser import build_data
 from Helpers import process_batch
 
-BATCH_SIZE = 50
-EMBED_DIM = 100
-LSTM_DIM = 40
-LSTM_LAYERS = 1
-MLP_DIM = 400
-LEARNING_RATE = 2e-3
-EPOCHS = 5
+config = configparser.ConfigParser()
+config.read('config.ini')
+
+BATCH_SIZE = int(config['tagger']['BATCH_SIZE'])
+EMBED_DIM = int(config['tagger']['EMBED_DIM'])
+LSTM_DIM = int(config['tagger']['LSTM_DIM'])
+LSTM_LAYERS = int(config['tagger']['LSTM_LAYERS'])
+MLP_DIM = int(config['tagger']['MLP_DIM'])
+LEARNING_RATE = float(config['tagger']['LEARNING_RATE'])
+EPOCHS = int(config['tagger']['EPOCHS'])
 
 
 class Tagger(torch.nn.Module):
     def __init__(self, sizes, args):
         super().__init__()
+
         self.embeds = torch.nn.Embedding(sizes['vocab'], EMBED_DIM)
         self.lstm = torch.nn.LSTM(EMBED_DIM, LSTM_DIM, LSTM_LAYERS, batch_first=True, bidirectional=True, dropout=0.5)
         self.relu = torch.nn.ReLU()
@@ -115,8 +119,7 @@ def main():
     print("Training")
     for epoch in range(EPOCHS):
         tagger.train_(epoch, train_loader)
-        if not args.cuda:
-            tagger.evaluate_(dev_loader)
+        tagger.evaluate_(dev_loader)
 
     # test
     print("Eval")
