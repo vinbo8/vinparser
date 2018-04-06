@@ -218,8 +218,7 @@ if __name__ == '__main__':
     print("Training")
     for epoch in range(EPOCHS):
         parser.train_(epoch, train_loader)
-        if not args.cuda:
-            parser.evaluate_(dev_loader)
+        parser.evaluate_(dev_loader)
 
     # test
     print("Eval")
