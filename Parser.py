@@ -12,8 +12,18 @@ import Helpers
 import Loader
 from Modules import Biaffine, LongerBiaffine, LinearAttention, ShorterBiaffine
 
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--debug', action='store_true')
+parser.add_argument('--cuda', action='store_true')
+parser.add_argument('--config', default='./config.ini')
+parser.add_argument('--train', default='./data/sv-ud-train.conllu')
+parser.add_argument('--dev', default='./data/sv-ud-dev.conllu')
+parser.add_argument('--test', default='./data/sv-ud-test.conllu')
+args = parser.parse_args()
+
 config = configparser.ConfigParser()
-config.read('config.ini')
+config.read(args.config)
 
 BATCH_SIZE = int(config['parser']['BATCH_SIZE'])
 EMBED_DIM = int(config['parser']['EMBED_DIM'])
@@ -198,14 +208,6 @@ class Parser(torch.nn.Module):
 
 if __name__ == '__main__':
     # args
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--debug', action='store_true')
-    parser.add_argument('--cuda', action='store_true')
-    parser.add_argument('--train', default='./data/sv-ud-train.conllu')
-    parser.add_argument('--dev', default='./data/sv-ud-dev.conllu')
-    parser.add_argument('--test', default='./data/sv-ud-test.conllu')
-    args = parser.parse_args()
-
     (train_loader, dev_loader, test_loader), sizes = Loader.get_iterators(args, BATCH_SIZE)
 
     parser = Parser(sizes, args)

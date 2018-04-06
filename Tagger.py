@@ -8,8 +8,17 @@ from torch.autograd import Variable
 from Parser import build_data
 from Helpers import process_batch
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--debug', action='store_true')
+parser.add_argument('--cuda', action='store_true')
+parser.add_argument('--config', default='./config.ini')
+parser.add_argument('--train', default='./data/sv-ud-train.conllu')
+parser.add_argument('--dev', default='./data/sv-ud-dev.conllu')
+parser.add_argument('--test', default='./data/sv-ud-test.conllu')
+args = parser.parse_args()
+
 config = configparser.ConfigParser()
-config.read('config.ini')
+config.read(args.config)
 
 BATCH_SIZE = int(config['tagger']['BATCH_SIZE'])
 EMBED_DIM = int(config['tagger']['EMBED_DIM'])
@@ -101,14 +110,6 @@ class Tagger(torch.nn.Module):
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--debug', action='store_true')
-    parser.add_argument('--cuda', action='store_true')
-    parser.add_argument('--train', default='./data/sv-ud-train.conllu')
-    parser.add_argument('--dev', default='./data/sv-ud-dev.conllu')
-    parser.add_argument('--test', default='./data/sv-ud-test.conllu')
-    args = parser.parse_args()
-
     (train_loader, dev_loader, test_loader), sizes = Loader.get_iterators(args, BATCH_SIZE)
 
     tagger = Tagger(sizes, args)
