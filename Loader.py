@@ -29,15 +29,15 @@ def conll_to_csv(fname):
     return "\n".join(rows)
 
 
-def get_iterators(data, batch_size):
-    device = -(not args.cuda)
+def get_iterators(datasets, batch_size, cuda):
+    device = -(not cuda)
 
     if not os.path.exists(".tmp"):
         os.makedirs(".tmp")
 
-    train_csv = conll_to_csv(data[0])
-    dev_csv = conll_to_csv(data[1])
-    test_csv = conll_to_csv(data[2])
+    train_csv = conll_to_csv(datasets[0])
+    dev_csv = conll_to_csv(datasets[1])
+    test_csv = conll_to_csv(datasets[2])
 
     for file, text in zip(["train", "dev", "test"], [train_csv, dev_csv, test_csv]):
         with open(os.path.join(".tmp", file + ".csv"), "w") as f:
