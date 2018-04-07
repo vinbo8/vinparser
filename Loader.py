@@ -1,7 +1,7 @@
 import os
 import codecs
 import numpy as np
-from torchtext import data, datasets
+from torchtext import data, datasets, vocab
 
 
 ROOT_LINE = "0\t__ROOT\t_\t__ROOT\t_\t_\t0\t__ROOT\t_\t_"
@@ -29,15 +29,15 @@ def conll_to_csv(fname):
     return "\n".join(rows)
 
 
-def get_iterators(datasets, batch_size, cuda):
+def get_iterators(sets, batch_size, cuda):
     device = -(not cuda)
 
     if not os.path.exists(".tmp"):
         os.makedirs(".tmp")
 
-    train_csv = conll_to_csv(datasets[0])
-    dev_csv = conll_to_csv(datasets[1])
-    test_csv = conll_to_csv(datasets[2])
+    train_csv = conll_to_csv(sets[0])
+    dev_csv = conll_to_csv(sets[1])
+    test_csv = conll_to_csv(sets[2])
 
     for file, text in zip(["train", "dev", "test"], [train_csv, dev_csv, test_csv]):
         with open(os.path.join(".tmp", file + ".csv"), "w") as f:
@@ -67,6 +67,12 @@ def get_iterators(datasets, batch_size, cuda):
                                                                         ('deps', DEPS), ('misc', MISC)])
 
     fields = [ID, FORM, LEMMA, UPOS, XPOS, FEATS, HEAD, DEPREL, DEPS, MISC]
+    vecs = vocab.Vectors(name="./wiki.sv.vec")
+    # for i in fields:
+    #     if i == FORM:
+    #         i.build_vocab(train, vectors=vecs)
+    #     else:
+    #         i.build_vocab(train)
     [i.build_vocab(train) for i in fields]
 
     (train_iter, dev_iter, test_iter) = data.Iterator.splits((train, dev, test), batch_sizes=(batch_size, batch_size, batch_size), device=device,

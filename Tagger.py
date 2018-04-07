@@ -110,7 +110,9 @@ class Tagger(torch.nn.Module):
 
 
 def main():
-    (train_loader, dev_loader, test_loader), sizes = Loader.get_iterators(args, BATCH_SIZE)
+    data = (args.train, args.dev, args.test)
+    print(data)
+    (train_loader, dev_loader, test_loader), sizes = Loader.get_iterators(data, BATCH_SIZE, cuda=args.cuda)
 
     tagger = Tagger(sizes, args)
     if args.cuda:
