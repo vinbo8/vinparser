@@ -78,7 +78,7 @@ class Parser(torch.nn.Module):
         # self.embeddings_chars = CharEmbedding(sizes, EMBED_DIM)
         self.embeddings_forms = torch.nn.Embedding(sizes['vocab'], EMBED_DIM)
         self.embeddings_tags = torch.nn.Embedding(sizes['postags'], EMBED_DIM)
-        self.lstm = torch.nn.LSTM(600, LSTM_DIM, LSTM_LAYERS,
+        self.lstm = torch.nn.LSTM(600 + sizes['postags'], LSTM_DIM, LSTM_LAYERS,
                                   batch_first=True, bidirectional=True, dropout=0.33)
         self.mlp_head = torch.nn.Linear(2 * LSTM_DIM, REDUCE_DIM_ARC)
         self.mlp_dep = torch.nn.Linear(2 * LSTM_DIM, REDUCE_DIM_ARC)
@@ -86,7 +86,7 @@ class Parser(torch.nn.Module):
         self.mlp_deprel_dep = torch.nn.Linear(2 * LSTM_DIM, REDUCE_DIM_LABEL)
         self.mlp_tag = torch.nn.Linear(400, 200)
         self.out_tag = torch.nn.Linear(200, sizes['postags'])
-        self.lstm_tag = torch.nn.LSTM(EMBED_DIM, 200, LSTM_LAYERS,
+        self.lstm_tag = torch.nn.LSTM(EMBED_DIM, 200, LSTM_LAYERS - 1,
                                   batch_first=True, bidirectional=True, dropout=0.33)
         self.relu = torch.nn.ReLU()
         self.dropout = torch.nn.Dropout(p=0.33)
@@ -117,7 +117,7 @@ class Parser(torch.nn.Module):
         y_pred_tag = self.out_tag(mlp_tag)
 
         print(output_tag.size())
-        embeds = torch.cat([form_embeds, tag_embeds, output_tag], dim = 2)
+        embeds = torch.cat([form_embeds, tag_embeds, output_tag,  y_pred_tag], dim = 2)
         print(embeds.size())
    
         # pack/unpack for LSTM_parse
