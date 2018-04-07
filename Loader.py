@@ -7,7 +7,7 @@ from torchtext import data, datasets
 ROOT_LINE = "0\t__ROOT\t_\t_\t__ROOT\t_\t_\t0\t__ROOT\t_\t_"
 
 
-def conll_to_csv(fname):
+def conll_to_csv(fname, cs=False):
     with codecs.open(fname, 'r', 'utf-8') as f:
         rows, blokk = [], ['"' for _ in range(11)]
         blokk = list(map(lambda x, y: x + y, blokk, ROOT_LINE.split("\t")))
@@ -24,7 +24,10 @@ def conll_to_csv(fname):
                 continue
 
             cols = [i.replace(',', '<cm>') for i in line.rstrip("\n").split("\t")]
-            cols = cols[:2] + [cols[1]] + cols[2:]
+            if cs:
+                cols = cols[:3] + [cols[2]] + cols[3:]
+            else:
+                cols = cols[:2] + [cols[1]] + cols[2:]
             blokk = list(map(lambda x, y: x + ',' + y, blokk, cols))
 
     return "\n".join(rows)
@@ -36,9 +39,9 @@ def get_iterators(args, batch_size):
     if not os.path.exists(".tmp"):
         os.makedirs(".tmp")
 
-    train_csv = conll_to_csv(args.train)
-    dev_csv = conll_to_csv(args.dev)
-    test_csv = conll_to_csv(args.test)
+    train_csv = conll_to_csv(args.train, args.code_switch)
+    dev_csv = conll_to_csv(args.dev, args.code_switch)
+    test_csv = conll_to_csv(args.test, args.code_switch)
 
     for file, text in zip(["train", "dev", "test"], [train_csv, dev_csv, test_csv]):
         with open(os.path.join(".tmp", file + ".csv"), "w") as f:
