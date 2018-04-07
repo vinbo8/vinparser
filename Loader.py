@@ -23,6 +23,9 @@ def conll_to_csv(fname):
                 continue
 
             cols = [i.replace('"', '<qt>').replace(',', '<cm>') for i in line.rstrip("\n").split("\t")]
+            if "." in cols[0]:
+                continue
+
             cols = cols[:2] + [cols[1]] + cols[2:]
             blokk = list(map(lambda x, y: x + ',' + y, blokk, cols))
 
