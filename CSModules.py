@@ -38,7 +38,8 @@ class CSParser(torch.nn.Module):
         # self.embeddings_chars = CharEmbedding(sizes, EMBED_DIM)
         self.embeddings_forms = torch.nn.Embedding(sizes['vocab'], EMBED_DIM)
         self.embeddings_tags = torch.nn.Embedding(sizes['postags'], EMBED_DIM)
-        self.lstm = torch.nn.LSTM(2 * EMBED_DIM, LSTM_DIM, LSTM_LAYERS,
+        self.embeddings_langs = torch.nn.Embedding(sizes['langs'], EMBED_DIM)
+        self.lstm = torch.nn.LSTM(3 * EMBED_DIM, LSTM_DIM, LSTM_LAYERS,
                                   batch_first=True, bidirectional=True, dropout=0.33)
         self.mlp_head = torch.nn.Linear(2 * LSTM_DIM, REDUCE_DIM_ARC)
         self.mlp_dep = torch.nn.Linear(2 * LSTM_DIM, REDUCE_DIM_ARC)
@@ -62,7 +63,8 @@ class CSParser(torch.nn.Module):
         # char_embeds = self.embeddings_chars(chars, pack)
         form_embeds = self.dropout(self.embeddings_forms(forms))
         tag_embeds = self.dropout(self.embeddings_tags(tags))
-        embeds = torch.cat([form_embeds, tag_embeds], dim=2)
+        lang_embeds = self.dropout(self.embeddings_tags(tags))
+        embeds = torch.cat([form_embeds, tag_embeds, lang_embeds], dim=2)
 
         # pack/unpack for LSTM
         embeds = torch.nn.utils.rnn.pack_padded_sequence(embeds, pack.tolist(), batch_first=True)
