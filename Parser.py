@@ -10,16 +10,18 @@ from torch.autograd import Variable
 from Helpers import build_data, process_batch
 import Helpers
 import Loader
+from CSModules import CSParser
 from Modules import Biaffine, LongerBiaffine, LinearAttention, ShorterBiaffine
 
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--cuda', action='store_true')
+parser.add_argument('--code_switch', action='store_true')
 parser.add_argument('--config', default='./config.ini')
-parser.add_argument('--train', default='./data/sv-ud-train.conllu')
-parser.add_argument('--dev', default='./data/sv-ud-dev.conllu')
-parser.add_argument('--test', default='./data/sv-ud-test.conllu')
+parser.add_argument('--train', default='./data/UD_Swedish/sv-ud-train.conllu')
+parser.add_argument('--dev', default='./data/UD_Swedish/sv-ud-dev.conllu')
+parser.add_argument('--test', default='./data/UD_Swedish/sv-ud-test.conllu')
 args = parser.parse_args()
 
 config = configparser.ConfigParser()
@@ -210,7 +212,11 @@ if __name__ == '__main__':
     # args
     (train_loader, dev_loader, test_loader), sizes = Loader.get_iterators(args, BATCH_SIZE)
 
-    parser = Parser(sizes, args)
+    if args.code_switch:
+        parser = CSParser(sizes, args)
+    else:
+        parser = Parser(sizes, args)
+
     if args.cuda:
         parser.cuda()
 
