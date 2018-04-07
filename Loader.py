@@ -29,15 +29,15 @@ def conll_to_csv(fname):
     return "\n".join(rows)
 
 
-def get_iterators(args, batch_size):
+def get_iterators(data, batch_size):
     device = -(not args.cuda)
 
     if not os.path.exists(".tmp"):
         os.makedirs(".tmp")
 
-    train_csv = conll_to_csv(args.train)
-    dev_csv = conll_to_csv(args.dev)
-    test_csv = conll_to_csv(args.test)
+    train_csv = conll_to_csv(data[0])
+    dev_csv = conll_to_csv(data[1])
+    test_csv = conll_to_csv(data[2])
 
     for file, text in zip(["train", "dev", "test"], [train_csv, dev_csv, test_csv]):
         with open(os.path.join(".tmp", file + ".csv"), "w") as f:
@@ -75,3 +75,12 @@ def get_iterators(args, batch_size):
     sizes = {'vocab': len(FORM.vocab), 'postags': len(UPOS.vocab), 'deprels': len(DEPREL.vocab)}
 
     return (train_iter, dev_iter, test_iter), sizes
+
+def get_iterators_cl(args, batch_size):
+
+    assert len(args.train) == len(args.dev) == len(args.test), \
+        "Train/Dev/Test must be provided for all languages."
+
+    NUMLANGS = len(args.train)
+    
+    return [get_iterators((args.train[i], args.dev[i], args.test[i]), batch_size) for i in NUMLANGS]
