@@ -29,7 +29,7 @@ def conll_to_csv(fname):
     return "\n".join(rows)
 
 
-def get_iterators(sets, batch_size, cuda):
+def get_iterators(sets, embeds, batch_size, cuda):
     device = -(not cuda)
 
     if not os.path.exists(".tmp"):
@@ -67,20 +67,20 @@ def get_iterators(sets, batch_size, cuda):
                                                                         ('deps', DEPS), ('misc', MISC)])
 
     fields = [ID, FORM, LEMMA, UPOS, XPOS, FEATS, HEAD, DEPREL, DEPS, MISC]
-    vecs = vocab.Vectors(name="./wiki.sv.vec")
-    # for i in fields:
-    #     if i == FORM:
-    #         i.build_vocab(train, vectors=vecs)
-    #     else:
-    #         i.build_vocab(train)
-    [i.build_vocab(train) for i in fields]
+    for i in fields:
+        if i == FORM and embeds is not None:
+            vecs = vocab.Vectors(name=embeds)
+            i.build_vocab(train, vectors=vecs)
+        else:
+            i.build_vocab(train)
+    # [i.build_vocab(train) for i in fields]
 
     (train_iter, dev_iter, test_iter) = data.Iterator.splits((train, dev, test), batch_sizes=(batch_size, batch_size, batch_size), device=device,
                                                              sort_key=lambda x: len(x.form), sort_within_batch=True,
                                                              repeat=False)
     sizes = {'vocab': len(FORM.vocab), 'postags': len(UPOS.vocab), 'deprels': len(DEPREL.vocab)}
 
-    return (train_iter, dev_iter, test_iter), sizes
+    return (train_iter, dev_iter, test_iter), sizes, FORM.vocab
 
 def get_iterators_cl(args, batch_size):
 
@@ -89,4 +89,8 @@ def get_iterators_cl(args, batch_size):
 
     NUMLANGS = len(args.train)
     
-    return [get_iterators((args.train[i], args.dev[i], args.test[i]), batch_size) for i in NUMLANGS]
+    if args.embed is not None:
+        assert len(args.embed) == NUMLANGS, \
+            "Embeds must be provided for all languages."
+    
+    return [get_iterators((args.train[i], args.dev[i], args.test[i]), args.embed[i], batch_size, args.cuda) for i in range(NUMLANGS)]
