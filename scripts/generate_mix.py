@@ -1,9 +1,13 @@
+from collections import Counter
 import random
 import sys
 
 random.seed(1337)
 
+c = Counter()
+
 def do_stuff(f):
+	global c
 	toks = []
 	for line in f:
 		if line[0] == '#' or not line.strip():
@@ -11,9 +15,7 @@ def do_stuff(f):
 
 		cols = line.split("\t")
 		if cols[7] == 'case':
-			toks.append(cols[1])
-
-	return toks
+			c[cols[1]] += 1
 
 with open(sys.argv[1]) as f:
 	l1 = f.readlines()
@@ -25,13 +27,18 @@ with open(sys.argv[3]) as f:
 	combo = f.readlines()
 
 # build samples
-toks = do_stuff(l1) + do_stuff(l2)
+do_stuff(l1)
+do_stuff(l2)
+
+
+toks = [item for sublist in c for item in sublist]
 
 for line in combo:
 	if line[0] == '#' or not line.strip():
 		sys.stdout.write(line)
 		continue
 
+'''
 	cols = line.split("\t")
 	if cols[7] == 'case':
 		shuf = random.randint(1, 4)
@@ -41,4 +48,4 @@ for line in combo:
 			sys.stdout.write(line)
 	else:
 		sys.stdout.write(line)
-
+'''
