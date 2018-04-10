@@ -1,5 +1,6 @@
 import os
 import math
+import random
 import argparse
 import configparser
 import torch
@@ -12,14 +13,16 @@ import Helpers
 import Loader
 from Modules import Biaffine, LongerBiaffine, LinearAttention, ShorterBiaffine
 
+random.seed(1337)
+np.random.seed(1337)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--cuda', action='store_true')
 parser.add_argument('--config', default='./config.ini')
-parser.add_argument('--train', default='./data/en-ud-train.conllu')
-parser.add_argument('--dev', default='./data/en-ud-dev.conllu')
-parser.add_argument('--test', default='./data/en-ud-test.conllu')
+parser.add_argument('--train', default='./data/sv-ud-train.conllu')
+parser.add_argument('--dev', default='./data/sv-ud-dev.conllu')
+parser.add_argument('--test', default='./data/sv-ud-test.conllu')
 args = parser.parse_args()
 
 config = configparser.ConfigParser()
@@ -78,15 +81,15 @@ class Parser(torch.nn.Module):
         # self.embeddings_chars = CharEmbedding(sizes, EMBED_DIM)
         self.embeddings_forms = torch.nn.Embedding(sizes['vocab'], EMBED_DIM)
         self.embeddings_tags = torch.nn.Embedding(sizes['postags'], EMBED_DIM)
-        self.lstm = torch.nn.LSTM(400 + sizes['postags'], LSTM_DIM, LSTM_LAYERS,
+        self.lstm = torch.nn.LSTM(500 + sizes['postags'], LSTM_DIM, LSTM_LAYERS,
                                   batch_first=True, bidirectional=True, dropout=0.33)
         self.mlp_head = torch.nn.Linear(2 * LSTM_DIM, REDUCE_DIM_ARC)
         self.mlp_dep = torch.nn.Linear(2 * LSTM_DIM, REDUCE_DIM_ARC)
         self.mlp_deprel_head = torch.nn.Linear(2 * LSTM_DIM, REDUCE_DIM_LABEL)
         self.mlp_deprel_dep = torch.nn.Linear(2 * LSTM_DIM, REDUCE_DIM_LABEL)
-        self.mlp_tag = torch.nn.Linear(200, 100)
-        self.out_tag = torch.nn.Linear(100, sizes['postags'])
-        self.lstm_tag = torch.nn.LSTM(EMBED_DIM, 100, LSTM_LAYERS - 1,
+        self.mlp_tag = torch.nn.Linear(300, 150)
+        self.out_tag = torch.nn.Linear(150, sizes['postags'])
+        self.lstm_tag = torch.nn.LSTM(EMBED_DIM, 150, LSTM_LAYERS - 2,
                                   batch_first=True, bidirectional=True, dropout=0.33)
         self.relu = torch.nn.ReLU()
         self.dropout = torch.nn.Dropout(p=0.33)
@@ -106,7 +109,7 @@ class Parser(torch.nn.Module):
         # char_embeds = self.embeddings_chars(chars, pack)
         form_embeds = self.dropout(self.embeddings_forms(forms))
         tag_embeds = self.dropout(self.embeddings_tags(tags))
-        print(tag_embeds.size())
+        #print(tag_embeds.size())
         #embeds = torch.cat([form_embeds, tag_embeds], dim=2)
 
         # pack/unpack for LSTM_tag
