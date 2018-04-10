@@ -34,7 +34,11 @@ for line in combo:
 
 	cols = line.split("\t")
 	if cols[7] == 'case':
-		sys.stdout.write("{}\t{}\t{}".format(cols[0], random.choice(toks), "\t".join(cols[2:])))
+		shuf = random.randint(1, 4)
+		if shuf == 1:
+			sys.stdout.write("{}\t{}\t{}".format(cols[0], random.choice(toks), "\t".join(cols[2:])))
+		else:
+			sys.stdout.write(line)
 	else:
 		sys.stdout.write(line)
 
