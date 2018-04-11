@@ -93,5 +93,16 @@ def get_iterators_cl(args, batch_size):
     if args.embed is not None:
         assert len(args.embed) == NUMLANGS, \
             "Embeds must be provided for all languages."
+
+    out = []
+    for i in range(NUMLANGS):
+        loaders, sizes, vocab = get_iterators((args.train[i], args.dev[i], args.test[i]), args.embed[i], batch_size, args.cuda)
+        loader_dict = {"train": loaders[0],
+                       "dev": loaders[1],
+                       "test": loaders[2],
+                       "sizes": sizes,
+                       "vocab": vocab
+                       }
+        out.append(loader_dict)
     
-    return [get_iterators((args.train[i], args.dev[i], args.test[i]), args.embed[i], batch_size, args.cuda) for i in range(NUMLANGS)]
+    return out
