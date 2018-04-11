@@ -23,7 +23,8 @@ def conll_to_csv(fname):
                 blokk = list(map(lambda x, y: x + y, blokk, ROOT_LINE.split("\t")))
                 continue
 
-            cols = [i.replace(',', '<cm>') for i in line.rstrip("\n").split("\t")]
+            cols = [i.replace('"', '<qt>').replace(',', '<cm>') for i in line.rstrip("\n").split("\t")]
+            if '.' in cols[0]: continue
             blokk = list(map(lambda x, y: x + ',' + y, blokk, cols))
 
     return "\n".join(rows)
