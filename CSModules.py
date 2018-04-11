@@ -120,8 +120,8 @@ class CSParser(torch.nn.Module):
             for n, size in enumerate(pack):
                 mask[n, 0:size] = 1
 
-            # y_pred_head, y_pred_deprel = self(x_forms, x_tags, pack)
-            y_pred_langid = self.langid_fwd(x_forms, x_tags, pack)
+            y_pred_head, y_pred_deprel = self(x_forms, x_tags, pack)
+            y_pred_langs = self.langid_fwd(x_forms, x_tags, pack)
 
             # reshape for cross-entropy
             batch_size, longest_sentence_in_batch = y_heads.size()
