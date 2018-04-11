@@ -4,7 +4,7 @@ import numpy as np
 from torchtext import data, datasets
 
 
-ROOT_LINE = "0\t__ROOT\t_\t_\t__ROOT\t_\t_\t0\t__ROOT\t_\t_"
+ROOT_LINE = "0\t__ROOT\t_\t__ROOT\t_\t_\t0\t__ROOT\t_\t_"
 
 
 def conll_to_csv(fname):
@@ -23,7 +23,7 @@ def conll_to_csv(fname):
                 blokk = list(map(lambda x, y: x + y, blokk, ROOT_LINE.split("\t")))
                 continue
 
-            cols = [i.replace(',', '<cm>') for i in line.rstrip("\n").split("\t")]
+            cols = [i.replace('"', '<qt>').replace(',', '<cm>') for i in line.rstrip("\n").split("\t")]
             if '.' in cols[0]: continue
             cols = cols[:2] + [cols[1]] + cols[2:]
             blokk = list(map(lambda x, y: x + ',' + y, blokk, cols))
