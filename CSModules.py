@@ -53,9 +53,25 @@ class CSParser(torch.nn.Module):
         self.criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
         self.optimiser = torch.optim.Adam(self.parameters(), lr=LEARNING_RATE, betas=(0.9, 0.9))
 
+        # langid stuffs
+        self.langid_mlp = torch.nn.Linear(2 * LSTM_DIM, REDUCE_DIM_ARC)
+        self.langid_out = torch.nn.Linear(REDUCE_DIM_ARC, sizes['langs'])
+
         if self.use_cuda:
             self.biaffine.cuda()
             self.label_biaffine.cuda()
+
+    def langid_fwd(self, forms, tags, pack):
+        form_embeds = self.dropout(self.embeddings_forms(forms))
+        tag_embeds = self.dropout(self.embeddings_tags(tags))
+
+        embeds = torch.cat([form_embeds, tag_embeds], dim=2)
+        embeds = torch.nn.utils.rnn.pack_padded_sequence(embeds, pack.tolist(), batch_first=True)
+        lstm_out, _ = self.lstm(embeds)
+        lstm_out, _ = torch.nn.utils.rnn.pad_packed_sequence(lstm_out, batch_first=True)
+
+        mlp_out = self.dropout(self.relu(self.langid_mlp(lstm_out)))
+        return self.langid_out(mlp_out)
 
     def forward(self, forms, tags, pack):
         # embed and dropout forms and tags; concat
@@ -97,13 +113,15 @@ class CSParser(torch.nn.Module):
         train_loader.init_epoch()
 
         for i, batch in enumerate(train_loader):
-            (x_forms, pack), x_tags, y_heads, y_deprels = batch.form, batch.upos, batch.head, batch.deprel
+            (x_forms, pack), x_tags, y_heads, y_deprels, y_langs = \
+                batch.form, batch.upos, batch.head, batch.deprel, batch.misc
 
             mask = torch.zeros(pack.size()[0], max(pack)).type(torch.LongTensor)
             for n, size in enumerate(pack):
                 mask[n, 0:size] = 1
 
-            y_pred_head, y_pred_deprel = self(x_forms, x_tags, pack)
+            # y_pred_head, y_pred_deprel = self(x_forms, x_tags, pack)
+            y_pred_langid = self.langid_fwd(x_forms, x_tags, pack)
 
             # reshape for cross-entropy
             batch_size, longest_sentence_in_batch = y_heads.size()
@@ -117,11 +135,15 @@ class CSParser(torch.nn.Module):
             # heads: (B x S) => (B * S)
             y_pred_deprel = y_pred_deprel.view(batch_size * longest_sentence_in_batch, -1)
             y_deprels = y_deprels.contiguous().view(batch_size * longest_sentence_in_batch)
+            
+            # langid
+            y_pred_langs = y_pred_langs.view(batch_size * longest_sentence_in_batch, -1)
+            y_langs = y_langs.contiguous().view(batch_size * longest_sentence_in_batch)
 
-            # sum losses
             train_loss = self.criterion(y_pred_head, y_heads)
             if not self.debug:
                 train_loss += self.criterion(y_pred_deprel, y_deprels)
+                train_loss -= self.criterion(y_pred_langs, y_langs)
 
             self.zero_grad()
             train_loss.backward()

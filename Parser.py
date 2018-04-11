@@ -9,7 +9,7 @@ import numpy as np
 from torch.autograd import Variable
 from Helpers import build_data, process_batch
 import Helpers
-import Loader
+import Loader, CSLoader
 from CSModules import CSParser
 from Modules import Biaffine, LongerBiaffine, LinearAttention, ShorterBiaffine
 
@@ -210,7 +210,7 @@ class Parser(torch.nn.Module):
 
 if __name__ == '__main__':
     # args
-    (train_loader, dev_loader, test_loader), sizes = Loader.get_iterators(args, BATCH_SIZE)
+    (train_loader, dev_loader, test_loader), sizes = CSLoader.get_iterators(args, BATCH_SIZE)
 
     if args.code_switch:
         parser = CSParser(sizes, args)

@@ -39,7 +39,6 @@ def get_iterators(args, batch_size):
         os.makedirs(".tmp")
 
     train_csv = conll_to_csv(args.train)
-    aux_csv = conll_to_csv(args.aux)
     dev_csv = conll_to_csv(args.dev)
     test_csv = conll_to_csv(args.test)
 
