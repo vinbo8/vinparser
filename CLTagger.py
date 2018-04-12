@@ -158,8 +158,6 @@ def evaluate(model, test_loader, type_task="main"):
 def main():
 
     loaders = Loader.get_iterators_cl(args, BATCH_SIZE)
-    for l in loaders:
-        print(l)
 
     tagger = CLTagger(loaders[0], loaders[1])
     if args.cuda:
