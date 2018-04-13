@@ -4,12 +4,12 @@ import numpy as np
 from torchtext import data, datasets, vocab
 
 
-ROOT_LINE = "0\t__ROOT\t_\t__ROOT\t_\t_\t0\t__ROOT\t_\t_"
+ROOT_LINE = "0\t__ROOT\t_\t_\t__ROOT\t_\t_\t0\t__ROOT\t_\t_"
 
 
 def conll_to_csv(fname):
     with codecs.open(fname, 'r', 'utf-8') as f:
-        rows, blokk = [], ['"' for _ in range(10)]
+        rows, blokk = [], ['"' for _ in range(11)]
         blokk = list(map(lambda x, y: x + y, blokk, ROOT_LINE.split("\t")))
         for line in f:
             if line[0] == '#':
@@ -19,11 +19,12 @@ def conll_to_csv(fname):
                 blokk = list(map(lambda x: x + '"', blokk))
                 blokk = ",".join(blokk)
                 rows.append(blokk)
-                blokk = ['"' for _ in range(10)]
+                blokk = ['"' for _ in range(11)]
                 blokk = list(map(lambda x, y: x + y, blokk, ROOT_LINE.split("\t")))
                 continue
 
             cols = [i.replace('"', '<qt>').replace(',', '<cm>') for i in line.rstrip("\n").split("\t")]
+            cols = cols[:2] + [cols[1]] + cols[2:]
             if '.' in cols[0]: continue
             blokk = list(map(lambda x, y: x + ',' + y, blokk, cols))
 
@@ -52,6 +53,8 @@ def get_iterators(args, batch_size):
     tokeniser = lambda x: x.split(',')
     ID = data.Field(tokenize=tokeniser, batch_first=True)
     FORM = data.Field(tokenize=tokeniser, batch_first=True, include_lengths=True)
+    CHAR = data.Field(tokenize=tokeniser, batch_first=True)
+    NEST = data.NestedField(CHAR, tokenize=list, include_lengths=True)
     LEMMA = data.Field(tokenize=tokeniser, batch_first=True)
     UPOS = data.Field(tokenize=tokeniser, batch_first=True)
     XPOS = data.Field(tokenize=tokeniser, batch_first=True)
@@ -62,13 +65,13 @@ def get_iterators(args, batch_size):
     MISC = data.Field(tokenize=tokeniser, batch_first=True)
 
     train, dev, test = data.TabularDataset.splits(path=".tmp", train='train.csv', validation='dev.csv', test='test.csv',
-                                                  format="csv", fields=[('id', ID), ('form', FORM),
+                                                  format="csv", fields=[('id', ID), ('form', FORM), ('char', NEST),
                                                                         ('lemma', LEMMA), ('upos', UPOS),
                                                                         ('xpos', XPOS), ('feats', FEATS),
                                                                         ('head', HEAD), ('deprel', DEPREL),
                                                                         ('deps', DEPS), ('misc', MISC)])
 
-    fields = [ID, FORM, LEMMA, UPOS, XPOS, FEATS, HEAD, DEPREL, DEPS, MISC]
+    fields = [ID, FORM, NEST, LEMMA, UPOS, XPOS, FEATS, HEAD, DEPREL, DEPS, MISC]
     for i in fields:
         if i == FORM and args.embed is not None:
             vecs = vocab.Vectors(name=args.embed)
@@ -80,7 +83,7 @@ def get_iterators(args, batch_size):
     (train_iter, dev_iter, test_iter) = data.Iterator.splits((train, dev, test), batch_sizes=(batch_size, batch_size, batch_size), device=device,
                                                              sort_key=lambda x: len(x.form), sort_within_batch=True,
                                                              repeat=False)
-    sizes = {'vocab': len(FORM.vocab), 'postags': len(UPOS.vocab), 'deprels': len(DEPREL.vocab)}
+    sizes = {'vocab': len(FORM.vocab), 'postags': len(UPOS.vocab), 'deprels': len(DEPREL.vocab), 'chars': len(CHAR.vocab)}
 
     return (train_iter, dev_iter, test_iter), sizes
 
