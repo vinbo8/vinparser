@@ -30,15 +30,16 @@ def conll_to_csv(fname):
     return "\n".join(rows)
 
 
-def get_iterators(sets, embeds, batch_size, cuda):
-    device = -(not cuda)
+# loads only the top of each train/dev/test stack
+def get_iterators(args, batch_size):
+    device = -(not args.cuda)
 
     if not os.path.exists(".tmp"):
         os.makedirs(".tmp")
 
-    train_csv = conll_to_csv(sets[0])
-    dev_csv = conll_to_csv(sets[1])
-    test_csv = conll_to_csv(sets[2])
+    train_csv = conll_to_csv(args.train[0])
+    dev_csv = conll_to_csv(args.dev[0])
+    test_csv = conll_to_csv(args.test[0])
 
     for file, text in zip(["train", "dev", "test"], [train_csv, dev_csv, test_csv]):
         with open(os.path.join(".tmp", file + ".csv"), "w") as f:
@@ -69,8 +70,8 @@ def get_iterators(sets, embeds, batch_size, cuda):
 
     fields = [ID, FORM, LEMMA, UPOS, XPOS, FEATS, HEAD, DEPREL, DEPS, MISC]
     for i in fields:
-        if i == FORM and embeds is not None:
-            vecs = vocab.Vectors(name=embeds)
+        if i == FORM and args.embed is not None:
+            vecs = vocab.Vectors(name=args.embed)
             i.build_vocab(train, vectors=vecs)
         else:
             i.build_vocab(train)
@@ -81,7 +82,7 @@ def get_iterators(sets, embeds, batch_size, cuda):
                                                              repeat=False)
     sizes = {'vocab': len(FORM.vocab), 'postags': len(UPOS.vocab), 'deprels': len(DEPREL.vocab)}
 
-    return (train_iter, dev_iter, test_iter), sizes, FORM.vocab
+    return (train_iter, dev_iter, test_iter), sizes
 
 def get_iterators_cl(args, batch_size):
 
