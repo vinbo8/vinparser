@@ -182,7 +182,8 @@ class Parser(torch.nn.Module):
 
             # get labels
             # TODO: ensure well-formed tree
-            y_pred_head, y_pred_deprel = [i.max(2)[1] for i in self(x_forms, x_tags, pack)]
+            y_pred_head, y_pred_deprel = [i.max(2)[1] for i in
+                                          self(x_forms, x_tags, pack, chars, length_per_word_per_sent)]
 
             mask = mask.type(torch.ByteTensor)
             if self.use_cuda:
