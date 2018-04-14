@@ -19,8 +19,8 @@ class LinearAttention(torch.nn.Module):
 
     def forward(self, input1):
         soft = F.softmax(input1 @ self.weight, dim=0)
-        return input1.transpose(0, 1) @ soft
-
+        out = input1.transpose(1, 2) @ soft
+        return out
 
 class Biaffine(torch.nn.Module):
 
