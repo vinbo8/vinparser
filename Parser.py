@@ -10,7 +10,7 @@ from torch.autograd import Variable
 from Helpers import build_data, process_batch
 import Helpers
 import Loader
-from Modules import Biaffine, LongerBiaffine, LinearAttention, ShorterBiaffine
+from Modules import Biaffine, LongerBiaffine, LinearAttention, ShorterBiaffine, CharEmbedding
 
 
 parser = argparse.ArgumentParser()
@@ -36,35 +36,6 @@ LEARNING_RATE = float(config['parser']['LEARNING_RATE'])
 EPOCHS = int(config['parser']['EPOCHS'])
 
 
-class CharEmbedding(torch.nn.Module):
-    def __init__(self, char_size, embed_dim):
-        super().__init__()
-        self.embedding_chars = torch.nn.Embedding(char_size, embed_dim)
-        self.lstm = torch.nn.LSTM(embed_dim, LSTM_DIM, LSTM_LAYERS,
-                                  batch_first=True, bidirectional=False, dropout=0.33)
-        self.attention = LinearAttention(LSTM_DIM)
-        self.mlp = torch.nn.Linear(2 * LSTM_DIM, embed_dim, bias=False)
-
-    def forward(self, forms, pack_sent):
-        # input: B x S x W
-        batch_size, max_words, max_chars = forms.size()
-        forms = forms.contiguous().view(batch_size * max_words, -1)
-        pack = pack_sent.contiguous().view(batch_size * max_words)
-
-        out = self.embedding_chars(forms)
-
-        embeds, (_, c) = self.lstm(out)
-        # embeds = embeds.contiguous().view(batch_size, max_words, max_chars, -1)
-        embeds = self.attention(embeds).squeeze(dim=2)
-        c = c[-1]
-        out = torch.cat([embeds, c], dim=1)
-        embed_mat = self.mlp(out).view(batch_size, max_words, -1)
-
-        # embeds, _ = torch.nn.utils.rnn.pad_packed_sequence(embeds, batch_first=True)
-
-        return embed_mat
-
-
 class Parser(torch.nn.Module):
     def __init__(self, sizes, args):
         super().__init__()
@@ -72,7 +43,7 @@ class Parser(torch.nn.Module):
         self.use_cuda = args.cuda
         self.debug = args.debug
 
-        self.embeddings_chars = CharEmbedding(sizes['chars'], EMBED_DIM)
+        self.embeddings_chars = CharEmbedding(sizes['chars'], EMBED_DIM, LSTM_DIM, LSTM_LAYERS)
         self.embeddings_forms = torch.nn.Embedding(sizes['vocab'], EMBED_DIM)
         self.embeddings_tags = torch.nn.Embedding(sizes['postags'], EMBED_DIM)
         self.lstm = torch.nn.LSTM(2 * EMBED_DIM, LSTM_DIM, LSTM_LAYERS,
