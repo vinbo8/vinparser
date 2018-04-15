@@ -11,7 +11,8 @@ from torch.autograd import Variable
 from Helpers import build_data, process_batch
 import Helpers
 import Loader
-from Modules import Biaffine, LongerBiaffine, LinearAttention, ShorterBiaffine
+from Modules import Biaffine, LongerBiaffine, LinearAttention, ShorterBiaffine, CharEmbedding
+
 
 random.seed(1337)
 np.random.seed(1337)
@@ -24,6 +25,7 @@ parser.add_argument('--train', default='./data/en-ud-train.conllu.sem')
 parser.add_argument('--dev', default='./data/en-ud-dev.conllu.sem')
 parser.add_argument('--test', default='./data/en-ud-test.conllu.sem')
 parser.add_argument('--embed')
+parser.add_argument('--chars', default = False)
 
 args = parser.parse_args()
 
@@ -40,53 +42,21 @@ LEARNING_RATE = float(config['parser']['LEARNING_RATE'])
 EPOCHS = int(config['parser']['EPOCHS'])
 
 
-class CharEmbedding(torch.nn.Module):
-    def __init__(self, sizes, args):
-        super().__init__()
-        self.embedding_chars = torch.nn.Embedding(sizes['chars'], EMBED_DIM)
-        self.lstm = torch.nn.LSTM(EMBED_DIM, LSTM_DIM, LSTM_LAYERS,
-                                  batch_first=True, bidirectional=False, dropout=0.33)
-        self.attention = LinearAttention(LSTM_DIM)
-
-    def forward(self, forms, pack_sent):
-        # input: B x S x W
-        batch_size, max_words, max_chars = forms.size()
-        forms = forms.contiguous().view(batch_size * max_words, -1)
-        indexes = (forms == 0).sum(dim=1).type(torch.LongTensor)
-        y, indexes = torch.sort(indexes, 0)
-        temp = forms[indexes]
-
-        restore = temp[np.argsort(indexes.data)]
-        assert restore.data.tolist() == forms.data.tolist()
-        forms.size()
-        out = self.embedding_chars(forms)
-        pack = (temp != 0).sum(dim=1)
-        pack[pack == 0] = 1
-
-        # embeds = torch.nn.utils.rnn.pack_padded_sequence(out, pack.data.tolist(), batch_first=True)
-        embeds, (_, c) = self.lstm(out)
-        # embeds = embeds.contiguous().view(batch_size, max_words, max_chars, -1)
-        embeds = self.attention(embeds)
-        c = c[:, -1, :]
-        # embeds, _ = torch.nn.utils.rnn.pad_packed_sequence(embeds, batch_first=True)
-
-        return embeds
-
-
 class Parser(torch.nn.Module):
     def __init__(self, sizes, vocab, args):
         super().__init__()
 
         self.use_cuda = args.cuda
         self.debug = args.debug
-
-        # self.embeddings_chars = CharEmbedding(sizes, EMBED_DIM)
+        
+        if args.chars:
+            self.embeddings_chars = CharEmbedding(sizes['chars'], EMBED_DIM, LSTM_DIM, LSTM_LAYERS)
         self.embeddings_forms = torch.nn.Embedding(sizes['vocab'], EMBED_DIM)
         if args.embed:
             self.embeddings_forms.weight.data.copy_(vocab.vectors)
         self.embeddings_forms_rand = torch.nn.Embedding(sizes['vocab'], EMBED_DIM) 
         self.embeddings_tags = torch.nn.Embedding(sizes['postags'], EMBED_DIM)
-        self.lstm = torch.nn.LSTM(500  + sizes['postags'], LSTM_DIM, LSTM_LAYERS + 1,
+        self.lstm = torch.nn.LSTM(700  + sizes['semtags'] + sizes['postags'], LSTM_DIM, LSTM_LAYERS + 1,
                                   batch_first=True, bidirectional=True, dropout=0.33)
         self.mlp_head = torch.nn.Linear(2 * LSTM_DIM, REDUCE_DIM_ARC)
         self.mlp_dep = torch.nn.Linear(2 * LSTM_DIM, REDUCE_DIM_ARC)
@@ -116,13 +86,18 @@ class Parser(torch.nn.Module):
             self.biaffine.cuda()
             self.label_biaffine.cuda()
 
-    def forward(self, forms, tags, semtags, pack):
+    def forward(self, forms, tags, semtags, pack, chars, char_pack):
         # embed and dropout forms and tags; concat
         # TODO: same mask embedding
-        # char_embeds = self.embeddings_chars(chars, pack)
+        if args.chars:
+            char_embeds = self.dropout(self.embeddings_chars(chars, char_pack))
         form_embeds = self.dropout(self.embeddings_forms(forms))
         tag_embeds = self.dropout(self.embeddings_tags(tags))
+        #task-specific emb
         form_embeds_rand = self.dropout(self.embeddings_forms_rand(forms))
+        #merge all emb
+        if args.chars:
+            form_embeds += char_embeds 
         form_embeds = torch.cat([form_embeds_rand ,form_embeds], dim = 2)
 
         # pack/unpack for LSTM_tag
@@ -132,25 +107,25 @@ class Parser(torch.nn.Module):
         #pos 
         mlp_tag = self.dropout(self.relu(self.mlp_tag(output_tag)))
         y_pred_tag = self.out_tag(mlp_tag)
-     
-    #    output_tag  = torch.cat([output_tag, form_embeds,  y_pred_tag], dim = 2)
+      
+        #concat original embeddings with POS lstm and softmaxc outs
+        output_tag  = torch.cat([output_tag, form_embeds,  y_pred_tag], dim = 2)
 
         # pack/unpack for LSTM_semtag
-      #  semtagging_embeds = torch.nn.utils.rnn.pack_padded_sequence(output_tag, pack.tolist(), batch_first=True)
-       # output_semtag, _ = self.lstm_semtag(semtagging_embeds)
-       # output_semtag, _ = torch.nn.utils.rnn.pad_packed_sequence(output_semtag, batch_first=True)
+        semtagging_embeds = torch.nn.utils.rnn.pack_padded_sequence(output_tag, pack.tolist(), batch_first=True)
+        output_semtag, _ = self.lstm_semtag(semtagging_embeds)
+        output_semtag, _ = torch.nn.utils.rnn.pad_packed_sequence(output_semtag, batch_first=True)
         #sem
-        #mlp_semtag = self.dropout(self.relu(self.mlp_semtag(output_semtag)))
-        #y_pred_semtag = self.out_semtag(mlp_semtag)
-        #print(output_tag.size(), output_semtag.size())
-   
+        mlp_semtag = self.dropout(self.relu(self.mlp_semtag(output_semtag)))
+        y_pred_semtag = self.out_semtag(mlp_semtag)
+        print(output_tag.size(), output_semtag.size())
 
-        embeds = torch.cat([form_embeds, output_tag, y_pred_tag], dim = 2)
+        #concat original embeddings with sem lstm and softmax outs
+        embeds = torch.cat([form_embeds, output_semtag, y_pred_semtag, y_pred_tag], dim = 2)
         print(embeds.size())
    
         # pack/unpack for LSTM_parse
         embeds = torch.nn.utils.rnn.pack_padded_sequence(embeds, pack.tolist(), batch_first=True)
-        
         output, _ = self.lstm(embeds)
         output, _ = torch.nn.utils.rnn.pad_packed_sequence(output, batch_first=True)
 
@@ -173,20 +148,20 @@ class Parser(torch.nn.Module):
         if self.use_cuda:
             y_pred_label = y_pred_label.cuda()
 
-        return y_pred_head, y_pred_label, y_pred_tag#, y_pred_semtag, y_pred_tag
+        return y_pred_head, y_pred_label, y_pred_semtag,  y_pred_tag
 
     def train_(self, epoch, train_loader):
         self.train()
         train_loader.init_epoch()
 
         for i, batch in enumerate(train_loader):
-            (x_forms, pack), x_tags, y_heads, y_deprels, x_sem = batch.form, batch.upos, batch.head, batch.deprel, batch.sem
+            (x_forms, pack), (chars, _, length_per_word_per_sent), x_tags, y_heads, y_deprels, x_sem = batch.form, batch.char, batch.upos, batch.head, batch.deprel, batch.sem
 
             mask = torch.zeros(pack.size()[0], max(pack)).type(torch.LongTensor)
             for n, size in enumerate(pack):
                 mask[n, 0:size] = 1
 
-            y_pred_head, y_pred_deprel, y_pred_tag  = self(x_forms, x_tags, x_sem, pack)
+            y_pred_head, y_pred_deprel, y_pred_semtag, y_pred_tag  = self(x_forms, x_tags, x_sem, pack,  chars, length_per_word_per_sent)
 
             # reshape for cross-entropy
             batch_size, longest_sentence_in_batch = y_heads.size()
@@ -202,8 +177,8 @@ class Parser(torch.nn.Module):
             y_deprels = y_deprels.contiguous().view(batch_size * longest_sentence_in_batch)
 
             #sem
-            #y_pred_semtag = y_pred_semtag.view(batch_size * longest_sentence_in_batch, -1)
-            #x_sem = x_sem.contiguous().view(batch_size * longest_sentence_in_batch)
+            y_pred_semtag = y_pred_semtag.view(batch_size * longest_sentence_in_batch, -1)
+            x_sem = x_sem.contiguous().view(batch_size * longest_sentence_in_batch)
             
             #pos
             y_pred_tag = y_pred_tag.view(batch_size * longest_sentence_in_batch, -1)
@@ -213,7 +188,7 @@ class Parser(torch.nn.Module):
             train_loss = self.criterion(y_pred_head, y_heads)
             if not self.debug:
                 train_loss += self.criterion(y_pred_deprel, y_deprels)
-               # train_loss += 0.5 * self.criterion(y_pred_semtag, x_sem)
+                train_loss += 0.5 * self.criterion(y_pred_semtag, x_sem)
                 train_loss += 0.5 * self.criterion(y_pred_tag, x_tags)
 
             self.zero_grad()
@@ -226,7 +201,7 @@ class Parser(torch.nn.Module):
         las_correct, uas_correct, semtags_correct, tags_correct, total = 0, 0, 0, 0, 0
         self.eval()
         for i, batch in enumerate(test_loader):
-            (x_forms, pack), x_tags, y_heads, y_deprels, x_sem = batch.form, batch.upos, batch.head, batch.deprel, batch.sem
+            (x_forms, pack),(chars, _, length_per_word_per_sent), x_tags, y_heads, y_deprels, x_sem = batch.form, batch.char, batch.upos, batch.head, batch.deprel, batch.sem
 
             mask = torch.zeros(pack.size()[0], max(pack)).type(torch.LongTensor)
             for n, size in enumerate(pack):
@@ -234,7 +209,7 @@ class Parser(torch.nn.Module):
 
             # get labels
             # TODO: ensure well-formed tree
-            y_pred_head, y_pred_deprel, y_pred_tag  = [i.max(2)[1] for i in self(x_forms, x_tags, x_sem, pack)]
+            y_pred_head, y_pred_deprel, y_pred_semtag,  y_pred_tag  = [i.max(2)[1] for i in self(x_forms, x_tags, x_sem, pack, chars, length_per_word_per_sent)]
 
             mask = mask.type(torch.ByteTensor)
             if self.use_cuda:
@@ -254,20 +229,20 @@ class Parser(torch.nn.Module):
                 las_correct += (heads_correct * deprels_correct).nonzero().size(0)
             except RuntimeError:
                 pass
-            #try:
-             #   semtags_correct += ((x_sem == y_pred_semtag) * mask).nonzero().size(0)
-            #except RuntimeError:
-             #   pass
+            try:
+                semtags_correct += ((x_sem == y_pred_semtag) * mask).nonzero().size(0)
+            except RuntimeError:
+                pass
             try:
                 tags_correct += ((x_tags == y_pred_tag) * mask).nonzero().size(0)
             except RuntimeError:
                 pass
             total += mask.nonzero().size(0)
 
-        print("UAS = {}/{} = {}\nLAS = {}/{} = {}\nTAG = {}/{} = {}\n".format(uas_correct, total, uas_correct / total,
+        print("UAS = {}/{} = {}\nLAS = {}/{} = {}\nTAG = {}/{} = {}\n\nSEMTAG = {}/{} = {}\n".format(uas_correct, total, uas_correct / total,
                                                           las_correct, total, las_correct / total, 
-                                                          tags_correct, total,  tags_correct / total)) #,
-                                                          #semtags_correct, total,  semtags_correct / total))
+                                                          tags_correct, total,  tags_correct / total,
+                                                          semtags_correct, total,  semtags_correct / total))
 
 
 if __name__ == '__main__':
