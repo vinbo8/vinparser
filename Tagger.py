@@ -12,9 +12,10 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--cuda', action='store_true')
 parser.add_argument('--config', default='./config.ini')
-parser.add_argument('--train', default='./data/UD_Swedish/sv-ud-train.conllu')
-parser.add_argument('--dev', default='./data/UD_Swedish/sv-ud-dev.conllu')
-parser.add_argument('--test', default='./data/UD_Swedish/sv-ud-test.conllu')
+parser.add_argument('--train', action='append')
+parser.add_argument('--dev', action='append')
+parser.add_argument('--test', action='append')
+parser.add_argument('--embed', action='append')
 args = parser.parse_args()
 
 config = configparser.ConfigParser()
@@ -30,10 +31,11 @@ EPOCHS = int(config['tagger']['EPOCHS'])
 
 
 class Tagger(torch.nn.Module):
-    def __init__(self, sizes, args):
+    def __init__(self, sizes, vocab, args):
         super().__init__()
 
         self.embeds = torch.nn.Embedding(sizes['vocab'], EMBED_DIM)
+        self.embeds.weight.data.copy_(vocab.vectors)
         self.lstm = torch.nn.LSTM(EMBED_DIM, LSTM_DIM, LSTM_LAYERS, batch_first=True, bidirectional=True, dropout=0.5)
         self.relu = torch.nn.ReLU()
         self.mlp = torch.nn.Linear(2 * LSTM_DIM, MLP_DIM)
@@ -110,9 +112,12 @@ class Tagger(torch.nn.Module):
 
 
 def main():
-    (train_loader, dev_loader, test_loader), sizes = Loader.get_iterators(args, BATCH_SIZE)
 
-    tagger = Tagger(sizes, args)
+    sets = (args.train[0], args.dev[0], args.test[0])
+    (train_loader, dev_loader, test_loader), sizes, vocab = Loader.get_iterators(sets, args.embed[0], BATCH_SIZE, args.cuda)
+    print(len(train_loader))
+
+    tagger = Tagger(sizes, vocab, args)
     if args.cuda:
         tagger.cuda()
 
