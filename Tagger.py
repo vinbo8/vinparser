@@ -12,17 +12,14 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--cuda', action='store_true')
 parser.add_argument('--config', default='./config.ini')
-<<<<<<< HEAD
 parser.add_argument('--train', default='./data/en-ud-train.conllu.sem')
 parser.add_argument('--dev', default='./data/en-ud-dev.conllu.sem')
 parser.add_argument('--test', default='./data/en-ud-test.conllu.sem')
 parser.add_argument('--embedd', default='')
-=======
 parser.add_argument('--train', action='append')
 parser.add_argument('--dev', action='append')
 parser.add_argument('--test', action='append')
 parser.add_argument('--embed', action='append')
->>>>>>> c876d1d610a42508597dea5f1d6365510af9b6ca
 args = parser.parse_args()
 
 config = configparser.ConfigParser()

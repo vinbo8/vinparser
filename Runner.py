@@ -16,6 +16,8 @@ if __name__ == '__main__':
     arg_parser.add_argument('--embed', action='store', nargs='*')
     arg_parser.add_argument('--use_chars', action='store_true')
     arg_parser.add_argument('--use_cuda', action='store_true')
+    # aux tasks
+    arg_parser.add_argument('--semtag', action='store_true')
     args = arg_parser.parse_args()
 
     # sanity check

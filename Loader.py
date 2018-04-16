@@ -33,27 +33,15 @@ def conll_to_csv(fname):
     return "\n".join(rows)
 
 
-# loads only the top of each train/dev/test stack
+def dep_to_int(tensor, vocab, _):
+    fn = np.vectorize(lambda x: int(vocab.itos[x]))
+    return fn(tensor)
+
+
 def get_iterators(args, batch_size):
     device = -(not args.cuda)
-    embeds = args.embed
-
-    if not os.path.exists(".tmp"):
-        os.makedirs(".tmp")
-        train_csv = two_to_csv(args.train[1])
-        dev_csv = two_to_csv(args.dev[1])
-        test_csv = two_to_csv(args.test[1])
-
-    for file, text in zip(["train", "dev", "test"], [train_csv, dev_csv, test_csv]):
-        with open(os.path.join(".tmp", file + ".csv"), "w") as f:
-            f.write(text)
-
-    def dep_to_int(tensor, vocab, _):
-        fn = np.vectorize(lambda x: int(vocab.itos[x]))
-        return fn(tensor)
 
     tokeniser = lambda x: x.split(',')
-    newtok = lambda x: [list(i) for i in x]
     ID = data.Field(tokenize=tokeniser, batch_first=True)
     FORM = data.Field(tokenize=tokeniser, batch_first=True, include_lengths=True)
     CHAR = data.Field(tokenize=list, batch_first=True, init_token='<w>')
@@ -66,36 +54,47 @@ def get_iterators(args, batch_size):
     DEPREL = data.Field(tokenize=tokeniser, batch_first=True)
     DEPS = data.Field(tokenize=tokeniser, batch_first=True)
     MISC = data.Field(tokenize=tokeniser, batch_first=True)
-    SEM  = data.Field(tokenize=tokeniser, batch_first=True)
+    SEM = data.Field(tokenize=tokeniser, batch_first=True)
+
+    # bare conllu
+    field_tuples = [('id', ID), ('form', FORM), ('lemma', LEMMA), ('upos', UPOS), ('xpos', XPOS),
+                    ('feats', FEATS), ('head', HEAD), ('deprel', DEPREL), ('deps', DEPS), ('misc', MISC)]
+
+    if args.use_chars:
+        field_tuples.insert(2, ('char', NEST))
+
+    if args.semtag:
+        field_tuples.append(('sem', SEM))
+
+    if not os.path.exists(".tmp"):
+        os.makedirs(".tmp")
+        train_csv = two_to_csv(args.train[1])
+        dev_csv = two_to_csv(args.dev[1])
+        test_csv = two_to_csv(args.test[1])
+
+    for file, text in zip(["train", "dev", "test"], [train_csv, dev_csv, test_csv]):
+        with open(os.path.join(".tmp", file + ".csv"), "w") as f:
+            f.write(text)
 
     train, dev, test = data.TabularDataset.splits(path=".tmp", train='train.csv', validation='dev.csv', test='test.csv',
-                                                  format="csv", fields=[('id', ID), ('form', FORM), ('char', NEST),
-                                                                        ('lemma', LEMMA), ('upos', UPOS),
-                                                                        ('xpos', XPOS), ('feats', FEATS),
-                                                                        ('head', HEAD), ('deprel', DEPREL),
-                                                                        ('deps', DEPS), ('misc', MISC), ('sem', SEM)])
+                                                  format="csv", fields=field_tuples)
 
-    fields = [ID, FORM, NEST, LEMMA, UPOS, XPOS, FEATS, HEAD, DEPREL, DEPS, MISC, SEM]
-    for i in fields:
-        if i == FORM and embeds is not '':
-            vecs = vocab.Vectors(name=embeds)
-            i.build_vocab(train, vectors=vecs)
+    field_names = [i[1] for i in field_tuples]
+    for field in field_names:
+        if field == FORM and args.embed is not '':
+            vecs = vocab.Vectors(name=args.embed)
+            field.build_vocab(train, vectors=vecs)
         else:
-            i.build_vocab(train)
+            field.build_vocab(train)
 
     (train_iter, dev_iter, test_iter) = data.Iterator.splits((train, dev, test), batch_sizes=(batch_size, batch_size, batch_size), device=device,
                                                              sort_key=lambda x: len(x.form), sort_within_batch=True,
                                                              repeat=False)
-    sizes = {'vocab': len(FORM.vocab), 'postags': len(UPOS.vocab), 'deprels': len(DEPREL.vocab), 'semtags' : len(SEM.vocab), 'chars': len(CHAR.vocab)}
 
-    loader_dict = {"train": train_iter,
-                       "dev": dev_iter,
-                       "test":  test_iter,
-                       "sizes": sizes,
-                       "vocab": FORM.vocab
-                       }
-    print(sizes)
-    return  loader_dict
+    sizes = {'vocab': len(FORM.vocab), 'postags': len(UPOS.vocab), 'deprels': len(DEPREL.vocab),
+             'semtags': len(SEM.vocab), 'chars': len(CHAR.vocab)}
+
+    return (train_iter, dev_iter, test_iter), sizes
 
 ROOT_LINE_2 = "\t_\t_"
 
