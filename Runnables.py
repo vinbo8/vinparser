@@ -91,10 +91,12 @@ class Parser(torch.nn.Module):
                  reduce_dim_arc=100, reduce_dim_label=100, learning_rate=1e-3):
         super().__init__()
 
-        self.use_cuda = args.cuda
+        self.use_cuda = args.use_cuda
         self.use_chars = args.use_chars
 
-        self.embeddings_chars = CharEmbedding(sizes['chars'], embed_dim, lstm_dim, lstm_layers)
+        if self.use_chars:
+            self.embeddings_chars = CharEmbedding(sizes['chars'], embed_dim, lstm_dim, lstm_layers)
+
         self.embeddings_forms = torch.nn.Embedding(sizes['vocab'], embed_dim)
         self.embeddings_tags = torch.nn.Embedding(sizes['postags'], embed_dim)
         self.lstm = torch.nn.LSTM(2 * embed_dim, lstm_dim, lstm_layers,
@@ -135,9 +137,6 @@ class Parser(torch.nn.Module):
         reduced_head_dep = self.dropout(self.relu(self.mlp_dep(output)))
         y_pred_head = self.biaffine(reduced_head_head, reduced_head_dep)
 
-        if self.debug:
-            return y_pred_head, Variable(torch.rand(y_pred_head.size()))
-
         # predict deprels using heads
         reduced_deprel_head = self.dropout(self.relu(self.mlp_deprel_head(output)))
         reduced_deprel_dep = self.dropout(self.relu(self.mlp_deprel_dep(output)))
@@ -156,13 +155,13 @@ class Parser(torch.nn.Module):
         train_loader.init_epoch()
 
         for i, batch in enumerate(train_loader):
-            (x_forms, pack), (chars, _, length_per_word_per_sent), x_tags, y_heads, y_deprels = \
-                batch.form, batch.char, batch.upos, batch.head, batch.deprel
+            # bare minimum
+            chars, length_per_word_per_sent = None, None
+            (x_forms, pack), x_tags, y_heads, y_deprels = batch.form, batch.upos, batch.head, batch.deprel
 
-            # setup word mask
-            mask = torch.zeros(pack.size()[0], max(pack)).type(torch.LongTensor)
-            for n, size in enumerate(pack):
-                mask[n, 0:size] = 1
+            # TODO: add something similar for semtags
+            if self.use_chars:
+                (chars, _, length_per_word_per_sent) = batch.chars
 
             y_pred_head, y_pred_deprel = self(x_forms, x_tags, pack, chars, length_per_word_per_sent)
 
@@ -180,9 +179,7 @@ class Parser(torch.nn.Module):
             y_deprels = y_deprels.contiguous().view(batch_size * longest_sentence_in_batch)
 
             # sum losses
-            train_loss = self.criterion(y_pred_head, y_heads)
-            if not self.debug:
-                train_loss += self.criterion(y_pred_deprel, y_deprels)
+            train_loss = self.criterion(y_pred_head, y_heads) + self.criterion(y_pred_deprel, y_deprels)
 
             self.zero_grad()
             train_loss.backward()

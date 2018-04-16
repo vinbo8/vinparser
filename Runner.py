@@ -2,7 +2,6 @@ import argparse
 import configparser
 import Loader
 from Runnables import Tagger, Parser
-from CSModules import CSParser
 
 
 if __name__ == '__main__':
@@ -46,7 +45,7 @@ if __name__ == '__main__':
         runnable = Tagger(sizes, args, embeddings=None, embed_dim=EMBED_DIM, lstm_dim=LSTM_DIM, lstm_layers=LSTM_LAYERS,
                           mlp_dim=MLP_DIM, learning_rate=LEARNING_RATE)
 
-    if args.cuda:
+    if args.use_cuda:
         runnable.cuda()
 
     # training

@@ -7,12 +7,12 @@ import csv
 csv.field_size_limit(sys.maxsize)
 
 
-ROOT_LINE = "0\t__ROOT\t_\t_\t__ROOT\t_\t_\t0\t__ROOT\t_\t_"
+ROOT_LINE = "0\t__ROOT\t_\t__ROOT\t_\t_\t0\t__ROOT\t_\t_"
 
 
 def conll_to_csv(fname):
     with codecs.open(fname, 'r', 'utf-8') as f:
-        rows, blokk = [], ['"' for _ in range(11)]
+        rows, blokk = [], ['"' for _ in range(10)]
         blokk = list(map(lambda x, y: x + y, blokk, ROOT_LINE.split("\t")))
         for line in f:
             if line[0] == '#':
@@ -21,13 +21,13 @@ def conll_to_csv(fname):
                 blokk = list(map(lambda x: x + '"', blokk))
                 blokk = ",".join(blokk)
                 rows.append(blokk)
-                blokk = ['"' for _ in range(11)]
+                blokk = ['"' for _ in range(10)]
                 blokk = list(map(lambda x, y: x + y, blokk, ROOT_LINE.split("\t")))
                 continue
 
             cols = [i.replace('"', '<qt>').replace(',', '<cm>') for i in line.rstrip("\n").split("\t")]
-            cols = cols[:2] + [cols[1]] + cols[2:]
             if '.' in cols[0]: continue
+#            cols = cols[:2] + [cols[1]] + cols[2:]
             blokk = list(map(lambda x, y: x + ',' + y, blokk, cols))
 
     return "\n".join(rows)
@@ -39,7 +39,7 @@ def dep_to_int(tensor, vocab, _):
 
 
 def get_iterators(args, batch_size):
-    device = -(not args.cuda)
+    device = -(not args.use_cuda)
 
     tokeniser = lambda x: x.split(',')
     ID = data.Field(tokenize=tokeniser, batch_first=True)
@@ -50,7 +50,8 @@ def get_iterators(args, batch_size):
     UPOS = data.Field(tokenize=tokeniser, batch_first=True)
     XPOS = data.Field(tokenize=tokeniser, batch_first=True)
     FEATS = data.Field(tokenize=tokeniser, batch_first=True)
-    HEAD = data.Field(tokenize=tokeniser, batch_first=True, pad_token='-1', unk_token='-1', postprocessing=lambda x, y, z: dep_to_int(x, y, z))
+    HEAD = data.Field(tokenize=tokeniser, batch_first=True, pad_token='-1',
+                      unk_token='-1', postprocessing=lambda x, y, z: dep_to_int(x, y, z))
     DEPREL = data.Field(tokenize=tokeniser, batch_first=True)
     DEPS = data.Field(tokenize=tokeniser, batch_first=True)
     MISC = data.Field(tokenize=tokeniser, batch_first=True)
@@ -68,9 +69,10 @@ def get_iterators(args, batch_size):
 
     if not os.path.exists(".tmp"):
         os.makedirs(".tmp")
-        train_csv = two_to_csv(args.train[1])
-        dev_csv = two_to_csv(args.dev[1])
-        test_csv = two_to_csv(args.test[1])
+
+    train_csv = conll_to_csv(args.train[0])
+    dev_csv = conll_to_csv(args.dev[0])
+    test_csv = conll_to_csv(args.test[0])
 
     for file, text in zip(["train", "dev", "test"], [train_csv, dev_csv, test_csv]):
         with open(os.path.join(".tmp", file + ".csv"), "w") as f:
@@ -81,7 +83,7 @@ def get_iterators(args, batch_size):
 
     field_names = [i[1] for i in field_tuples]
     for field in field_names:
-        if field == FORM and args.embed is not '':
+        if field == FORM and args.embed:
             vecs = vocab.Vectors(name=args.embed)
             field.build_vocab(train, vectors=vecs)
         else:
@@ -91,8 +93,13 @@ def get_iterators(args, batch_size):
                                                              sort_key=lambda x: len(x.form), sort_within_batch=True,
                                                              repeat=False)
 
-    sizes = {'vocab': len(FORM.vocab), 'postags': len(UPOS.vocab), 'deprels': len(DEPREL.vocab),
-             'semtags': len(SEM.vocab), 'chars': len(CHAR.vocab)}
+    sizes = {'vocab': len(FORM.vocab), 'postags': len(UPOS.vocab), 'deprels': len(DEPREL.vocab)}
+
+    if args.use_chars:
+        sizes['chars'] = len(CHAR.vocab)
+
+    if args.semtag:
+        sizes['semtags'] = len(SEM.vocab)
 
     return (train_iter, dev_iter, test_iter), sizes
 
