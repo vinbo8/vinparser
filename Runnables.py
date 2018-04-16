@@ -191,8 +191,12 @@ class Parser(torch.nn.Module):
         las_correct, uas_correct, total = 0, 0, 0
         self.eval()
         for i, batch in enumerate(test_loader):
-            (x_forms, pack), (chars, _, length_per_word_per_sent), x_tags, y_heads, y_deprels = \
-                batch.form, batch.char, batch.upos, batch.head, batch.deprel
+            chars, length_per_word_per_sent = None, None
+            (x_forms, pack), x_tags, y_heads, y_deprels = batch.form, batch.upos, batch.head, batch.deprel
+
+            # TODO: add something similar for semtags
+            if self.use_chars:
+                (chars, _, length_per_word_per_sent) = batch.chars
 
             mask = torch.zeros(pack.size()[0], max(pack)).type(torch.LongTensor)
             for n, size in enumerate(pack):
