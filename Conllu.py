@@ -11,8 +11,9 @@ class ConllLine:
     def __init__(self, line):
         self.line = line.rstrip("\n")
         line = self.line.split("\t")
+        print(line)
         self.id, self.form, self.lemma, self.upos, self.xpos = line[0:5]
-        self.feats, self.head, self.deprel, self.deps, self.misc = line[5:10]
+        self.feats, self.head, self.deprel, self.deps, self.misc, self.sem = line[5:11]
         self.id, self.head = int(self.id), int(self.head)
 
     def __repr__(self):
@@ -38,6 +39,9 @@ class ConllBlock(list):
     def upos(self, separator="-_-"):
         return separator.join([line.upos for line in self])
 
+    def sem(self, separator="-_-"):
+        return separator.join([line.sem for line in self])
+
     def heads(self):
         return [(line.head, line.id) for line in self]
 
@@ -50,9 +54,9 @@ class ConllParser(list):
         super().__init__()
         if not orig:
             # self.vocab, self.postags, self.deprels = [], [], []
-            self.sizes = {'vocab': 0, 'postags': 0, 'deprels': 0, 'chars': 0}
-            self.sets = {'vocab': [], 'postags': [], 'deprels': [], 'chars': []}
-            self.maps = {'vocab': {}, 'postags': {}, 'deprels': {}, 'chars': {}}
+            self.sizes = {'vocab': 0, 'postags': 0, 'deprels': 0, 'chars': 0, 'semtags': 0}
+            self.sets = {'vocab': [], 'postags': [], 'deprels': [], 'chars': [], 'semtags': []}
+            self.maps = {'vocab': {}, 'postags': {}, 'deprels': {}, 'chars': {}, 'semtags': {}}
         self.longest_sent = 0
         self.longest_word = 0
 
@@ -78,7 +82,7 @@ class ConllParser(list):
                 self.sets['postags'].append(line.upos)
                 self.sets['deprels'].append(line.deprel)
                 self.sets['chars'].extend(list(line.form))
-
+                self.sets['semtags'].append(line.sem)
         if orig:
             self.singleton_words = orig.singleton_words
             self.sets = orig.sets
@@ -114,6 +118,9 @@ class ConllParser(list):
     def get_pos_id(self, tag):
         return self.maps['postags'][tag]
 
+    def get_sem_id(self, tag):
+        return self.maps['semtags'][tag]
+
     def get_deprel_id(self, deprel):
         try:
             return self.maps['deprels'][deprel]
@@ -121,7 +128,7 @@ class ConllParser(list):
             return self.maps['deprels']['__UNK']
 
     def get_tensors(self):
-        words, forms, chars, postags, deprels, heads = [], [], [], [], [], []
+        words, forms, chars, postags, deprels, heads, semtags = [], [], [], [], [], [], []
         # iterate thru blocks
         # returns file list of block lists
         for block in self:
@@ -132,11 +139,12 @@ class ConllParser(list):
                 word_tensor.append(F.pad(torch.LongTensor([self.get_char_id(char) for char in word]), (0, self.longest_word - len(word))))
             chars.append(torch.stack(word_tensor))
             postags.append([self.get_pos_id(tag) for tag in block.upos().split('-_-')])
+            semtags.append([self.get_sem_id(tag) for tag in block.sem().split('-_-')])
             deprels.append([self.get_deprel_id(deprel) for deprel in block.deprels().split('-_-')])
             heads.append(block.heads())
 
-        package = zip(words, forms, chars, postags, deprels, heads)
-        words, forms, chars, postags, deprels, heads = [], [], [], [], [], []
+        package = zip(words, forms, chars, postags, deprels, heads, semtags)
+        words, forms, chars, postags, deprels, heads , semtags = [], [], [], [], [], [], []
         for w, f, c, p, d, h in package:
             diff = self.longest_sent - len(f)
             for i in range(diff):
@@ -145,13 +153,14 @@ class ConllParser(list):
             forms.append(F.pad(torch.LongTensor(f), (0, diff)).data)
             chars.append(F.pad(c, (0, 0, 0, diff)).data)
             postags.append(F.pad(torch.LongTensor(p), (0, diff)).data)
+            semtags.append(F.pad(torch.LongTensor(p), (0, diff)).data)
             deprels.append(F.pad(torch.LongTensor(d), (0, diff)).data)
             heads.append(F.pad(torch.LongTensor(h), (0, 0, 0, diff)).data)
-            assert forms[-1].size()[0] == postags[-1].size()[0] == deprels[-1].size()[0] == heads[-1].size()[0]
+            assert forms[-1].size()[0] == postags[-1].size()[0] == deprels[-1].size()[0] == heads[-1].size()[0] == semtags[-1].size()[0]
 
-        forms, chars, postags, deprels, heads = map(torch.stack, [forms, chars, postags, deprels, heads])
+        forms, chars, postags, deprels, heads, semtags = map(torch.stack, [forms, chars, postags, deprels, heads, semtags])
 
-        return words, forms, chars, postags, deprels, heads
+        return words, forms, chars, postags, deprels, heads, semtags
 
     def render(self):
         for block in self:

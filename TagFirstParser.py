@@ -20,9 +20,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--cuda', action='store_true')
 parser.add_argument('--config', default='./config.ini')
-parser.add_argument('--train', default='./data/sv-ud-train.conllu')
-parser.add_argument('--dev', default='./data/sv-ud-dev.conllu')
-parser.add_argument('--test', default='./data/sv-ud-test.conllu')
+parser.add_argument('--train', default='./data/en-ud-train.conllu.sem')
+parser.add_argument('--dev', default='./data/en-ud-dev.conllu.sem')
+parser.add_argument('--test', default='./data/en-ud-test.conllu.sem')
 args = parser.parse_args()
 
 config = configparser.ConfigParser()
@@ -81,14 +81,14 @@ class Parser(torch.nn.Module):
         # self.embeddings_chars = CharEmbedding(sizes, EMBED_DIM)
         self.embeddings_forms = torch.nn.Embedding(sizes['vocab'], EMBED_DIM)
         self.embeddings_tags = torch.nn.Embedding(sizes['postags'], EMBED_DIM)
-        self.lstm = torch.nn.LSTM(500 + sizes['postags'], LSTM_DIM, LSTM_LAYERS,
+        self.lstm = torch.nn.LSTM(500 + sizes['semtags'], LSTM_DIM, LSTM_LAYERS,
                                   batch_first=True, bidirectional=True, dropout=0.33)
         self.mlp_head = torch.nn.Linear(2 * LSTM_DIM, REDUCE_DIM_ARC)
         self.mlp_dep = torch.nn.Linear(2 * LSTM_DIM, REDUCE_DIM_ARC)
         self.mlp_deprel_head = torch.nn.Linear(2 * LSTM_DIM, REDUCE_DIM_LABEL)
         self.mlp_deprel_dep = torch.nn.Linear(2 * LSTM_DIM, REDUCE_DIM_LABEL)
         self.mlp_tag = torch.nn.Linear(300, 150)
-        self.out_tag = torch.nn.Linear(150, sizes['postags'])
+        self.out_tag = torch.nn.Linear(150, sizes['semtags'])
         self.lstm_tag = torch.nn.LSTM(EMBED_DIM, 150, LSTM_LAYERS - 2,
                                   batch_first=True, bidirectional=True, dropout=0.33)
         self.relu = torch.nn.ReLU()
@@ -103,7 +103,7 @@ class Parser(torch.nn.Module):
             self.biaffine.cuda()
             self.label_biaffine.cuda()
 
-    def forward(self, forms, tags, pack):
+    def forward(self, forms, tags, semtags, pack):
         # embed and dropout forms and tags; concat
         # TODO: same mask embedding
         # char_embeds = self.embeddings_chars(chars, pack)
@@ -117,20 +117,16 @@ class Parser(torch.nn.Module):
         output_tag, _ = self.lstm_tag(tagging_embeds)
         output_tag, _ = torch.nn.utils.rnn.pad_packed_sequence(output_tag, batch_first=True)
         mlp_tag = self.dropout(self.relu(self.mlp_tag(output_tag)))
-        y_pred_tag = self.out_tag(mlp_tag)
+        y_pred_semtag = self.out_tag(mlp_tag)
 
         print(output_tag.size())
-        embeds = torch.cat([form_embeds, tag_embeds, output_tag,  y_pred_tag], dim = 2)
+        embeds = torch.cat([form_embeds, tag_embeds, output_tag,  y_pred_semtag], dim = 2)
         print(embeds.size())
    
         # pack/unpack for LSTM_parse
         embeds = torch.nn.utils.rnn.pack_padded_sequence(embeds, pack.tolist(), batch_first=True)
         output, _ = self.lstm(embeds)
         output, _ = torch.nn.utils.rnn.pad_packed_sequence(output, batch_first=True)
-
-        #predict tag
-       # mlp_tag = self.dropout(self.relu(self.mlp_tag(output)))
-       # y_pred_tag = self.out_tag(mlp_tag)
 
         # predict heads
         reduced_head_head = self.dropout(self.relu(self.mlp_head(output)))
@@ -151,20 +147,20 @@ class Parser(torch.nn.Module):
         if self.use_cuda:
             y_pred_label = y_pred_label.cuda()
 
-        return y_pred_head, y_pred_label, y_pred_tag
+        return y_pred_head, y_pred_label, y_pred_semtag
 
     def train_(self, epoch, train_loader):
         self.train()
         train_loader.init_epoch()
 
         for i, batch in enumerate(train_loader):
-            (x_forms, pack), x_tags, y_heads, y_deprels = batch.form, batch.upos, batch.head, batch.deprel
+            (x_forms, pack), x_tags, y_heads, y_deprels, x_sem = batch.form, batch.upos, batch.head, batch.deprel, batch.sem
 
             mask = torch.zeros(pack.size()[0], max(pack)).type(torch.LongTensor)
             for n, size in enumerate(pack):
                 mask[n, 0:size] = 1
 
-            y_pred_head, y_pred_deprel, y_pred_tag = self(x_forms, x_tags, pack)
+            y_pred_head, y_pred_deprel, y_pred_semtag = self(x_forms, x_tags, x_sem, pack)
 
             # reshape for cross-entropy
             batch_size, longest_sentence_in_batch = y_heads.size()
@@ -180,14 +176,14 @@ class Parser(torch.nn.Module):
             y_deprels = y_deprels.contiguous().view(batch_size * longest_sentence_in_batch)
 
 
-            y_pred_tag = y_pred_tag.view(batch_size * longest_sentence_in_batch, -1)
-            x_tags = x_tags.contiguous().view(batch_size * longest_sentence_in_batch)
+            y_pred_semtag = y_pred_semtag.view(batch_size * longest_sentence_in_batch, -1)
+            x_sem = x_sem.contiguous().view(batch_size * longest_sentence_in_batch)
 
             # sum losses
             train_loss = self.criterion(y_pred_head, y_heads)
             if not self.debug:
                 train_loss += self.criterion(y_pred_deprel, y_deprels)
-                train_loss += self.criterion(y_pred_tag, x_tags)
+                train_loss += self.criterion(y_pred_semtag, x_sem)
 
 
             self.zero_grad()
@@ -200,7 +196,7 @@ class Parser(torch.nn.Module):
         las_correct, uas_correct, tags_correct, total = 0, 0, 0, 0
         self.eval()
         for i, batch in enumerate(test_loader):
-            (x_forms, pack), x_tags, y_heads, y_deprels = batch.form, batch.upos, batch.head, batch.deprel
+            (x_forms, pack), x_tags, y_heads, y_deprels, x_sem = batch.form, batch.upos, batch.head, batch.deprel, batch.sem
 
             mask = torch.zeros(pack.size()[0], max(pack)).type(torch.LongTensor)
             for n, size in enumerate(pack):
@@ -208,7 +204,7 @@ class Parser(torch.nn.Module):
 
             # get labels
             # TODO: ensure well-formed tree
-            y_pred_head, y_pred_deprel, y_pred_tag = [i.max(2)[1] for i in self(x_forms, x_tags, pack)]
+            y_pred_head, y_pred_deprel, y_pred_semtag = [i.max(2)[1] for i in self(x_forms, x_tags, x_sem, pack)]
 
             mask = mask.type(torch.ByteTensor)
             if self.use_cuda:
@@ -229,7 +225,7 @@ class Parser(torch.nn.Module):
             except RuntimeError:
                 pass
             try:
-                tags_correct += ((x_tags == y_pred_tag) * mask).nonzero().size(0)
+                tags_correct += ((x_sem == y_pred_semtag) * mask).nonzero().size(0)
             except RuntimeError:
                 pass
 

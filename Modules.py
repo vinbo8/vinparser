@@ -4,6 +4,33 @@ from torch.autograd import Variable
 import torch.nn.functional as F
 
 
+class CharEmbedding(torch.nn.Module):
+    def __init__(self, char_size, embed_dim, lstm_dim, lstm_layers):
+        super().__init__()
+        self.embedding_chars = torch.nn.Embedding(char_size, embed_dim)
+        self.lstm = torch.nn.LSTM(embed_dim, int(150), lstm_layers,
+                                  batch_first=True, bidirectional=False, dropout=0.33)
+        self.attention = LinearAttention(int(150))
+        self.mlp = torch.nn.Linear(300, embed_dim, bias=False)
+
+    def forward(self, forms, pack_sent):
+        # input: B x S x W
+        batch_size, max_words, max_chars = forms.size()
+        forms = forms.contiguous().view(batch_size * max_words, -1)
+        pack = pack_sent.contiguous().view(batch_size * max_words)
+
+        out = self.embedding_chars(forms)
+
+        embeds, (_, c) = self.lstm(out)
+        # embeds = embeds.contiguous().view(batch_size, max_words, max_chars, -1)
+        embeds = self.attention(embeds).squeeze(dim=2)
+        c = c[-1]
+        out = torch.cat([embeds, c], dim=1)
+        embed_mat = self.mlp(out).view(batch_size, max_words, -1)
+
+        # embeds, _ = torch.nn.utils.rnn.pad_packed_sequence(embeds, batch_first=True)
+        return embed_mat
+
 class LinearAttention(torch.nn.Module):
 
     def __init__(self, lstm_features):
@@ -19,7 +46,7 @@ class LinearAttention(torch.nn.Module):
 
     def forward(self, input1):
         soft = F.softmax(input1 @ self.weight, dim=0)
-        return input1.transpose(0, 1) @ soft
+        return input1.transpose(1, 2) @ soft
 
 
 class Biaffine(torch.nn.Module):

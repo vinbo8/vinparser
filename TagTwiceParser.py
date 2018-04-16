@@ -45,7 +45,6 @@ EPOCHS = int(config['parser']['EPOCHS'])
 class Parser(torch.nn.Module):
     def __init__(self, sizes, vocab, args):
         super().__init__()
-
         self.use_cuda = args.cuda
         self.debug = args.debug
         
@@ -55,7 +54,7 @@ class Parser(torch.nn.Module):
         if args.embed:
             self.embeddings_forms.weight.data.copy_(vocab.vectors)
         self.embeddings_forms_rand = torch.nn.Embedding(sizes['vocab'], EMBED_DIM) 
-        self.embeddings_tags = torch.nn.Embedding(sizes['postags'], EMBED_DIM)
+     #   self.embeddings_tags = torch.nn.Embedding(sizes['postags'], EMBED_DIM)
         self.lstm = torch.nn.LSTM(700  + sizes['semtags'] + sizes['postags'], LSTM_DIM, LSTM_LAYERS + 1,
                                   batch_first=True, bidirectional=True, dropout=0.33)
         self.mlp_head = torch.nn.Linear(2 * LSTM_DIM, REDUCE_DIM_ARC)
@@ -92,14 +91,15 @@ class Parser(torch.nn.Module):
         if args.chars:
             char_embeds = self.dropout(self.embeddings_chars(chars, char_pack))
         form_embeds = self.dropout(self.embeddings_forms(forms))
-        tag_embeds = self.dropout(self.embeddings_tags(tags))
+      # tag_embeds = self.dropout(self.embeddings_tags(tags))
         #task-specific emb
         form_embeds_rand = self.dropout(self.embeddings_forms_rand(forms))
         #merge all emb
         if args.chars:
             form_embeds += char_embeds 
-        form_embeds = torch.cat([form_embeds_rand ,form_embeds], dim = 2)
-
+            form_embeds = torch.cat([form_embeds_rand ,form_embeds], dim = 2)
+        else:
+            form_embeds = torch.cat([form_embeds_rand ,form_embeds], dim = 2)
         # pack/unpack for LSTM_tag
         tagging_embeds = torch.nn.utils.rnn.pack_padded_sequence(form_embeds, pack.tolist(), batch_first=True)
         output_tag, _ = self.lstm_tag(tagging_embeds)

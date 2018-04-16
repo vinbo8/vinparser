@@ -12,9 +12,10 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--cuda', action='store_true')
 parser.add_argument('--config', default='./config.ini')
-parser.add_argument('--train', default='./data/sv-ud-train.conllu')
-parser.add_argument('--dev', default='./data/sv-ud-dev.conllu')
-parser.add_argument('--test', default='./data/sv-ud-test.conllu')
+parser.add_argument('--train', default='./data/en-ud-train.conllu.sem')
+parser.add_argument('--dev', default='./data/en-ud-dev.conllu.sem')
+parser.add_argument('--test', default='./data/en-ud-test.conllu.sem')
+parser.add_argument('--embedd', default='')
 args = parser.parse_args()
 
 config = configparser.ConfigParser()
@@ -37,7 +38,7 @@ class Tagger(torch.nn.Module):
         self.lstm = torch.nn.LSTM(EMBED_DIM, LSTM_DIM, LSTM_LAYERS, batch_first=True, bidirectional=True, dropout=0.5)
         self.relu = torch.nn.ReLU()
         self.mlp = torch.nn.Linear(2 * LSTM_DIM, MLP_DIM)
-        self.out = torch.nn.Linear(MLP_DIM, sizes['postags'])
+        self.out = torch.nn.Linear(MLP_DIM, sizes['semtags'])
         self.criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
         self.optimizer = torch.optim.Adam(self.parameters(), lr=LEARNING_RATE, betas=(0.9, 0.9))
         self.dropout = torch.nn.Dropout(p=0.5)
@@ -62,7 +63,7 @@ class Tagger(torch.nn.Module):
         train_loader.init_epoch()
 
         for i, batch in enumerate(train_loader):
-            (x_forms, pack), x_tags, y_heads, y_deprels = batch.form, batch.upos, batch.head, batch.deprel
+            (x_forms, pack), x_tags, y_heads, y_deprels = batch.form, batch.sem, batch.head, batch.deprel
 
             mask = torch.zeros(pack.size()[0], max(pack)).type(torch.LongTensor)
             for n, size in enumerate(pack):
@@ -91,7 +92,7 @@ class Tagger(torch.nn.Module):
         correct, total = 0, 0
         self.eval()
         for i, batch in enumerate(test_loader):
-            (x_forms, pack), x_tags, y_heads, y_deprels = batch.form, batch.upos, batch.head, batch.deprel
+            (x_forms, pack), x_tags, y_heads, y_deprels = batch.form, batch.sem, batch.head, batch.deprel
 
             mask = torch.zeros(pack.size()[0], max(pack)).type(torch.LongTensor)
             for n, size in enumerate(pack):
