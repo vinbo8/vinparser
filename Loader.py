@@ -13,7 +13,7 @@ ROOT_LINE = "0\t__ROOT\t_\t__ROOT\t_\t_\t0\t__ROOT\t_\t_"
 def conll_to_csv(fname):
     with codecs.open(fname, 'r', 'utf-8') as f:
         rows, blokk = [], ['"' for _ in range(10)]
-        blokk = list(map(lambda x, y: x + y, blokk, ROOT_LINE.split("\t")))
+        # blokk = list(map(lambda x, y: x + y, blokk, ROOT_LINE.split("\t")))
         for line in f:
             if line[0] == '#':
                 continue
@@ -22,7 +22,7 @@ def conll_to_csv(fname):
                 blokk = ",".join(blokk)
                 rows.append(blokk)
                 blokk = ['"' for _ in range(10)]
-                blokk = list(map(lambda x, y: x + y, blokk, ROOT_LINE.split("\t")))
+                # blokk = list(map(lambda x, y: x + y, blokk, ROOT_LINE.split("\t")))
                 continue
 
             cols = [i.replace('"', '<qt>').replace(',', '<cm>') for i in line.rstrip("\n").split("\t")]
@@ -42,20 +42,20 @@ def get_iterators(args, batch_size):
     device = -(not args.use_cuda)
 
     tokeniser = lambda x: x.split(',')
-    ID = data.Field(tokenize=tokeniser, batch_first=True)
-    FORM = data.Field(tokenize=tokeniser, batch_first=True, include_lengths=True)
+    ID = data.Field(tokenize=tokeniser, batch_first=True, init_token='0')
+    FORM = data.Field(tokenize=tokeniser, batch_first=True, include_lengths=True, init_token='<root>')
     CHAR = data.Field(tokenize=list, batch_first=True, init_token='<w>')
-    NEST = data.NestedField(CHAR, tokenize=tokeniser, include_lengths=True)
-    LEMMA = data.Field(tokenize=tokeniser, batch_first=True)
-    UPOS = data.Field(tokenize=tokeniser, batch_first=True)
-    XPOS = data.Field(tokenize=tokeniser, batch_first=True)
-    FEATS = data.Field(tokenize=tokeniser, batch_first=True)
-    HEAD = data.Field(tokenize=tokeniser, batch_first=True, pad_token='-1',
+    NEST = data.NestedField(CHAR, tokenize=tokeniser, include_lengths=True, init_token='_')
+    LEMMA = data.Field(tokenize=tokeniser, batch_first=True, init_token='<root>')
+    UPOS = data.Field(tokenize=tokeniser, batch_first=True, init_token='_')
+    XPOS = data.Field(tokenize=tokeniser, batch_first=True, init_token='_')
+    FEATS = data.Field(tokenize=tokeniser, batch_first=True, init_token='_')
+    HEAD = data.Field(tokenize=tokeniser, batch_first=True, pad_token='-1', init_token='0',
                       unk_token='-1', postprocessing=lambda x, y, z: dep_to_int(x, y, z))
-    DEPREL = data.Field(tokenize=tokeniser, batch_first=True)
-    DEPS = data.Field(tokenize=tokeniser, batch_first=True)
-    MISC = data.Field(tokenize=tokeniser, batch_first=True)
-    SEM = data.Field(tokenize=tokeniser, batch_first=True)
+    DEPREL = data.Field(tokenize=tokeniser, batch_first=True, init_token='<root>')
+    DEPS = data.Field(tokenize=tokeniser, batch_first=True, init_token='_')
+    MISC = data.Field(tokenize=tokeniser, batch_first=True, init_token='_')
+    SEM = data.Field(tokenize=tokeniser, batch_first=True, init_token='_')
 
     # bare conllu
     field_tuples = [('id', ID), ('form', FORM), ('lemma', LEMMA), ('upos', UPOS), ('xpos', XPOS),
