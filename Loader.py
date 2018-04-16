@@ -3,10 +3,8 @@ import os
 import codecs
 import numpy as np
 from torchtext import data, datasets, vocab
-<<<<<<< HEAD
-import csv 
+import csv
 csv.field_size_limit(sys.maxsize)
-
 
 
 ROOT_LINE = "0\t__ROOT\t_\t_\t__ROOT\t_\t_\t0\t__ROOT\t_\t_"
@@ -153,13 +151,6 @@ def two_col_data(args, batch_size):
     for i in fields:
         if i == FORM and embeds is not '':
             vecs = vocab.Vectors(name=embeds)
-            i.build_vocab(train, vectors=vecs)
-        else:
-            i.build_vocab(train)
-    fields = [ID, FORM, NEST, LEMMA, UPOS, XPOS, FEATS, HEAD, DEPREL, DEPS, MISC]
-    for i in fields:
-        if i == FORM and args.embed is not None:
-            vecs = vocab.Vectors(name=args.embed)
             i.build_vocab(train, vectors=vecs)
         else:
             i.build_vocab(train)
