@@ -9,12 +9,12 @@ csv.field_size_limit(sys.maxsize)
 
 
 
-ROOT_LINE = "0\t__ROOT\t_\t_\t__ROOT\t_\t_\t0\t__ROOT\t_\t_"
+ROOT_LINE = "0\t__ROOT\t_\t_\t__ROOT\t_\t_\t0\t__ROOT\t_\t_t_"
 
 
 def conll_to_csv(fname):
     with codecs.open(fname, 'r', 'utf-8') as f:
-        rows, blokk = [], ['"' for _ in range(11)]
+        rows, blokk = [], ['"' for _ in range(12)]
         blokk = list(map(lambda x, y: x + y, blokk, ROOT_LINE.split("\t")))
         for line in f:
             if line[0] == '#':
@@ -23,7 +23,7 @@ def conll_to_csv(fname):
                 blokk = list(map(lambda x: x + '"', blokk))
                 blokk = ",".join(blokk)
                 rows.append(blokk)
-                blokk = ['"' for _ in range(11)]
+                blokk = ['"' for _ in range(12)]
                 blokk = list(map(lambda x, y: x + y, blokk, ROOT_LINE.split("\t")))
                 continue
 
@@ -42,10 +42,15 @@ def get_iterators(args, batch_size):
 
     if not os.path.exists(".tmp"):
         os.makedirs(".tmp")
+
+     if type(args.train) is list:
         train_csv = two_to_csv(args.train[1])
         dev_csv = two_to_csv(args.dev[1])
         test_csv = two_to_csv(args.test[1])
-
+    else:
+        train_csv = two_to_csv(args.train)
+        dev_csv = two_to_csv(args.dev)
+        test_csv = two_to_csv(args.test)
     for file, text in zip(["train", "dev", "test"], [train_csv, dev_csv, test_csv]):
         with open(os.path.join(".tmp", file + ".csv"), "w") as f:
             f.write(text)
