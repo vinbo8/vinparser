@@ -10,17 +10,24 @@ from torch.autograd import Variable
 from Helpers import build_data, process_batch
 import Helpers
 import Loader
-from Modules import Biaffine, LongerBiaffine, LinearAttention, ShorterBiaffine
+from Modules import Biaffine, LongerBiaffine, LinearAttention, ShorterBiaffine, CharEmbedding
 
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--cuda', action='store_true')
 parser.add_argument('--config', default='./config.ini')
+<<<<<<< HEAD
 parser.add_argument('--train', default='./data/en-ud-train.conllu')
 parser.add_argument('--dev', default='./data/en-ud-dev.conllu')
 parser.add_argument('--test', default='./data/en-ud-test.conllu')
 parser.add_argument('--embedd', default='')
+=======
+parser.add_argument('--train', action='append')
+parser.add_argument('--dev', action='append')
+parser.add_argument('--test', action='append')
+parser.add_argument('--embed', action='append')
+>>>>>>> c876d1d610a42508597dea5f1d6365510af9b6ca
 args = parser.parse_args()
 
 config = configparser.ConfigParser()
@@ -36,39 +43,6 @@ LEARNING_RATE = float(config['parser']['LEARNING_RATE'])
 EPOCHS = int(config['parser']['EPOCHS'])
 
 
-class CharEmbedding(torch.nn.Module):
-    def __init__(self, sizes, args):
-        super().__init__()
-        self.embedding_chars = torch.nn.Embedding(sizes['chars'], EMBED_DIM)
-        self.lstm = torch.nn.LSTM(EMBED_DIM, LSTM_DIM, LSTM_LAYERS,
-                                  batch_first=True, bidirectional=False, dropout=0.33)
-        self.attention = LinearAttention(LSTM_DIM)
-
-    def forward(self, forms, pack_sent):
-        # input: B x S x W
-        batch_size, max_words, max_chars = forms.size()
-        forms = forms.contiguous().view(batch_size * max_words, -1)
-        indexes = (forms == 0).sum(dim=1).type(torch.LongTensor)
-        y, indexes = torch.sort(indexes, 0)
-        temp = forms[indexes]
-
-        restore = temp[np.argsort(indexes.data)]
-        assert restore.data.tolist() == forms.data.tolist()
-        forms.size()
-        out = self.embedding_chars(forms)
-        pack = (temp != 0).sum(dim=1)
-        pack[pack == 0] = 1
-
-        # embeds = torch.nn.utils.rnn.pack_padded_sequence(out, pack.data.tolist(), batch_first=True)
-        embeds, (_, c) = self.lstm(out)
-        # embeds = embeds.contiguous().view(batch_size, max_words, max_chars, -1)
-        embeds = self.attention(embeds)
-        c = c[:, -1, :]
-        # embeds, _ = torch.nn.utils.rnn.pad_packed_sequence(embeds, batch_first=True)
-
-        return embeds
-
-
 class Parser(torch.nn.Module):
     def __init__(self, sizes, args):
         super().__init__()
@@ -76,7 +50,7 @@ class Parser(torch.nn.Module):
         self.use_cuda = args.cuda
         self.debug = args.debug
 
-        # self.embeddings_chars = CharEmbedding(sizes, EMBED_DIM)
+        self.embeddings_chars = CharEmbedding(sizes['chars'], EMBED_DIM, LSTM_DIM, LSTM_LAYERS)
         self.embeddings_forms = torch.nn.Embedding(sizes['vocab'], EMBED_DIM)
         self.embeddings_tags = torch.nn.Embedding(sizes['postags'], EMBED_DIM)
         self.lstm = torch.nn.LSTM(2 * EMBED_DIM, LSTM_DIM, LSTM_LAYERS,
@@ -97,12 +71,15 @@ class Parser(torch.nn.Module):
             self.biaffine.cuda()
             self.label_biaffine.cuda()
 
-    def forward(self, forms, tags, pack):
+    def forward(self, forms, tags, pack, chars, char_pack):
         # embed and dropout forms and tags; concat
         # TODO: same mask embedding
         # char_embeds = self.embeddings_chars(chars, pack)
         form_embeds = self.dropout(self.embeddings_forms(forms))
         tag_embeds = self.dropout(self.embeddings_tags(tags))
+        char_embeds = self.dropout(self.embeddings_chars(chars, char_pack))
+
+        form_embeds += char_embeds
         embeds = torch.cat([form_embeds, tag_embeds], dim=2)
 
         # pack/unpack for LSTM
@@ -136,13 +113,15 @@ class Parser(torch.nn.Module):
         train_loader.init_epoch()
 
         for i, batch in enumerate(train_loader):
-            (x_forms, pack), x_tags, y_heads, y_deprels = batch.form, batch.upos, batch.head, batch.deprel
+            (x_forms, pack), (chars, _, length_per_word_per_sent), x_tags, y_heads, y_deprels = \
+                batch.form, batch.char, batch.upos, batch.head, batch.deprel
 
+            # setup word mask
             mask = torch.zeros(pack.size()[0], max(pack)).type(torch.LongTensor)
             for n, size in enumerate(pack):
                 mask[n, 0:size] = 1
 
-            y_pred_head, y_pred_deprel = self(x_forms, x_tags, pack)
+            y_pred_head, y_pred_deprel = self(x_forms, x_tags, pack, chars, length_per_word_per_sent)
 
             # reshape for cross-entropy
             batch_size, longest_sentence_in_batch = y_heads.size()
@@ -172,7 +151,8 @@ class Parser(torch.nn.Module):
         las_correct, uas_correct, total = 0, 0, 0
         self.eval()
         for i, batch in enumerate(test_loader):
-            (x_forms, pack), x_tags, y_heads, y_deprels = batch.form, batch.upos, batch.head, batch.deprel
+            (x_forms, pack), (chars, _, length_per_word_per_sent), x_tags, y_heads, y_deprels = \
+                batch.form, batch.char, batch.upos, batch.head, batch.deprel
 
             mask = torch.zeros(pack.size()[0], max(pack)).type(torch.LongTensor)
             for n, size in enumerate(pack):
@@ -180,7 +160,8 @@ class Parser(torch.nn.Module):
 
             # get labels
             # TODO: ensure well-formed tree
-            y_pred_head, y_pred_deprel = [i.max(2)[1] for i in self(x_forms, x_tags, pack)]
+            y_pred_head, y_pred_deprel = [i.max(2)[1] for i in
+                                          self(x_forms, x_tags, pack, chars, length_per_word_per_sent)]
 
             mask = mask.type(torch.ByteTensor)
             if self.use_cuda:
