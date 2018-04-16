@@ -1,81 +1,129 @@
-import os
-import math
-import argparse
-import configparser
 import torch
-import torch.utils.data
-import torch.nn.functional as F
-import numpy as np
-from torch.autograd import Variable
-from Helpers import build_data, process_batch
 import Helpers
-import Loader, CSLoader
-from CSModules import CSParser
-from Modules import Biaffine, LongerBiaffine, LinearAttention, ShorterBiaffine, CharEmbedding
+from torch.autograd import Variable
+from Modules import CharEmbedding, ShorterBiaffine, LongerBiaffine
 
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--debug', action='store_true')
-parser.add_argument('--cuda', action='store_true')
-parser.add_argument('--code_switch', action='store_true')
-parser.add_argument('--config', default='./config.ini')
-parser.add_argument('--train', action='append')
-parser.add_argument('--dev', action='append')
-parser.add_argument('--test', action='append')
-parser.add_argument('--embed', action='append')
-args = parser.parse_args()
+class Tagger(torch.nn.Module):
+    def __init__(self, sizes, args, embeddings=None, embed_dim=100, lstm_dim=100, lstm_layers=3,
+                 mlp_dim=100, learning_rate=1e-5):
+        super().__init__()
 
-config = configparser.ConfigParser()
-config.read(args.config)
+        self.embeds = torch.nn.Embedding(sizes['vocab'], embed_dim)
+        self.embeds.weight.data.copy_(embeddings.vectors)
+        self.lstm = torch.nn.LSTM(embed_dim, lstm_dim, lstm_layers, batch_first=True, bidirectional=True, dropout=0.5)
+        self.relu = torch.nn.ReLU()
+        self.mlp = torch.nn.Linear(2 * lstm_dim, mlp_dim)
+        self.out = torch.nn.Linear(mlp_dim, sizes['postags'])
+        self.criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate, betas=(0.9, 0.9))
+        self.dropout = torch.nn.Dropout(p=0.5)
 
-BATCH_SIZE = int(config['parser']['BATCH_SIZE'])
-EMBED_DIM = int(config['parser']['EMBED_DIM'])
-LSTM_DIM = int(config['parser']['LSTM_DIM'])
-LSTM_LAYERS = int(config['parser']['LSTM_LAYERS'])
-REDUCE_DIM_ARC = int(config['parser']['REDUCE_DIM_ARC'])
-REDUCE_DIM_LABEL = int(config['parser']['REDUCE_DIM_LABEL'])
-LEARNING_RATE = float(config['parser']['LEARNING_RATE'])
-EPOCHS = int(config['parser']['EPOCHS'])
+    def forward(self, forms, pack):
+        # embeds + dropout
+        form_embeds = self.dropout(self.embeds(forms))
+
+        # pack/unpack for LSTM
+        packed = torch.nn.utils.rnn.pack_padded_sequence(form_embeds, pack.tolist(), batch_first=True)
+        lstm_out, _ = self.lstm(packed)
+        lstm_out, _ = torch.nn.utils.rnn.pad_packed_sequence(lstm_out, batch_first=True)
+
+        # LSTM => dense ReLU
+        mlp_out = self.dropout(self.relu(self.mlp(lstm_out)))
+
+        # reduce to dim no_of_tags
+        return self.out(mlp_out)
+
+    def train_(self, epoch, train_loader):
+        self.train()
+        train_loader.init_epoch()
+
+        for i, batch in enumerate(train_loader):
+            (x_forms, pack), x_tags, y_heads, y_deprels = batch.form, batch.upos, batch.head, batch.deprel
+
+            mask = torch.zeros(pack.size()[0], max(pack)).type(torch.LongTensor)
+            for n, size in enumerate(pack):
+                mask[n, 0:size] = 1
+
+            y_pred = self(x_forms, pack)
+
+            # reshape for cross-entropy
+            batch_size, longest_sentence_in_batch = x_forms.size()
+
+            # predictions: (B x S x T) => (B * S, T)
+            # heads: (B x S) => (B * S)
+            y_pred = y_pred.view(batch_size * longest_sentence_in_batch, -1)
+            x_tags = x_tags.contiguous().view(batch_size * longest_sentence_in_batch)
+
+            train_loss = self.criterion(y_pred, x_tags)
+
+            self.zero_grad()
+            train_loss.backward()
+            self.optimizer.step()
+
+            print("Epoch: {}\t{}/{}\tloss: {}".format(
+                epoch, (i + 1) * len(x_forms), len(train_loader.dataset), train_loss.data[0]))
+
+    def evaluate_(self, test_loader):
+        correct, total = 0, 0
+        self.eval()
+        for i, batch in enumerate(test_loader):
+            (x_forms, pack), x_tags, y_heads, y_deprels = batch.form, batch.upos, batch.head, batch.deprel
+
+            mask = torch.zeros(pack.size()[0], max(pack)).type(torch.LongTensor)
+            for n, size in enumerate(pack):
+                mask[n, 0:size] = 1
+
+            # get tags
+            y_pred = self(x_forms, pack).max(2)[1]
+
+            mask = Variable(mask.type(torch.ByteTensor))
+
+            correct += ((x_tags == y_pred) * mask).nonzero().size(0)
+
+            total += mask.nonzero().size(0)
+
+        print("Accuracy = {}/{} = {}".format(correct, total, (correct / total)))
 
 
 class Parser(torch.nn.Module):
-    def __init__(self, sizes, args):
+    def __init__(self, sizes, args, embeddings=None, embed_dim=100, lstm_dim=400, lstm_layers=3,
+                 reduce_dim_arc=100, reduce_dim_label=100, learning_rate=1e-3):
         super().__init__()
 
         self.use_cuda = args.cuda
-        self.debug = args.debug
+        self.use_chars = args.use_chars
 
-        self.embeddings_chars = CharEmbedding(sizes['chars'], EMBED_DIM, LSTM_DIM, LSTM_LAYERS)
-        self.embeddings_forms = torch.nn.Embedding(sizes['vocab'], EMBED_DIM)
-        self.embeddings_tags = torch.nn.Embedding(sizes['postags'], EMBED_DIM)
-        self.lstm = torch.nn.LSTM(2 * EMBED_DIM, LSTM_DIM, LSTM_LAYERS,
+        self.embeddings_chars = CharEmbedding(sizes['chars'], embed_dim, lstm_dim, lstm_layers)
+        self.embeddings_forms = torch.nn.Embedding(sizes['vocab'], embed_dim)
+        self.embeddings_tags = torch.nn.Embedding(sizes['postags'], embed_dim)
+        self.lstm = torch.nn.LSTM(2 * embed_dim, lstm_dim, lstm_layers,
                                   batch_first=True, bidirectional=True, dropout=0.33)
-        self.mlp_head = torch.nn.Linear(2 * LSTM_DIM, REDUCE_DIM_ARC)
-        self.mlp_dep = torch.nn.Linear(2 * LSTM_DIM, REDUCE_DIM_ARC)
-        self.mlp_deprel_head = torch.nn.Linear(2 * LSTM_DIM, REDUCE_DIM_LABEL)
-        self.mlp_deprel_dep = torch.nn.Linear(2 * LSTM_DIM, REDUCE_DIM_LABEL)
+        self.mlp_head = torch.nn.Linear(2 * lstm_dim, reduce_dim_arc)
+        self.mlp_dep = torch.nn.Linear(2 * lstm_dim, reduce_dim_arc)
+        self.mlp_deprel_head = torch.nn.Linear(2 * lstm_dim, reduce_dim_label)
+        self.mlp_deprel_dep = torch.nn.Linear(2 * lstm_dim, reduce_dim_label)
         self.relu = torch.nn.ReLU()
         self.dropout = torch.nn.Dropout(p=0.33)
-        # self.biaffine = Biaffine(REDUCE_DIM_ARC + 1, REDUCE_DIM_ARC, BATCH_SIZE)
-        self.biaffine = ShorterBiaffine(REDUCE_DIM_ARC)
-        self.label_biaffine = LongerBiaffine(REDUCE_DIM_LABEL, REDUCE_DIM_LABEL, sizes['deprels'])
+        # self.biaffine = Biaffine(reduce_dim_arc + 1, reduce_dim_arc, BATCH_SIZE)
+        self.biaffine = ShorterBiaffine(reduce_dim_arc)
+        self.label_biaffine = LongerBiaffine(reduce_dim_label, reduce_dim_label, sizes['deprels'])
         self.criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
-        self.optimiser = torch.optim.Adam(self.parameters(), lr=LEARNING_RATE, betas=(0.9, 0.9))
+        self.optimiser = torch.optim.Adam(self.parameters(), lr=learning_rate, betas=(0.9, 0.9))
 
         if self.use_cuda:
             self.biaffine.cuda()
             self.label_biaffine.cuda()
 
     def forward(self, forms, tags, pack, chars, char_pack):
-        # embed and dropout forms and tags; concat
-        # TODO: same mask embedding
-        # char_embeds = self.embeddings_chars(chars, pack)
         form_embeds = self.dropout(self.embeddings_forms(forms))
         tag_embeds = self.dropout(self.embeddings_tags(tags))
-        char_embeds = self.dropout(self.embeddings_chars(chars, char_pack))
+        composed_embeds = form_embeds
 
-        form_embeds += char_embeds
-        embeds = torch.cat([form_embeds, tag_embeds], dim=2)
+        if self.use_chars:
+            composed_embeds += self.dropout(self.embeddings_chars(chars, char_pack))
+
+        embeds = torch.cat([composed_embeds, tag_embeds], dim=2)
 
         # pack/unpack for LSTM
         embeds = torch.nn.utils.rnn.pack_padded_sequence(embeds, pack.tolist(), batch_first=True)
@@ -182,25 +230,3 @@ class Parser(torch.nn.Module):
         print("UAS = {}/{} = {}\nLAS = {}/{} = {}".format(uas_correct, total, uas_correct / total,
                                                           las_correct, total, las_correct / total))
 
-
-if __name__ == '__main__':
-    # args
-    (train_loader, dev_loader, test_loader), sizes = CSLoader.get_iterators(args, BATCH_SIZE)
-
-    if args.code_switch:
-        parser = CSParser(sizes, args)
-    else:
-        parser = Parser(sizes, args)
-
-    if args.cuda:
-        parser.cuda()
-
-    # training
-    print("Training")
-    for epoch in range(EPOCHS):
-        parser.train_(epoch, train_loader)
-        parser.evaluate_(dev_loader)
-
-    # test
-    print("Eval")
-    parser.evaluate_(test_loader)

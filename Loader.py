@@ -46,8 +46,8 @@ def get_iterators(args, batch_size):
         with open(os.path.join(".tmp", file + ".csv"), "w") as f:
             f.write(text)
 
-    def dep_to_int(tensor, vocab, _):
-        fn = np.vectorize(lambda x: int(vocab.itos[x]))
+    def dep_to_int(tensor, field_vocab, _):
+        fn = np.vectorize(lambda x: int(field_vocab.itos[x]))
         return fn(tensor)
 
     tokeniser = lambda x: x.split(',')
@@ -59,7 +59,8 @@ def get_iterators(args, batch_size):
     UPOS = data.Field(tokenize=tokeniser, batch_first=True)
     XPOS = data.Field(tokenize=tokeniser, batch_first=True)
     FEATS = data.Field(tokenize=tokeniser, batch_first=True)
-    HEAD = data.Field(tokenize=tokeniser, batch_first=True, pad_token='-1', unk_token='-1', postprocessing=lambda x, y, z: dep_to_int(x, y, z))
+    HEAD = data.Field(tokenize=tokeniser, batch_first=True, pad_token='-1', unk_token='-1',
+                      postprocessing=lambda x, y, z: dep_to_int(x, y, z))
     DEPREL = data.Field(tokenize=tokeniser, batch_first=True)
     DEPS = data.Field(tokenize=tokeniser, batch_first=True)
     MISC = data.Field(tokenize=tokeniser, batch_first=True)
@@ -78,14 +79,17 @@ def get_iterators(args, batch_size):
             i.build_vocab(train, vectors=vecs)
         else:
             i.build_vocab(train)
-    # [i.build_vocab(train) for i in fields]
 
-    (train_iter, dev_iter, test_iter) = data.Iterator.splits((train, dev, test), batch_sizes=(batch_size, batch_size, batch_size), device=device,
+    (train_iter, dev_iter, test_iter) = data.Iterator.splits((train, dev, test),
+                                                             batch_sizes=(batch_size, batch_size, batch_size),
+                                                             device=device,
                                                              sort_key=lambda x: len(x.form), sort_within_batch=True,
                                                              repeat=False)
-    sizes = {'vocab': len(FORM.vocab), 'postags': len(UPOS.vocab), 'deprels': len(DEPREL.vocab), 'langs': len(MISC.vocab)}
+    sizes = {'vocab': len(FORM.vocab), 'postags': len(UPOS.vocab), 'deprels': len(DEPREL.vocab),
+             'langs': len(MISC.vocab), 'chars': len(NEST.vocab)}
 
     return (train_iter, dev_iter, test_iter), sizes
+
 
 def get_iterators_cl(args, batch_size):
 

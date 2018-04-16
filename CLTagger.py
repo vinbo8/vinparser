@@ -5,7 +5,7 @@ import torch
 import Loader
 import torch.nn.functional as F
 from torch.autograd import Variable
-from Parser import build_data
+from Runner import build_data
 from Helpers import process_batch
 
 parser = argparse.ArgumentParser()
