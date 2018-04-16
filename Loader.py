@@ -83,7 +83,7 @@ def get_iterators(sets, embeds, batch_size, cuda):
 
     return (train_iter, dev_iter, test_iter), sizes, FORM.vocab
 
-def get_iterators_cl(args, batch_size):
+def get_iterators_cl(args, batch_sizes):
 
     assert len(args.train) == len(args.dev) == len(args.test), \
         "Train/Dev/Test must be provided for all languages."
@@ -96,7 +96,7 @@ def get_iterators_cl(args, batch_size):
 
     out = []
     for i in range(NUMLANGS):
-        loaders, sizes, vocab = get_iterators((args.train[i], args.dev[i], args.test[i]), args.embed[i], batch_size, args.cuda)
+        loaders, sizes, vocab = get_iterators((args.train[i], args.dev[i], args.test[i]), args.embed[i], batch_sizes[i], args.cuda)
         loader_dict = {"train": loaders[0],
                        "dev": loaders[1],
                        "test": loaders[2],

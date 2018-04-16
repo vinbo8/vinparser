@@ -65,11 +65,12 @@ class CLTagger(torch.nn.Module):
         # pack/unpack for LSTM
         packed = torch.nn.utils.rnn.pack_padded_sequence(form_embeds, pack.tolist(), batch_first=True)
         lstm_out, _ = self.lstm_shared(packed)
-        lstm_out_main, _ = self.lstm_main(lstm_out)
-        lstm_out_main, _ = torch.nn.utils.rnn.pad_packed_sequence(lstm_out_main, batch_first=True)
+        lstm_out, _ = torch.nn.utils.rnn.pad_packed_sequence(lstm_out, batch_first=True)
+        # lstm_out_main, _ = self.lstm_main(lstm_out)
+        # lstm_out_main, _ = torch.nn.utils.rnn.pad_packed_sequence(lstm_out_main, batch_first=True)
 
         # LSTM => dense ReLU
-        mlp_out = self.dropout(self.relu(self.mlp_main(lstm_out_main)))
+        mlp_out = self.dropout(self.relu(self.mlp_main(lstm_out)))
 
         # reduce to dim no_of_tags
         return self.out_main(mlp_out)
@@ -81,11 +82,12 @@ class CLTagger(torch.nn.Module):
         # pack/unpack for LSTM
         packed = torch.nn.utils.rnn.pack_padded_sequence(form_embeds, pack.tolist(), batch_first=True)
         lstm_out, _ = self.lstm_shared(packed)
-        lstm_out_aux, _ = self.lstm_aux(lstm_out)
-        lstm_out_aux, _ = torch.nn.utils.rnn.pad_packed_sequence(lstm_out_aux, batch_first=True)
+        lstm_out, _ = torch.nn.utils.rnn.pad_packed_sequence(lstm_out, batch_first=True)
+        # lstm_out_aux, _ = self.lstm_aux(lstm_out)
+        # lstm_out_aux, _ = torch.nn.utils.rnn.pad_packed_sequence(lstm_out_aux, batch_first=True)
 
         # LSTM => dense ReLU
-        mlp_out = self.dropout(self.relu(self.mlp_aux(lstm_out_aux)))
+        mlp_out = self.dropout(self.relu(self.mlp_aux(lstm_out)))
 
         # reduce to dim no_of_tags
         return self.out_aux(mlp_out)
@@ -157,7 +159,7 @@ def evaluate(model, test_loader, type_task="main"):
 
 def main():
 
-    loaders = Loader.get_iterators_cl(args, BATCH_SIZE)
+    loaders = Loader.get_iterators_cl(args, [100,10])
 
     tagger = CLTagger(loaders[0], loaders[1])
     if args.cuda:
@@ -174,7 +176,10 @@ def main():
 
     # test
     print("Eval")
+    print("Main task dev acc.:")
     evaluate(tagger, loaders[0]["test"], type_task="main")
+    print("Aux task dev acc.:")
+    evaluate(tagger, loaders[1]["test"], type_task="main")
 
 if __name__ == '__main__':
     main()
