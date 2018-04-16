@@ -10,25 +10,28 @@ csv.field_size_limit(sys.maxsize)
 ROOT_LINE = "0\t__ROOT\t_\t__ROOT\t_\t_\t0\t__ROOT\t_\t_"
 
 
-def conll_to_csv(fname):
+def conll_to_csv(fname, columns=10):
+    col_range = range(columns)
+
     with codecs.open(fname, 'r', 'utf-8') as f:
-        rows, blokk = [], ['"' for _ in range(10)]
+        rows, blokk = [], ['"' for _ in col_range]
         # blokk = list(map(lambda x, y: x + y, blokk, ROOT_LINE.split("\t")))
         for line in f:
             if line[0] == '#':
                 continue
             if not line.rstrip():
-                blokk = list(map(lambda x: x + '"', blokk))
+                # [:-1] gets rid of the trailing comma
+                blokk = list(map(lambda x: x[:-1] + '"', blokk))
                 blokk = ",".join(blokk)
                 rows.append(blokk)
-                blokk = ['"' for _ in range(10)]
+                blokk = ['"' for _ in col_range]
                 # blokk = list(map(lambda x, y: x + y, blokk, ROOT_LINE.split("\t")))
                 continue
 
             cols = [i.replace('"', '<qt>').replace(',', '<cm>') for i in line.rstrip("\n").split("\t")]
             if '.' in cols[0]: continue
 #            cols = cols[:2] + [cols[1]] + cols[2:]
-            blokk = list(map(lambda x, y: x + ',' + y, blokk, cols))
+            blokk = list(map(lambda x, y: x + y + ",", blokk, cols))
 
     return "\n".join(rows)
 
@@ -70,9 +73,9 @@ def get_iterators(args, batch_size):
     if not os.path.exists(".tmp"):
         os.makedirs(".tmp")
 
-    train_csv = conll_to_csv(args.train[0])
-    dev_csv = conll_to_csv(args.dev[0])
-    test_csv = conll_to_csv(args.test[0])
+    train_csv = conll_to_csv(args.train[0], len(field_tuples))
+    dev_csv = conll_to_csv(args.dev[0], len(field_tuples))
+    test_csv = conll_to_csv(args.test[0], len(field_tuples))
 
     for file, text in zip(["train", "dev", "test"], [train_csv, dev_csv, test_csv]):
         with open(os.path.join(".tmp", file + ".csv"), "w") as f:
