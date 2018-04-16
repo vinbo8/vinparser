@@ -51,7 +51,6 @@ def get_iterators(args, batch_size):
         return fn(tensor)
 
     tokeniser = lambda x: x.split(',')
-    newtok = lambda x: [list(i) for i in x]
     ID = data.Field(tokenize=tokeniser, batch_first=True)
     FORM = data.Field(tokenize=tokeniser, batch_first=True, include_lengths=True)
     CHAR = data.Field(tokenize=list, batch_first=True, init_token='<w>')
