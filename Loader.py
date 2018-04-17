@@ -50,9 +50,13 @@ def dep_to_int(tensor, vocab, _):
 
 
 def get_iterators(args, batch_size):
-    device = -(not args.use_cuda)
 
+    assert len(args.train) == len(args.dev) == len(args.test), "Inconsistent number of treebanks"
+    iterators = []
+
+    device = -(not args.use_cuda)
     tokeniser = lambda x: x.split(',')
+
     ID = data.Field(tokenize=tokeniser, batch_first=True, init_token='0')
     FORM = data.Field(tokenize=tokeniser, batch_first=True, include_lengths=True, init_token='<root>')
     CHAR = data.Field(tokenize=list, batch_first=True, init_token='<w>')
@@ -81,39 +85,42 @@ def get_iterators(args, batch_size):
     if not os.path.exists(".tmp"):
         os.makedirs(".tmp")
 
-    train_csv = conll_to_csv(args.train[0], len(field_tuples))
-    dev_csv = conll_to_csv(args.dev[0], len(field_tuples))
-    test_csv = conll_to_csv(args.test[0], len(field_tuples))
+    for n, (train_eg, dev_eg, test_eg) in enumerate(zip(args.train, args.dev, args.test)):
+        train_csv = conll_to_csv(train_eg, len(field_tuples))
+        dev_csv = conll_to_csv(dev_eg, len(field_tuples))
+        test_csv = conll_to_csv(test_eg, len(field_tuples))
 
-    for file, text in zip(["train", "dev", "test"], [train_csv, dev_csv, test_csv]):
-        with open(os.path.join(".tmp", file + ".csv"), "w") as f:
-            f.write(text)
+        for file, text in zip(["train", "dev", "test"], [train_csv, dev_csv, test_csv]):
+            with open(os.path.join(".tmp", "{}_{}.csv".format(file, n)), "w") as f:
+                f.write(text)
 
-    train, dev, test = data.TabularDataset.splits(path=".tmp", train='train.csv', validation='dev.csv', test='test.csv',
-                                                  format="csv", fields=field_tuples)
+        train, dev, test = data.TabularDataset.splits(path=".tmp", train='train_%s.csv' % n,
+                                                      validation='dev_%s.csv' % n, test='test_%s.csv' % n,
+                                                      format="csv", fields=field_tuples)
 
-    field_names = [i[1] for i in field_tuples]
-    for field in field_names:
-        if field == FORM and args.embed:
-            vecs = vocab.Vectors(name=args.embed)
-            field.build_vocab(train, vectors=vecs)
-        else:
-            field.build_vocab(train)
+        field_names = [i[1] for i in field_tuples]
+        for field in field_names:
+            if field == FORM and args.embed:
+                vecs = vocab.Vectors(name=args.embed)
+                field.build_vocab(train, vectors=vecs)
+            else:
+                field.build_vocab(train)
 
-    (train_iter, dev_iter, test_iter) = data.Iterator.splits((train, dev, test),
-                                                             batch_sizes=(batch_size, batch_size, batch_size),
-                                                             sort_key=lambda x: len(x.form), sort_within_batch=True,
-                                                             device=device, repeat=False)
+        current_iterator = data.Iterator.splits((train, dev, test), batch_sizes=(batch_size, batch_size, batch_size),
+                                                sort_key=lambda x: len(x.form), sort_within_batch=True,
+                                                device=device, repeat=False)
 
-    sizes = {'vocab': len(FORM.vocab), 'postags': len(UPOS.vocab), 'deprels': len(DEPREL.vocab)}
+        sizes = {'vocab': len(FORM.vocab), 'postags': len(UPOS.vocab), 'deprels': len(DEPREL.vocab)}
 
-    if args.use_chars:
-        sizes['chars'] = len(CHAR.vocab)
+        if args.use_chars:
+            sizes['chars'] = len(CHAR.vocab)
 
-    if args.semtag:
-        sizes['semtags'] = len(SEM.vocab)
+        if args.semtag:
+            sizes['semtags'] = len(SEM.vocab)
 
-    return (train_iter, dev_iter, test_iter), sizes
+        iterators.append((current_iterator, sizes, FORM.vocab))
+
+    return iterators
 
 ROOT_LINE_2 = "\t_\t_"
 

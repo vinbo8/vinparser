@@ -235,3 +235,127 @@ class Parser(torch.nn.Module):
         print("UAS = {}/{} = {}\nLAS = {}/{} = {}".format(uas_correct, total, uas_correct / total,
                                                           las_correct, total, las_correct / total))
 
+
+class CLTagger(torch.nn.Module):
+    def __init__(self, args, main_sizes, aux_sizes, main_embeds, aux_embeds, embed_dim=100, lstm_dim=100, lstm_layers=2,
+                 mlp_dim=100, learning_rate=1e-5):
+
+        super().__init__()
+
+        #Load pretrained embeds
+        self.embeds_main = torch.nn.Embedding(main_sizes['vocab'], embed_dim)
+        self.embeds_aux = torch.nn.Embedding(aux_sizes['vocab'], embed_dim)
+
+        if args.embed:
+            self.embeds_main.weight.data.copy_(main_embeds.vectors)
+            self.embeds_aux.weight.data.copy_(aux_embeds.vectors)
+
+        #Pass through shared then individual LSTMs
+        self.lstm_shared = torch.nn.LSTM(embed_dim, lstm_dim, lstm_layers, batch_first=True, bidirectional=True, dropout=0.5)
+        self.lstm_main = torch.nn.LSTM(lstm_dim * 2, lstm_dim, lstm_layers, batch_first=True, bidirectional=True, dropout=0.5)
+        self.lstm_aux = torch.nn.LSTM(lstm_dim * 2, lstm_dim, lstm_layers, batch_first=True, bidirectional=True, dropout=0.5)
+
+        #Pass through individual MLPs
+        self.relu = torch.nn.ReLU()
+        self.mlp_main = torch.nn.Linear(lstm_dim * 2, mlp_dim)
+        self.mlp_aux = torch.nn.Linear(lstm_dim * 2, mlp_dim)
+        #Outs
+        self.out_main = torch.nn.Linear(mlp_dim, main_sizes['postags'])
+        self.out_aux = torch.nn.Linear(mlp_dim, aux_sizes['postags'])
+        #Losses
+        self.criterion_main = torch.nn.CrossEntropyLoss(ignore_index=-1)
+        self.criterion_aux = torch.nn.CrossEntropyLoss(ignore_index=-1)
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate, betas=(0.9, 0.9))
+        self.dropout = torch.nn.Dropout(p=0.5)
+
+    def forward_main(self, forms, pack):
+        # embeds + dropout
+        form_embeds = self.dropout(self.embeds_main(forms))
+
+        # pack/unpack for LSTM
+        packed = torch.nn.utils.rnn.pack_padded_sequence(form_embeds, pack.tolist(), batch_first=True)
+        lstm_out, _ = self.lstm_shared(packed)
+        lstm_out_main, _ = self.lstm_main(lstm_out)
+        lstm_out_main, _ = torch.nn.utils.rnn.pad_packed_sequence(lstm_out_main, batch_first=True)
+
+        # LSTM => dense ReLU
+        mlp_out = self.dropout(self.relu(self.mlp_main(lstm_out_main)))
+
+        # reduce to dim no_of_tags
+        return self.out_main(mlp_out)
+
+    def forward_aux(self, forms, pack):
+        # embeds + dropout
+        form_embeds = self.dropout(self.embeds_aux(forms))
+
+        # pack/unpack for LSTM
+        packed = torch.nn.utils.rnn.pack_padded_sequence(form_embeds, pack.tolist(), batch_first=True)
+        lstm_out, _ = self.lstm_shared(packed)
+        lstm_out_aux, _ = self.lstm_aux(lstm_out)
+        lstm_out_aux, _ = torch.nn.utils.rnn.pad_packed_sequence(lstm_out_aux, batch_first=True)
+
+        # LSTM => dense ReLU
+        mlp_out = self.dropout(self.relu(self.mlp_aux(lstm_out_aux)))
+
+        # reduce to dim no_of_tags
+        return self.out_aux(mlp_out)
+
+    def train_(self, epoch, train_loader, type_task="main"):
+        self.train()
+        train_loader.init_epoch()
+
+        for i, batch in enumerate(train_loader):
+            (x_forms, pack), x_tags, y_heads, y_deprels = batch.form, batch.upos, batch.head, batch.deprel
+
+            mask = torch.zeros(pack.size()[0], max(pack)).type(torch.LongTensor)
+            for n, size in enumerate(pack):
+                mask[n, 0:size] = 1
+
+            if type_task == "aux":
+                y_pred = self.forward_aux(x_forms, pack)
+            else:
+                y_pred = self.forward_main(x_forms, pack)
+            # reshape for cross-entropy
+            batch_size, longest_sentence_in_batch = x_forms.size()
+
+            # predictions: (B x S x T) => (B * S, T)
+            # heads: (B x S) => (B * S)
+            y_pred = y_pred.view(batch_size * longest_sentence_in_batch, -1)
+            x_tags = x_tags.contiguous().view(batch_size * longest_sentence_in_batch)
+
+            if type_task == "aux":
+                train_loss = self.criterion_aux(y_pred, x_tags)
+            else:
+                train_loss = self.criterion_main(y_pred, x_tags)
+
+            self.zero_grad()
+            train_loss.backward()
+            self.optimizer.step()
+
+            print("Epoch: {}\t{}/{}\tloss: {}".format(
+                epoch, (i + 1) * len(x_forms), len(train_loader.dataset), train_loss.data))
+
+    def evaluate_(self, test_loader, type_task="main"):
+        correct, total = 0, 0
+        self.eval()
+        for i, batch in enumerate(test_loader):
+            (x_forms, pack), x_tags, y_heads, y_deprels = batch.form, batch.upos, batch.head, batch.deprel
+
+            mask = torch.zeros(pack.size()[0], max(pack)).type(torch.LongTensor)
+            for n, size in enumerate(pack):
+                mask[n, 0:size] = 1
+
+                # get tags
+            if type_task == "aux":
+                y_pred = self.forward_aux(x_forms, pack).max(2)[1]
+            else:
+                y_pred = self.forward_main(x_forms, pack).max(2)[1]
+
+            mask = Variable(mask.type(torch.ByteTensor))
+
+            correct += ((x_tags == y_pred) * mask).nonzero().size(0)
+
+            total += mask.nonzero().size(0)
+
+        print("Accuracy = {}/{} = {}".format(correct, total, (correct / total)))
+

@@ -1,7 +1,7 @@
 import argparse
 import configparser
 import Loader
-from Runnables import Tagger, Parser
+from Runnables import Tagger, Parser, CLTagger
 
 
 if __name__ == '__main__':
@@ -17,11 +17,13 @@ if __name__ == '__main__':
     arg_parser.add_argument('--use_cuda', action='store_true')
     # aux tasks
     arg_parser.add_argument('--semtag', action='store_true')
+    arg_parser.add_argument('--cl_tagger', action='store_true')
     args = arg_parser.parse_args()
 
-    # sanity check
+    # sanity checks
     # later, allow both tag and parse to do something like tag-first-parser
     assert args.tag + args.parse == 1
+    assert args.semtag + args.cl_tagger <= 1
 
     config = configparser.ConfigParser()
     config.read(args.config)
@@ -36,24 +38,50 @@ if __name__ == '__main__':
     MLP_DIM = int(config['tagger']['MLP_DIM'])
     EPOCHS = int(config['parser']['EPOCHS'])
 
-    # args
-    (train_loader, dev_loader, test_loader), sizes = Loader.get_iterators(args, BATCH_SIZE)
-    if args.parse:
-        runnable = Parser(sizes, args, embeddings=None, embed_dim=EMBED_DIM, lstm_dim=LSTM_DIM, lstm_layers=LSTM_LAYERS,
-                          reduce_dim_arc=REDUCE_DIM_ARC, reduce_dim_label=REDUCE_DIM_LABEL, learning_rate=LEARNING_RATE)
-    elif args.tag:
-        runnable = Tagger(sizes, args, embeddings=None, embed_dim=EMBED_DIM, lstm_dim=LSTM_DIM, lstm_layers=LSTM_LAYERS,
-                          mlp_dim=MLP_DIM, learning_rate=LEARNING_RATE)
+    # =============================
+    # Ignore these functions
+    # Seriously, don't look at them
+    # =============================
+    def run_cl_tagger(args, iterators):
+        assert len(iterators) == 2, "r u ok because this not how aux tasks work fam"
 
-    if args.use_cuda:
-        runnable.cuda()
+        main, aux = iterators[0], iterators[1]
+        (train_loader_main, dev_loader_main, test_loader_main), sizes_main, vocab_main = main
+        (train_loader_aux, dev_loader_aux, test_loader_aux), sizes_aux, vocab_aux = aux
 
-    # training
-    print("Training")
-    for epoch in range(EPOCHS):
-        runnable.train_(epoch, train_loader)
-        runnable.evaluate_(dev_loader)
+        runnable = CLTagger(args, sizes_main, sizes_aux, vocab_main, vocab_aux)
 
-    # test
-    print("Eval")
-    runnable.evaluate_(test_loader)
+        for epoch in range(EPOCHS):
+            runnable.train_(epoch, train_loader_main, type_task="main")
+            runnable.train_(epoch, train_loader_aux, type_task="aux")
+
+
+    # ==========================
+    # Actual loading begins here
+    # Start with args
+    # ==========================
+    if args.cl_tagger:
+        iterators = Loader.get_iterators(args, BATCH_SIZE)
+        run_cl_tagger(args, iterators)
+
+    else:
+        (train_loader, dev_loader, test_loader), sizes = Loader.get_iterators(args, BATCH_SIZE)
+        if args.parse:
+            runnable = Parser(sizes, args, embeddings=None, embed_dim=EMBED_DIM, lstm_dim=LSTM_DIM, lstm_layers=LSTM_LAYERS,
+                              reduce_dim_arc=REDUCE_DIM_ARC, reduce_dim_label=REDUCE_DIM_LABEL, learning_rate=LEARNING_RATE)
+        elif args.tag:
+            runnable = Tagger(sizes, args, embeddings=None, embed_dim=EMBED_DIM, lstm_dim=LSTM_DIM, lstm_layers=LSTM_LAYERS,
+                              mlp_dim=MLP_DIM, learning_rate=LEARNING_RATE)
+
+        if args.use_cuda:
+            runnable.cuda()
+
+        # training
+        print("Training")
+        for epoch in range(EPOCHS):
+            runnable.train_(epoch, train_loader)
+            runnable.evaluate_(dev_loader)
+
+        # test
+        print("Eval")
+        runnable.evaluate_(test_loader)
