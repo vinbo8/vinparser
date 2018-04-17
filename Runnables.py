@@ -150,12 +150,16 @@ class Parser(torch.nn.Module):
 
         return y_pred_head, y_pred_label
 
+    '''
+    1. the bare minimum that needs to be loaded is forms, upos, head, deprel (could change later); load those
+    2. initialise everything else to none; load it if necessary based on command line args
+    3. pass everything, whether it's been loaded or not, to the forward function; if it's unnecessary it won't use it
+    '''
     def train_(self, epoch, train_loader):
         self.train()
         train_loader.init_epoch()
 
         for i, batch in enumerate(train_loader):
-            # bare minimum
             chars, length_per_word_per_sent = None, None
             (x_forms, pack), x_tags, y_heads, y_deprels = batch.form, batch.upos, batch.head, batch.deprel
 

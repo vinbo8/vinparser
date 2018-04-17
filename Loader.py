@@ -41,6 +41,14 @@ def dep_to_int(tensor, vocab, _):
     return fn(tensor)
 
 
+'''
+1. declare all fields you could every possibly use - this includes CHAR and SEM
+2. append/insert them into field_tuples, based on command-line args to select a mode
+3. the size of field_tuples = number of columns in the conllu file; pass it to conll_to_csv
+4. add the vocab to the vocab dict at the end if you are using them 
+'''
+
+
 def get_iterators(args, batch_size):
     device = -(not args.use_cuda)
 
@@ -92,9 +100,10 @@ def get_iterators(args, batch_size):
         else:
             field.build_vocab(train)
 
-    (train_iter, dev_iter, test_iter) = data.Iterator.splits((train, dev, test), batch_sizes=(batch_size, batch_size, batch_size), device=device,
+    (train_iter, dev_iter, test_iter) = data.Iterator.splits((train, dev, test),
+                                                             batch_sizes=(batch_size, batch_size, batch_size),
                                                              sort_key=lambda x: len(x.form), sort_within_batch=True,
-                                                             repeat=False)
+                                                             device=device, repeat=False)
 
     sizes = {'vocab': len(FORM.vocab), 'postags': len(UPOS.vocab), 'deprels': len(DEPREL.vocab)}
 
