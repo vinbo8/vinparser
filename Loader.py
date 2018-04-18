@@ -50,42 +50,42 @@ def dep_to_int(tensor, vocab, _):
 
 
 def get_iterators(args, batch_size):
-
     assert len(args.train) == len(args.dev) == len(args.test), "Inconsistent number of treebanks"
     iterators = []
 
     device = -(not args.use_cuda)
     tokeniser = lambda x: x.split(',')
 
-    ID = data.Field(tokenize=tokeniser, batch_first=True, init_token='0')
-    FORM = data.Field(tokenize=tokeniser, batch_first=True, include_lengths=True, init_token='<root>')
-    CHAR = data.Field(tokenize=list, batch_first=True, init_token='<w>')
-    NEST = data.NestedField(CHAR, tokenize=tokeniser, include_lengths=True, init_token='_')
-    LEMMA = data.Field(tokenize=tokeniser, batch_first=True, init_token='<root>')
-    UPOS = data.Field(tokenize=tokeniser, batch_first=True, init_token='_')
-    XPOS = data.Field(tokenize=tokeniser, batch_first=True, init_token='_')
-    FEATS = data.Field(tokenize=tokeniser, batch_first=True, init_token='_')
-    HEAD = data.Field(tokenize=tokeniser, batch_first=True, pad_token='-1', init_token='0',
-                      unk_token='-1', postprocessing=lambda x, y, z: dep_to_int(x, y, z))
-    DEPREL = data.Field(tokenize=tokeniser, batch_first=True, init_token='<root>')
-    DEPS = data.Field(tokenize=tokeniser, batch_first=True, init_token='_')
-    MISC = data.Field(tokenize=tokeniser, batch_first=True, init_token='_')
-    SEM = data.Field(tokenize=tokeniser, batch_first=True, init_token='_')
-
-    # bare conllu
-    field_tuples = [('id', ID), ('form', FORM), ('lemma', LEMMA), ('upos', UPOS), ('xpos', XPOS),
-                    ('feats', FEATS), ('head', HEAD), ('deprel', DEPREL), ('deps', DEPS), ('misc', MISC)]
-
-    if args.use_chars:
-        field_tuples.insert(2, ('char', NEST))
-
-    if args.semtag:
-        field_tuples.append(('sem', SEM))
-
-    if not os.path.exists(".tmp"):
-        os.makedirs(".tmp")
-
     for n, (train_eg, dev_eg, test_eg) in enumerate(zip(args.train, args.dev, args.test)):
+        ID = data.Field(tokenize=tokeniser, batch_first=True, init_token='0')
+        FORM = data.Field(tokenize=tokeniser, batch_first=True, include_lengths=True, init_token='<root>')
+        CHAR = data.Field(tokenize=list, batch_first=True, init_token='<w>')
+        NEST = data.NestedField(CHAR, tokenize=tokeniser, include_lengths=True, init_token='_')
+        LEMMA = data.Field(tokenize=tokeniser, batch_first=True, init_token='<root>')
+        UPOS = data.Field(tokenize=tokeniser, batch_first=True, init_token='_')
+        XPOS = data.Field(tokenize=tokeniser, batch_first=True, init_token='_')
+        FEATS = data.Field(tokenize=tokeniser, batch_first=True, init_token='_')
+        HEAD = data.Field(tokenize=tokeniser, batch_first=True, pad_token='-1', init_token='0',
+                          unk_token='-1', postprocessing=lambda x, y, z: dep_to_int(x, y, z))
+        DEPREL = data.Field(tokenize=tokeniser, batch_first=True, init_token='<root>')
+        DEPS = data.Field(tokenize=tokeniser, batch_first=True, init_token='_')
+        MISC = data.Field(tokenize=tokeniser, batch_first=True, init_token='_')
+        SEM = data.Field(tokenize=tokeniser, batch_first=True, init_token='_')
+
+        # bare conllu
+        field_tuples = [('id', ID), ('form', FORM), ('lemma', LEMMA), ('upos', UPOS), ('xpos', XPOS),
+                        ('feats', FEATS), ('head', HEAD), ('deprel', DEPREL), ('deps', DEPS), ('misc', MISC)]
+
+        if args.use_chars:
+            field_tuples.insert(2, ('char', NEST))
+
+        if args.semtag:
+            field_tuples.append(('sem', SEM))
+
+        if not os.path.exists(".tmp"):
+            os.makedirs(".tmp")
+
+    # ===== breaking here
         train_csv = conll_to_csv(train_eg, len(field_tuples))
         dev_csv = conll_to_csv(dev_eg, len(field_tuples))
         test_csv = conll_to_csv(test_eg, len(field_tuples))
