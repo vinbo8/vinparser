@@ -85,7 +85,7 @@ def get_iterators(args, batch_size):
         if not os.path.exists(".tmp"):
             os.makedirs(".tmp")
 
-    # ===== breaking here
+        # ===== breaking here
         train_csv = conll_to_csv(train_eg, len(field_tuples))
         dev_csv = conll_to_csv(dev_eg, len(field_tuples))
         test_csv = conll_to_csv(test_eg, len(field_tuples))

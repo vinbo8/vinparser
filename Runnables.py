@@ -268,6 +268,14 @@ class CLTagger(torch.nn.Module):
         self.optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate, betas=(0.9, 0.9))
         self.dropout = torch.nn.Dropout(p=0.5)
 
+    def forward(self, forms, pack, type_task):
+        if type_task == "main":
+            return self.forward_main(forms, pack)
+        elif type_task == "aux":
+            return self.forward_aux(forms, pack)
+        else:
+            raise TypeError
+
     def forward_main(self, forms, pack):
         # embeds + dropout
         form_embeds = self.dropout(self.embeds_main(forms))
@@ -311,10 +319,7 @@ class CLTagger(torch.nn.Module):
             for n, size in enumerate(pack):
                 mask[n, 0:size] = 1
 
-            if type_task == "aux":
-                y_pred = self.forward_aux(x_forms, pack)
-            else:
-                y_pred = self.forward_main(x_forms, pack)
+            y_pred = self(x_forms, pack, type_task)
             # reshape for cross-entropy
             batch_size, longest_sentence_in_batch = x_forms.size()
 
@@ -346,11 +351,7 @@ class CLTagger(torch.nn.Module):
                 mask[n, 0:size] = 1
 
                 # get tags
-            if type_task == "aux":
-                y_pred = self.forward_aux(x_forms, pack).max(2)[1]
-            else:
-                y_pred = self.forward_main(x_forms, pack).max(2)[1]
-
+            y_pred = self(x_forms, pack, type_task).max(2)[1]
             mask = Variable(mask.type(torch.ByteTensor))
 
             correct += ((x_tags == y_pred) * mask).nonzero().size(0)
