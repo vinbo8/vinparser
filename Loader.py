@@ -10,7 +10,7 @@ csv.field_size_limit(sys.maxsize)
 ROOT_LINE = "0\t__ROOT\t_\t__ROOT\t_\t_\t0\t__ROOT\t_\t_"
 
 
-def conll_to_csv(fname, columns=10):
+def conll_to_csv(args, fname, columns=10):
     col_range = range(columns)
 
     with codecs.open(fname, 'r', 'utf-8') as f:
@@ -30,7 +30,8 @@ def conll_to_csv(fname, columns=10):
 
             cols = [i.replace('"', '<qt>').replace(',', '<cm>') for i in line.rstrip("\n").split("\t")]
             if '.' in cols[0]: continue
-#            cols = cols[:2] + [cols[1]] + cols[2:]
+            if args.use_chars:
+                cols = cols[:2] + [cols[1]] + cols[2:]
             blokk = list(map(lambda x, y: x + y + ",", blokk, cols))
 
     return "\n".join(rows)
@@ -86,9 +87,9 @@ def get_iterators(args, batch_size):
             os.makedirs(".tmp")
 
         # ===== breaking here
-        train_csv = conll_to_csv(train_eg, len(field_tuples))
-        dev_csv = conll_to_csv(dev_eg, len(field_tuples))
-        test_csv = conll_to_csv(test_eg, len(field_tuples))
+        train_csv = conll_to_csv(args, train_eg, len(field_tuples))
+        dev_csv = conll_to_csv(args, dev_eg, len(field_tuples))
+        test_csv = conll_to_csv(args, test_eg, len(field_tuples))
 
         for file, text in zip(["train", "dev", "test"], [train_csv, dev_csv, test_csv]):
             with open(os.path.join(".tmp", "{}_{}.csv".format(file, n)), "w") as f:

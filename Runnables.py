@@ -165,7 +165,7 @@ class Parser(torch.nn.Module):
 
             # TODO: add something similar for semtags
             if self.use_chars:
-                (chars, _, length_per_word_per_sent) = batch.chars
+                (chars, _, length_per_word_per_sent) = batch.char
 
             y_pred_head, y_pred_deprel = self(x_forms, x_tags, pack, chars, length_per_word_per_sent)
 
@@ -200,7 +200,7 @@ class Parser(torch.nn.Module):
 
             # TODO: add something similar for semtags
             if self.use_chars:
-                (chars, _, length_per_word_per_sent) = batch.chars
+                (chars, _, length_per_word_per_sent) = batch.char
 
             mask = torch.zeros(pack.size()[0], max(pack)).type(torch.LongTensor)
             for n, size in enumerate(pack):
