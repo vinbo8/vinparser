@@ -65,7 +65,7 @@ if __name__ == '__main__':
         run_cl_tagger(args, iterators)
 
     else:
-        (train_loader, dev_loader, test_loader), sizes = Loader.get_iterators(args, BATCH_SIZE)
+        (train_loader, dev_loader, test_loader), sizes = Loader.get_iterators(args, BATCH_SIZE)[0]
         if args.parse:
             runnable = Parser(sizes, args, embeddings=None, embed_dim=EMBED_DIM, lstm_dim=LSTM_DIM, lstm_layers=LSTM_LAYERS,
                               reduce_dim_arc=REDUCE_DIM_ARC, reduce_dim_label=REDUCE_DIM_LABEL, learning_rate=LEARNING_RATE)
