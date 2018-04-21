@@ -104,3 +104,4 @@ ENV/
 
 \.tmp/
 .vscode/*
+.pylintrc

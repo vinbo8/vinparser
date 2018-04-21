@@ -1,7 +1,7 @@
 import argparse
 import configparser
 import Loader
-from Runnables import Tagger, Parser, CLTagger
+from Runnables import Tagger, Parser, CSParser, CLTagger
 
 
 if __name__ == '__main__':
@@ -17,6 +17,7 @@ if __name__ == '__main__':
     arg_parser.add_argument('--use_cuda', action='store_true')
     # aux tasks
     arg_parser.add_argument('--semtag', action='store_true')
+    arg_parser.add_argument('--code_switch', action='store_true')
     arg_parser.add_argument('--cl_tagger', action='store_true')
     args = arg_parser.parse_args()
 
@@ -67,8 +68,12 @@ if __name__ == '__main__':
     else:
         (train_loader, dev_loader, test_loader), sizes, vocab = Loader.get_iterators(args, BATCH_SIZE)[0]
         if args.parse:
-            runnable = Parser(sizes, args, embeddings=None, embed_dim=EMBED_DIM, lstm_dim=LSTM_DIM, lstm_layers=LSTM_LAYERS,
-                              reduce_dim_arc=REDUCE_DIM_ARC, reduce_dim_label=REDUCE_DIM_LABEL, learning_rate=LEARNING_RATE)
+            if args.code_switch:
+                runnable = CSParser(sizes, args, embeddings=None, embed_dim=EMBED_DIM, lstm_dim=LSTM_DIM, lstm_layers=LSTM_LAYERS,
+                                reduce_dim_arc=REDUCE_DIM_ARC, reduce_dim_label=REDUCE_DIM_LABEL, learning_rate=LEARNING_RATE)
+            else:
+                runnable = Parser(sizes, args, embeddings=None, embed_dim=EMBED_DIM, lstm_dim=LSTM_DIM, lstm_layers=LSTM_LAYERS,
+                                reduce_dim_arc=REDUCE_DIM_ARC, reduce_dim_label=REDUCE_DIM_LABEL, learning_rate=LEARNING_RATE)
         elif args.tag:
             runnable = Tagger(sizes, args, embeddings=None, embed_dim=EMBED_DIM, lstm_dim=LSTM_DIM, lstm_layers=LSTM_LAYERS,
                               mlp_dim=MLP_DIM, learning_rate=LEARNING_RATE)

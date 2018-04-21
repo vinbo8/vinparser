@@ -1,0 +1,21 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "parser",
+            "type": "python",
+            "request": "launch",
+            "localRoot": "${workspaceFolder}",
+            "program": "${workspaceFolder}/Runner.py",
+            "args": [
+                "--parse",
+                "--train", "data/UD_Swedish/sv-ud-train.conllu",
+                "--dev", "data/UD_Swedish/sv-ud-dev.conllu",
+                "--test", "data/UD_Swedish/sv-ud-test.conllu"
+            ]
+        }
+    ]
+}
