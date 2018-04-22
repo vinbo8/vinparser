@@ -105,3 +105,4 @@ ENV/
 \.tmp/
 .vscode/*
 .pylintrc
+.vscode/settings.json
