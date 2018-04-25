@@ -121,3 +121,15 @@ def safe_char_lookup(char_dict, char):
         return char_dict[char]
     except KeyError:
         return 2
+
+def softmax_weighter(lang_labels):
+    w = torch.zeros((lang_labels.size()[0], lang_labels.size()[0]))
+    for i, l11 in lang_labels:
+        for j, l2 in lang_labels:
+            if l1 == l2:
+                w[i, j] = 1
+            else:
+                w[i, j] = 2
+    
+    return w
+
