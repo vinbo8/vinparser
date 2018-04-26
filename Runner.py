@@ -70,8 +70,8 @@ if __name__ == '__main__':
         (train_loader, dev_loader, test_loader), sizes, vocab = Loader.get_iterators(args, BATCH_SIZE)[0]
         if args.parse:
             if args.code_switch:
-                runnable = CSParser(sizes, args, embeddings=None, embed_dim=30, lstm_dim=10, lstm_layers=1,
-                                reduce_dim_arc=10, reduce_dim_label=20, learning_rate=LEARNING_RATE)
+                runnable = CSParser(sizes, args, embeddings=None, embed_dim=EMBED_DIM, lstm_dim=LSTM_DIM, lstm_layers=LSTM_LAYERS,
+                                  reduce_dim_arc=REDUCE_DIM_ARC, reduce_dim_label=REDUCE_DIM_LABEL, learning_rate=LEARNING_RATE)
             else:
                 runnable = Parser(sizes, args, embeddings=None, embed_dim=EMBED_DIM, lstm_dim=LSTM_DIM, lstm_layers=LSTM_LAYERS,
                                 reduce_dim_arc=REDUCE_DIM_ARC, reduce_dim_label=REDUCE_DIM_LABEL, learning_rate=LEARNING_RATE)
