@@ -123,13 +123,14 @@ def safe_char_lookup(char_dict, char):
         return 2
 
 def softmax_weighter(lang_labels):
-    w = torch.zeros((lang_labels.size()[0], lang_labels.size()[0]))
-    for i, l11 in lang_labels:
-        for j, l2 in lang_labels:
-            if l1 == l2:
-                w[i, j] = 0.8
-            else:
-                w[i, j] = 1
-    
+    w = torch.zeros((lang_labels.size()[0], lang_labels.size()[1], lang_labels.size()[1]))
+    for n, batch in enumerate(lang_labels):
+        for i, l1 in enumerate(batch):
+            for j, l2 in enumerate(batch):
+                if (l1 == l2).data[0]:
+                    w[n, i, j] = 0.8
+                else:
+                    w[n, i, j] = 1
+
     return w
 
