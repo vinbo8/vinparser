@@ -485,7 +485,7 @@ class CSParser(torch.nn.Module):
 
             # get labels
             # TODO: ensure well-formed tree
-            if self.random_bs[0] == 'weight':
+            if len(self.random_bs) > 0 and self.random_bs[0] == 'weight':
                 head, deprel = self(x_forms, x_tags, pack, chars, length_per_word_per_sent)
                 y_pred_head = (Helpers.softmax_weighter(batch.misc) * head).max(2)[1]
                 y_pred_deprel = deprel.max(2)[1]
