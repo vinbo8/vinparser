@@ -368,9 +368,10 @@ class CSParser(torch.nn.Module):
 
         self.use_cuda = args.use_cuda
         self.use_chars = args.use_chars
+        self.random_bs = args.random_bs
 
         if self.use_chars:
-            self.embeddings_chars = CharEmbedding(sizes['chars'], embed_dim, lstm_dim=150, lstm_layers)
+            self.embeddings_chars = CharEmbedding(sizes['chars'], embed_dim, lstm_dim, lstm_layers)
 
         self.embeddings_forms = torch.nn.Embedding(sizes['vocab'], embed_dim)
         self.embeddings_tags = torch.nn.Embedding(sizes['postags'], embed_dim)
@@ -471,7 +472,8 @@ class CSParser(torch.nn.Module):
         self.eval()
         for i, batch in enumerate(test_loader):
             chars, length_per_word_per_sent = None, None
-            (x_forms, pack), x_tags, y_heads, y_deprels = batch.form, batch.upos, batch.head, batch.deprel
+            (x_forms, pack), x_tags, y_heads, y_deprels, langtags = \
+                batch.form, batch.upos, batch.head, batch.deprel, batch.misc
 
             # TODO: add something similar for semtags
             if self.use_chars:
@@ -483,8 +485,12 @@ class CSParser(torch.nn.Module):
 
             # get labels
             # TODO: ensure well-formed tree
-            y_pred_head, y_pred_deprel = [i.max(2)[1] for i in
-                                          self(x_forms, x_tags, pack, chars, length_per_word_per_sent)]
+            if self.random_bs == 'weight':
+                y_pred_head, y_pred_deprel = [(Helpers.softmax_weighter(batch.misc) * i).max(2)[1] for i in
+                                            self(x_forms, x_tags, pack, chars, length_per_word_per_sent)]
+            else:
+                y_pred_head, y_pred_deprel = [i.max(2)[1] for i in
+                                            self(x_forms, x_tags, pack, chars, length_per_word_per_sent)]
 
             mask = mask.type(torch.ByteTensor)
             if self.use_cuda:

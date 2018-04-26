@@ -127,9 +127,9 @@ def softmax_weighter(lang_labels):
     for i, l11 in lang_labels:
         for j, l2 in lang_labels:
             if l1 == l2:
-                w[i, j] = 1
+                w[i, j] = 0.8
             else:
-                w[i, j] = 2
+                w[i, j] = 1
     
     return w
 
