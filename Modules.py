@@ -4,6 +4,23 @@ from torch.autograd import Variable
 import torch.nn.functional as F
 
 
+class LangModel(torch.nn.Module):
+    # pass the whole parser to access param
+    def __init__(self, sizes, args, embed_dim=300, context_size=2):
+        super().__init__()
+        self.use_cuda = args.use_cuda
+
+        self.embeds = torch.nn.Embedding(sizes['vocab'], embed_dim)
+        self.dense1 = torch.nn.Linear(context_size * embed_dim, embed_dim // 2)
+        self.dense2 = torch.nn.Linear(embed_dim // 2, sizes['vocab'])
+
+    def forward(self, inputs):
+        embeds = self.embeds(inputs).view((1, -1))
+        out = F.relu(self.dense1(embeds))
+        out = self.dense2(out)
+        return F.log_softmax(out, dim=1)
+
+
 class CharEmbedding(torch.nn.Module):
     def __init__(self, char_size, embed_dim, lstm_dim, lstm_layers):
         super().__init__()

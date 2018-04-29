@@ -13,6 +13,7 @@ if __name__ == '__main__':
     arg_parser.add_argument('--dev', action='store', nargs='*')
     arg_parser.add_argument('--test', action='store', nargs='*')
     arg_parser.add_argument('--embed', action='store', nargs='*')
+    arg_parser.add_argument('--lm', action='store', nargs='*')
     arg_parser.add_argument('--use_chars', action='store_true')
     arg_parser.add_argument('--use_cuda', action='store_true')
     # aux tasks
@@ -66,6 +67,23 @@ if __name__ == '__main__':
         iterators = Loader.get_iterators(args, BATCH_SIZE)
         run_cl_tagger(args, iterators)
 
+    # ========================
+    # Run language model thing
+    # ========================
+    elif args.lm:
+        (train_loader, dev_loader, test_loader), lm_loader, sizes, vocab = Loader.get_treebank_and_txt(args, BATCH_SIZE)
+
+        runnable = CSParser(sizes, args, embeddings=None, embed_dim=EMBED_DIM, lstm_dim=LSTM_DIM, lstm_layers=LSTM_LAYERS,
+                            reduce_dim_arc=REDUCE_DIM_ARC, reduce_dim_label=REDUCE_DIM_LABEL, learning_rate=LEARNING_RATE)
+
+        print("Training")
+        for epoch in range(EPOCHS):
+            runnable.train_(epoch, lm_loader, task_type="aux")
+            # runnable.train_(epoch, train_loader)
+            runnable.evaluate_(dev_loader)
+    # ========================
+    # Normal stuff
+    # ========================
     else:
         (train_loader, dev_loader, test_loader), sizes, vocab = Loader.get_iterators(args, BATCH_SIZE)[0]
         if args.parse:

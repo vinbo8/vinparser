@@ -1,7 +1,8 @@
 import torch
+import torch.nn.functional as F
 import Helpers
 from torch.autograd import Variable
-from Modules import CharEmbedding, ShorterBiaffine, LongerBiaffine
+from Modules import CharEmbedding, ShorterBiaffine, LongerBiaffine, LangModel
 
 
 class Tagger(torch.nn.Module):
@@ -373,6 +374,7 @@ class CSParser(torch.nn.Module):
         if self.use_chars:
             self.embeddings_chars = CharEmbedding(sizes['chars'], embed_dim, lstm_dim, lstm_layers)
 
+        self.aux_lm = LangModel(sizes, args)
         self.embeddings_forms = torch.nn.Embedding(sizes['vocab'], embed_dim)
         self.embeddings_tags = torch.nn.Embedding(sizes['postags'], embed_dim)
         self.lstm = torch.nn.LSTM(2 * embed_dim, lstm_dim, lstm_layers,
@@ -389,15 +391,32 @@ class CSParser(torch.nn.Module):
         self.criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
         self.optimiser = torch.optim.Adam(self.parameters(), lr=learning_rate, betas=(0.9, 0.9))
 
+        # ======================
+        # for the language model
+        # ======================
+        self.lang_model_criterion = torch.nn.NLLLoss()
+        self.dense1 = torch.nn.Linear(2 * embed_dim, embed_dim // 2)
+        self.dense2 = torch.nn.Linear(embed_dim // 2, sizes['vocab'])
+
         if self.use_cuda:
             self.biaffine.cuda()
             self.label_biaffine.cuda()
+
+    def forward_aux(self, forms):
+        batch_size = forms.size()[0]
+        embeds = self.embeddings_forms(forms).view((batch_size, -1))
+        out = F.relu(self.dense1(embeds))
+        out = self.dense2(out)
+        return F.log_softmax(out, dim=1)
 
     def forward(self, forms, tags, pack, chars, char_pack):
         form_embeds = self.dropout(self.embeddings_forms(forms))
         tag_embeds = self.dropout(self.embeddings_tags(tags))
         composed_embeds = form_embeds
 
+        # =========================
+        # aux task - lang modelling
+        # =========================
         if self.use_chars:
             composed_embeds += self.dropout(self.embeddings_chars(chars, char_pack))
 
@@ -431,41 +450,57 @@ class CSParser(torch.nn.Module):
     2. initialise everything else to none; load it if necessary based on command line args
     3. pass everything, whether it's been loaded or not, to the forward function; if it's unnecessary it won't use it
     '''
-    def train_(self, epoch, train_loader):
+    def train_(self, epoch, train_loader, task_type="main"):
         self.train()
         train_loader.init_epoch()
 
         for i, batch in enumerate(train_loader):
-            chars, length_per_word_per_sent = None, None
-            (x_forms, pack), x_tags, y_heads, y_deprels = batch.form, batch.upos, batch.head, batch.deprel
+            if task_type == "aux":
+                x_forms = batch.form[0][:, 1:3]
+                y_forms = batch.form[0][:, 3]
+                y_out = self.forward_aux(x_forms)
+                loss = self.lang_model_criterion(y_out, y_forms)
+                self.zero_grad()
+                loss.backward()
+                self.optimiser.step()
 
-            # TODO: add something similar for semtags
-            if self.use_chars:
-                (chars, _, length_per_word_per_sent) = batch.char
+                print("Epoch: {}\t{}/{}\tloss: {}".format(epoch, (i + 1) * len(x_forms),
+                                                          len(train_loader.dataset), loss.data[0]))
 
-            y_pred_head, y_pred_deprel = self(x_forms, x_tags, pack, chars, length_per_word_per_sent)
+            else:
+                chars, length_per_word_per_sent = None, None
+                (x_forms, pack), x_tags, y_heads, y_deprels = batch.form, batch.upos, batch.head, batch.deprel
 
-            # reshape for cross-entropy
-            batch_size, longest_sentence_in_batch = y_heads.size()
+                # TODO: add something similar for semtags
+                if self.use_chars:
+                    (chars, _, length_per_word_per_sent) = batch.char
 
-            # predictions: (B x S x S) => (B * S x S)
-            # heads: (B x S) => (B * S)
-            y_pred_head = y_pred_head.view(batch_size * longest_sentence_in_batch, -1)
-            y_heads = y_heads.contiguous().view(batch_size * longest_sentence_in_batch)
+                y_pred_head, y_pred_deprel = self(x_forms, x_tags, pack, chars, length_per_word_per_sent)
 
-            # predictions: (B x S x D) => (B * S x D)
-            # heads: (B x S) => (B * S)
-            y_pred_deprel = y_pred_deprel.view(batch_size * longest_sentence_in_batch, -1)
-            y_deprels = y_deprels.contiguous().view(batch_size * longest_sentence_in_batch)
+                # reshape for cross-entropy
+                batch_size, longest_sentence_in_batch = y_heads.size()
 
-            # sum losses
-            train_loss = self.criterion(y_pred_head, y_heads) + self.criterion(y_pred_deprel, y_deprels)
+                # predictions: (B x S x S) => (B * S x S)
+                # heads: (B x S) => (B * S)
+                y_pred_head = y_pred_head.view(batch_size * longest_sentence_in_batch, -1)
+                y_heads = y_heads.contiguous().view(batch_size * longest_sentence_in_batch)
 
-            self.zero_grad()
-            train_loss.backward()
-            self.optimiser.step()
+                # predictions: (B x S x D) => (B * S x D)
+                # heads: (B x S) => (B * S)
+                y_pred_deprel = y_pred_deprel.view(batch_size * longest_sentence_in_batch, -1)
+                y_deprels = y_deprels.contiguous().view(batch_size * longest_sentence_in_batch)
 
-            print("Epoch: {}\t{}/{}\tloss: {}".format(epoch, (i + 1) * len(x_forms), len(train_loader.dataset), train_loss.data[0]))
+                # sum losses
+                train_loss = self.criterion(y_pred_head, y_heads) + self.criterion(y_pred_deprel, y_deprels)
+
+                self.zero_grad()
+                train_loss.backward()
+                self.optimiser.step()
+
+                print("Epoch: {}\t{}/{}\tloss: {}".format(epoch, (i + 1) * len(x_forms), len(train_loader.dataset), train_loss.data[0]))
+
+                if 'mtl' in self.random_bs:
+                    return self.embeddings_forms
 
     def evaluate_(self, test_loader):
         las_correct, uas_correct, total = 0, 0, 0
