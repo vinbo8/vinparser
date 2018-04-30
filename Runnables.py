@@ -500,7 +500,7 @@ class CSParser(torch.nn.Module):
 
                 print("Epoch: {}\t{}/{}\tloss: {}".format(epoch, (i + 1) * len(x_forms), len(train_loader.dataset), train_loss.data[0]))
 
-                if 'mtl' in self.random_bs:
+                if self.random_bs and 'mtl' in self.random_bs:
                     return self.embeddings_forms
 
     def evaluate_(self, test_loader):
