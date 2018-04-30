@@ -76,6 +76,9 @@ if __name__ == '__main__':
         runnable = CSParser(sizes, args, embeddings=None, embed_dim=EMBED_DIM, lstm_dim=LSTM_DIM, lstm_layers=LSTM_LAYERS,
                             reduce_dim_arc=REDUCE_DIM_ARC, reduce_dim_label=REDUCE_DIM_LABEL, learning_rate=LEARNING_RATE)
 
+        if args.use_cuda:
+            runnable.cuda()
+
         print("Training")
         for epoch in range(EPOCHS):
             runnable.train_(epoch, lm_loader, task_type="aux")
