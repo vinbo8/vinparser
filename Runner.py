@@ -82,7 +82,7 @@ if __name__ == '__main__':
         print("Training")
         for epoch in range(EPOCHS):
             runnable.train_(epoch, lm_loader, task_type="aux")
-            # runnable.train_(epoch, train_loader)
+            runnable.train_(epoch, train_loader)
             runnable.evaluate_(dev_loader)
     # ========================
     # Normal stuff
