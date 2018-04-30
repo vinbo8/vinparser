@@ -404,7 +404,8 @@ class CSParser(torch.nn.Module):
 
     def forward_aux(self, forms):
         batch_size = forms.size()[0]
-        embeds = self.embeddings_forms(forms).view((batch_size, -1))
+        embeds = self.embeddings_forms(forms)
+        embeds = embeds.view((batch_size, -1))
         out = F.relu(self.dense1(embeds))
         out = self.dense2(out)
         return F.log_softmax(out, dim=1)
