@@ -374,8 +374,8 @@ class CSParser(torch.nn.Module):
         if self.use_chars:
             self.embeddings_chars = CharEmbedding(sizes['chars'], embed_dim, lstm_dim, lstm_layers)
 
-        self.aux_lm = LangModel(sizes, args)
         self.embeddings_forms = torch.nn.Embedding(sizes['vocab'], embed_dim)
+        if args.embed: self.embeddings_forms.weight.data.copy_(embeddings)
         self.embeddings_tags = torch.nn.Embedding(sizes['postags'], embed_dim)
         self.lstm = torch.nn.LSTM(2 * embed_dim, lstm_dim, lstm_layers,
                                   batch_first=True, bidirectional=True, dropout=0.33)
@@ -395,8 +395,9 @@ class CSParser(torch.nn.Module):
         # for the language model
         # ======================
         self.lang_model_criterion = torch.nn.NLLLoss()
-        self.dense1 = torch.nn.Linear(2 * embed_dim, embed_dim // 2)
-        self.dense2 = torch.nn.Linear(embed_dim // 2, sizes['vocab'])
+        self.lstm_lm = torch.nn.LSTM(embed_dim, lstm_dim, 1, batch_first=True, bidirectional=False, dropout=0.33)
+        self.dense1 = torch.nn.Linear(2 * lstm_dim, lstm_dim // 2)
+        self.dense2 = torch.nn.Linear(lstm_dim // 2, sizes['vocab'])
 
         if self.use_cuda:
             self.biaffine.cuda()
@@ -405,8 +406,9 @@ class CSParser(torch.nn.Module):
     def forward_aux(self, forms):
         batch_size = forms.size()[0]
         embeds = self.embeddings_forms(forms)
-        embeds = embeds.view((batch_size, -1))
-        out = F.relu(self.dense1(embeds))
+        lstm = self.lstm_lm(embeds)[0].contiguous().view((batch_size, -1))
+        # embeds = embeds.view((batch_size, -1))
+        out = F.relu(self.dense1(lstm))
         out = self.dense2(out)
         return F.log_softmax(out, dim=1)
 
