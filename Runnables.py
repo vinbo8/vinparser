@@ -546,12 +546,12 @@ class CSParser(torch.nn.Module):
             # get labels
             # TODO: ensure well-formed tree
             if self.random_bs and self.random_bs[0] == 'weight':
-                head, deprel = self(x_forms, x_tags, pack, chars, length_per_word_per_sent)
+                head, deprel, _ = self(x_forms, x_tags, pack, chars, length_per_word_per_sent)
                 y_pred_head = (Helpers.softmax_weighter(batch.misc) * head).max(2)[1]
                 y_pred_deprel = deprel.max(2)[1]
             else:
                 y_pred_head, y_pred_deprel = [i.max(2)[1] for i in
-                                            self(x_forms, x_tags, pack, chars, length_per_word_per_sent)]
+                                            self(x_forms, x_tags, pack, chars, length_per_word_per_sent)[:2]]
 
             mask = mask.type(torch.ByteTensor)
             if self.use_cuda:
