@@ -443,7 +443,9 @@ class CSParser(torch.nn.Module):
         # ===============
         # lang pred
         # ===============
-        langid_out = self.out_langid(self.dropout_langid(F.relu(self.mlp_langid(output))))
+        embeds, _ = self.lstm(torch.nn.utils.rnn.pack_padded_sequence(embeds, pack.tolist(), batch_first=True))
+        embeds, _ = torch.nn.utils.rnn.pad_packed_sequence(embeds, batch_first=True)
+        langid_out = self.out_langid(self.dropout_langid(F.relu(self.mlp_langid(embeds))))
 
         # predict heads
         reduced_head_head = self.dropout(self.relu(self.mlp_head(output)))
