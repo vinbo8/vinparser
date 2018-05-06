@@ -406,6 +406,7 @@ class CSParser(torch.nn.Module):
         self.relu_langid = torch.nn.ReLU()
         self.mlp_langid = torch.nn.Linear(2 * lstm_dim, 300)
         self.out_langid = torch.nn.Linear(300, sizes['langs'])
+        self.dropout_langid = torch.nn.Dropout(p=0.5)
         self.criterion_langid = torch.nn.CrossEntropyLoss(ignore_index=-1)
 
         if self.use_cuda:
@@ -421,7 +422,7 @@ class CSParser(torch.nn.Module):
         out = self.dense2(out)
         return F.log_softmax(out, dim=1)
 
-    def forward(self, forms, tags, pack, chars, char_pack, langs):
+    def forward(self, forms, tags, pack, chars, char_pack):
         form_embeds = self.dropout(self.embeddings_forms(forms))
         tag_embeds = self.dropout(self.embeddings_tags(tags))
         composed_embeds = form_embeds
@@ -438,6 +439,11 @@ class CSParser(torch.nn.Module):
         embeds = torch.nn.utils.rnn.pack_padded_sequence(embeds, pack.tolist(), batch_first=True)
         output, _ = self.lstm(embeds)
         output, _ = torch.nn.utils.rnn.pad_packed_sequence(output, batch_first=True)
+
+        # ===============
+        # lang pred
+        # ===============
+        langid_out = self.out_langid(self.dropout_langid(F.relu(self.mlp_langid(output))))
 
         # predict heads
         reduced_head_head = self.dropout(self.relu(self.mlp_head(output)))
@@ -456,7 +462,7 @@ class CSParser(torch.nn.Module):
         if self.use_cuda:
             y_pred_label = y_pred_label.cuda()
 
-        return y_pred_head, y_pred_label
+        return y_pred_head, y_pred_label, langid_out
 
     '''
     1. the bare minimum that needs to be loaded is forms, upos, head, deprel (could change later); load those
@@ -489,7 +495,7 @@ class CSParser(torch.nn.Module):
                 if self.use_chars:
                     (chars, _, length_per_word_per_sent) = batch.char
 
-                y_pred_head, y_pred_deprel = self(x_forms, x_tags, pack, chars, length_per_word_per_sent, y_langs)
+                y_pred_head, y_pred_deprel, langid_out = self(x_forms, x_tags, pack, chars, length_per_word_per_sent)
 
                 # reshape for cross-entropy
                 batch_size, longest_sentence_in_batch = y_heads.size()
@@ -504,8 +510,13 @@ class CSParser(torch.nn.Module):
                 y_pred_deprel = y_pred_deprel.view(batch_size * longest_sentence_in_batch, -1)
                 y_deprels = y_deprels.contiguous().view(batch_size * longest_sentence_in_batch)
 
+                # for langid
+                y_pred_langid = langid_out.view(batch_size * longest_sentence_in_batch, -1)
+                y_langs = y_langs.contiguous().view(batch_size * longest_sentence_in_batch)
+
                 # sum losses
-                train_loss = self.criterion(y_pred_head, y_heads) + self.criterion(y_pred_deprel, y_deprels)
+                train_loss = self.criterion(y_pred_head, y_heads) + self.criterion(y_pred_deprel, y_deprels) + \
+                             self.criterion_langid(y_pred_langid, y_langs)
 
                 self.zero_grad()
                 train_loss.backward()
@@ -535,7 +546,7 @@ class CSParser(torch.nn.Module):
             # get labels
             # TODO: ensure well-formed tree
             if self.random_bs and self.random_bs[0] == 'weight':
-                head, deprel = self(x_forms, x_tags, pack, chars, length_per_word_per_sent, langtags)
+                head, deprel = self(x_forms, x_tags, pack, chars, length_per_word_per_sent)
                 y_pred_head = (Helpers.softmax_weighter(batch.misc) * head).max(2)[1]
                 y_pred_deprel = deprel.max(2)[1]
             else:
