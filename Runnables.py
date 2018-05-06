@@ -1,5 +1,7 @@
 import torch
+import pprint
 import Helpers
+from scripts import cle
 from torch.autograd import Variable
 from Modules import CharEmbedding, ShorterBiaffine, LongerBiaffine
 
@@ -93,6 +95,7 @@ class Parser(torch.nn.Module):
 
         self.use_cuda = args.use_cuda
         self.use_chars = args.use_chars
+        self.use_tagger = args.use_tagger
 
         if self.use_chars:
             self.embeddings_chars = CharEmbedding(sizes['chars'], embed_dim, lstm_dim, lstm_layers)
@@ -211,6 +214,7 @@ class Parser(torch.nn.Module):
             y_pred_head, y_pred_deprel = [i.max(2)[1] for i in
                                           self(x_forms, x_tags, pack, chars, length_per_word_per_sent)]
 
+            pprint.pprint([cle.mst(i, pad) for i, pad in zip(self(x_forms, x_tags, pack, chars, length_per_word_per_sent)[0], pack)])
             mask = mask.type(torch.ByteTensor)
             if self.use_cuda:
                 mask = mask.cuda()

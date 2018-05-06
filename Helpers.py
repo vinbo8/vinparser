@@ -4,8 +4,26 @@ import torch.utils.data
 import torch.nn.functional as F
 from torch.autograd import Variable
 from Conllu import ConllParser
+import sys
 
 DEBUG_SIZE = -1
+
+
+def write_to_conllu(fname, out_dict):
+    with open(fname, "r") as f:
+        current_sent = 0
+        for line in f:
+            if line[0] == '#':
+                sys.stdout.write(line)
+                continue
+
+            if not line.rstrip():
+                current_sent += 1
+
+            cols = line.split("\t")
+            id = cols[0]
+            cols[7] = out_dict[current_sent][id]
+            sys.stdout.write("\t".join(cols))
 
 
 def build_data(fname, batch_size, train_conll=None):
