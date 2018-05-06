@@ -412,7 +412,7 @@ class CSParser(torch.nn.Module):
         out = self.dense2(out)
         return F.log_softmax(out, dim=1)
 
-    def forward(self, forms, tags, pack, chars, char_pack):
+    def forward(self, forms, tags, pack, chars, char_pack, langs):
         form_embeds = self.dropout(self.embeddings_forms(forms))
         tag_embeds = self.dropout(self.embeddings_tags(tags))
         composed_embeds = form_embeds
@@ -472,13 +472,14 @@ class CSParser(torch.nn.Module):
 
             else:
                 chars, length_per_word_per_sent = None, None
-                (x_forms, pack), x_tags, y_heads, y_deprels = batch.form, batch.upos, batch.head, batch.deprel
+                (x_forms, pack), x_tags, y_heads, y_deprels, y_langs = batch.form, batch.upos, \
+                                                                       batch.head, batch.deprel, batch.misc
 
                 # TODO: add something similar for semtags
                 if self.use_chars:
                     (chars, _, length_per_word_per_sent) = batch.char
 
-                y_pred_head, y_pred_deprel = self(x_forms, x_tags, pack, chars, length_per_word_per_sent)
+                y_pred_head, y_pred_deprel = self(x_forms, x_tags, pack, chars, length_per_word_per_sent, y_langs)
 
                 # reshape for cross-entropy
                 batch_size, longest_sentence_in_batch = y_heads.size()
