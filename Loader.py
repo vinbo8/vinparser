@@ -112,7 +112,7 @@ def get_iterators(args, batch_size):
                                                 sort_key=lambda x: len(x.form), sort_within_batch=True,
                                                 device=device, repeat=False)
 
-        sizes = {'vocab': len(FORM.vocab), 'postags': len(UPOS.vocab), 'deprels': len(DEPREL.vocab)}
+        sizes = {'vocab': len(FORM.vocab), 'postags': len(UPOS.vocab), 'deprels': len(DEPREL.vocab), 'langs': len(MISC.vocab)}
 
         if args.use_chars:
             sizes['chars'] = len(CHAR.vocab)

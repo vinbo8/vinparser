@@ -399,6 +399,15 @@ class CSParser(torch.nn.Module):
         self.dense1 = torch.nn.Linear(2 * lstm_dim, lstm_dim // 2)
         self.dense2 = torch.nn.Linear(lstm_dim // 2, sizes['vocab'])
 
+        # ==============
+        # for the langid
+        # ==============
+        self.lstm_langid = torch.nn.LSTM(embed_dim, lstm_dim, lstm_layers, batch_first=True, bidirectional=True, dropout=0.5)
+        self.relu_langid = torch.nn.ReLU()
+        self.mlp_langid = torch.nn.Linear(2 * lstm_dim, 300)
+        self.out_langid = torch.nn.Linear(300, sizes['langs'])
+        self.criterion_langid = torch.nn.CrossEntropyLoss(ignore_index=-1)
+
         if self.use_cuda:
             self.biaffine.cuda()
             self.label_biaffine.cuda()
@@ -443,6 +452,7 @@ class CSParser(torch.nn.Module):
                                         for n, _ in enumerate(predicted_labels)])
         y_pred_label = self.label_biaffine(selected_heads, reduced_deprel_dep)
         y_pred_label = Helpers.extract_best_label_logits(predicted_labels, y_pred_label, pack)
+
         if self.use_cuda:
             y_pred_label = y_pred_label.cuda()
 
@@ -525,7 +535,7 @@ class CSParser(torch.nn.Module):
             # get labels
             # TODO: ensure well-formed tree
             if self.random_bs and self.random_bs[0] == 'weight':
-                head, deprel = self(x_forms, x_tags, pack, chars, length_per_word_per_sent)
+                head, deprel = self(x_forms, x_tags, pack, chars, length_per_word_per_sent, langtags)
                 y_pred_head = (Helpers.softmax_weighter(batch.misc) * head).max(2)[1]
                 y_pred_deprel = deprel.max(2)[1]
             else:
