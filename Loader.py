@@ -107,9 +107,20 @@ def get_iterators(args, batch_size):
             else:
                 field.build_vocab(train)
 
-        current_iterator = data.Iterator.splits((train, dev, test), batch_sizes=(batch_size, batch_size, batch_size),
-                                                sort_key=lambda x: len(x.form), sort_within_batch=True,
-                                                device=device, repeat=False)
+        train_iterator = data.Iterator(train, batch_size=batch_size, sort_key=lambda x: len(x.form), train=True,
+                                       sort_within_batch=True, device=device, repeat=False)
+
+        dev_iterator = data.Iterator(dev, batch_size=1, train=False, sort_within_batch=None,
+                                     sort=False, device=device, repeat=False)
+
+        test_iterator = data.Iterator(test, batch_size=1, train=False, sort_within_batch=None,
+                                      sort=False, device=device, repeat=False)
+
+        # current_iterator = data.Iterator.splits((train, dev, test), batch_sizes=(batch_size, 1, 1),
+        #                                         sort_key=lambda x: len(x.form), sort_within_batch=True,
+        #                                         device=device, repeat=False)
+
+        current_iterator = [train_iterator, dev_iterator, test_iterator]
 
         sizes = {'vocab': len(FORM.vocab), 'postags': len(UPOS.vocab), 'deprels': len(DEPREL.vocab)}
 
@@ -119,7 +130,7 @@ def get_iterators(args, batch_size):
         if args.semtag:
             sizes['semtags'] = len(SEM.vocab)
 
-        iterators.append((current_iterator, sizes, FORM.vocab))
+        iterators.append((current_iterator, sizes, [FORM.vocab, DEPREL.vocab]))
 
     return iterators
 

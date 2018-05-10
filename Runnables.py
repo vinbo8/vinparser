@@ -89,13 +89,15 @@ class Tagger(torch.nn.Module):
 
 
 class Parser(torch.nn.Module):
-    def __init__(self, sizes, args, embeddings=None, embed_dim=100, lstm_dim=400, lstm_layers=3,
+    def __init__(self, sizes, args, vocab, embeddings=None, embed_dim=100, lstm_dim=400, lstm_layers=3,
                  reduce_dim_arc=100, reduce_dim_label=100, learning_rate=1e-3):
         super().__init__()
 
         self.use_cuda = args.use_cuda
         self.use_chars = args.use_chars
-        self.use_tagger = args.use_tagger
+        self.vocab = vocab
+        # for writer
+        self.test_file = args.test[0]
 
         if self.use_chars:
             self.embeddings_chars = CharEmbedding(sizes['chars'], embed_dim, lstm_dim, lstm_layers)
@@ -214,7 +216,18 @@ class Parser(torch.nn.Module):
             y_pred_head, y_pred_deprel = [i.max(2)[1] for i in
                                           self(x_forms, x_tags, pack, chars, length_per_word_per_sent)]
 
-            pprint.pprint([cle.mst(i, pad) for i, pad in zip(self(x_forms, x_tags, pack, chars, length_per_word_per_sent)[0], pack)])
+            deprel_vocab = self.vocab[1]
+            deprels = [deprel_vocab.itos[i.data[0]] for i in y_pred_deprel.view(-1, 1)]
+
+            heads_softmaxes = self(x_forms, x_tags, pack, chars, length_per_word_per_sent)[0]
+            pad = pack[0]
+            json = cle.mst(heads_softmaxes, pad)
+
+
+#            json = cle.mst(i, pad) for i, pad in zip(self(x_forms, x_tags, pack, chars,
+#                                                           length_per_word_per_sent)[0], pack)
+
+            Helpers.write_to_conllu(self.test_file, json, deprels, i)
             mask = mask.type(torch.ByteTensor)
             if self.use_cuda:
                 mask = mask.cuda()
