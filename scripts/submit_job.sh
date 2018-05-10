@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 root="/home/ravishankar/personal_work_troja/vinparser"
+if [[ -f "$root/results/err" ]]; then echo "error file exists: removing.. "; rm "$root/results/err"; fi
+if [[ -f "$root/results/$1" ]]; then echo "$1 exists: removing.. "; rm "$root/results/$1"; fi
 cd ~/personal_work_troja/vinparser
 git checkout eval_codeswitch
 git pull
