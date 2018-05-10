@@ -443,8 +443,9 @@ class CSParser(torch.nn.Module):
         # ===============
         # lang pred
         # ===============
-        langid_out, _ = self.lstm_langid(embeds)
-        langid_out, _ = torch.nn.utils.rnn.pad_packed_sequence(embeds, batch_first=True)
+        langid_embeds = torch.nn.utils.rnn.pack_padded_sequence(composed_embeds, pack.tolist(), batch_first=True)
+        langid_out, _ = self.lstm_langid(langid_embeds)
+        langid_out, _ = torch.nn.utils.rnn.pad_packed_sequence(langid_out, batch_first=True)
         langid_out = self.out_langid(self.dropout_langid(F.relu(self.mlp_langid(embeds))))
 
         # predict heads
