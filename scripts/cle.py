@@ -141,7 +141,7 @@ def mst(G, pad, root=0):
     and a call to G[v] loads the web page and finds its links.
     """
 
-    RG = _build_dict(G)
+    RG = _build_dict(G[0])
     if root in RG:
         RG[root] = {}
     g = {}
