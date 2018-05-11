@@ -45,7 +45,7 @@ def _build_dict(softmaxes):
 		for n, col in enumerate(row):
 			if m == n: continue
 			if m not in out: out[m] = {}
-			out[m][n] = col.data[0]
+			out[m][n] = -col.data[0]
 
 	return _reverse(out)
 
