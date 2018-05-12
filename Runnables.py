@@ -216,18 +216,6 @@ class Parser(torch.nn.Module):
             y_pred_head, y_pred_deprel = [i.max(2)[1] for i in
                                           self(x_forms, x_tags, pack, chars, length_per_word_per_sent)]
 
-            deprel_vocab = self.vocab[1]
-            deprels = [deprel_vocab.itos[i.data[0]] for i in y_pred_deprel.view(-1, 1)]
-
-            heads_softmaxes = self(x_forms, x_tags, pack, chars, length_per_word_per_sent)[0]
-            pad = pack[0]
-            json = cle.mst(heads_softmaxes[0].data[0].numpy())
-
-
-#            json = cle.mst(i, pad) for i, pad in zip(self(x_forms, x_tags, pack, chars,
-#                                                           length_per_word_per_sent)[0], pack)
-
-            Helpers.write_to_conllu(self.test_file, json, deprels, i)
             mask = mask.type(torch.ByteTensor)
             if self.use_cuda:
                 mask = mask.cuda()
@@ -248,6 +236,19 @@ class Parser(torch.nn.Module):
                 pass
 
             total += mask.nonzero().size(0)
+
+
+            deprel_vocab = self.vocab[1]
+            deprels = [deprel_vocab.itos[i.data[0]] for i in y_pred_deprel.view(-1, 1)]
+
+            heads_softmaxes = self(x_forms, x_tags, pack, chars, length_per_word_per_sent)[0]
+            json = cle.mst(heads_softmaxes[0].data.numpy())
+
+
+#            json = cle.mst(i, pad) for i, pad in zip(self(x_forms, x_tags, pack, chars,
+#                                                           length_per_word_per_sent)[0], pack)
+
+            Helpers.write_to_conllu(self.test_file, json, deprels, i)
 
         print("UAS = {}/{} = {}\nLAS = {}/{} = {}".format(uas_correct, total, uas_correct / total,
                                                           las_correct, total, las_correct / total))
