@@ -221,7 +221,7 @@ class Parser(torch.nn.Module):
 
             heads_softmaxes = self(x_forms, x_tags, pack, chars, length_per_word_per_sent)[0]
             pad = pack[0]
-            json = cle.mst(heads_softmaxes, pad)
+            json = cle.mst(heads_softmaxes[0].data[0].numpy())
 
 
 #            json = cle.mst(i, pad) for i, pad in zip(self(x_forms, x_tags, pack, chars,

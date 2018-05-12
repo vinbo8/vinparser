@@ -1,192 +1,103 @@
 import sys
+from collections import defaultdict
+import numpy as np
 
-# --------------------------------------------------------------------------------- #
-
-def _input(filename):
-    prices = {}
-    names = {}
-
-    for line in file(filename).readlines():
-        (name, src, dst, price) = line.rstrip().split()
-        name = int(name.replace('M',''))
-        src = int(src.replace('C',''))
-        dst = int(dst.replace('C',''))
-        price = int(price)
-        t = (src,dst)
-        if t in prices and prices[t] <= price:
-            continue
-        prices[t] = price
-        names[t] = name
-
-    return prices,names
-
-def _load(arcs,weights):
-    g = {}
-    for (src,dst) in arcs:
-        if src in g:
-            g[src][dst] = weights[(src,dst)]
-        else:
-            g[src] = { dst : weights[(src,dst)] }
-    return g
-
-def _reverse(graph):
-    r = {}
-    for src in graph:
-        for (dst,c) in graph[src].items():
-            if dst in r:
-                r[dst][src] = c
-            else:
-                r[dst] = { src : c }
-    return r
-
-def _build_dict(softmaxes):
-	out = {}
-	for m, row in enumerate(softmaxes):
-		for n, col in enumerate(row):
-			if m == n: continue
-			if m not in out: out[m] = {}
-			out[m][n] = -col.data[0]
-
-	return _reverse(out)
-
-def _getCycle(n, g, visited=None, cycle=None):
-    if visited is None:
-        visited = set()
-    if cycle is None:
-        cycle = []
-    visited.add(n)
-    cycle += [n]
-    if n not in g:
-        return cycle
-    for e in g[n]:
-        if e not in visited:
-            cycle = _getCycle(e,g,visited,cycle)
-    return cycle
-
-def _mergeCycles(cycle,G,RG,g,rg):
-    allInEdges = []
-    minInternal = None
-    minInternalWeight = 999999
-
-    # find minimal internal edge weight
-    for n in cycle:
-        for e in RG[n]:
-            if e in cycle:
-                if minInternal is None or RG[n][e] < minInternalWeight:
-                    minInternal = (n,e)
-                    minInternalWeight = RG[n][e]
-                    continue
-            else:
-                allInEdges.append((n,e))        
-
-    # find the incoming edge with minimum modified cost
-    minExternal = None
-    minModifiedWeight = 0
-    for s,t in allInEdges:
-        u,v = rg[s].popitem()
-        rg[s][u] = v
-        w = RG[s][t] - (v - minInternalWeight)
-        if minExternal is None or minModifiedWeight > w:
-            minExternal = (s,t)
-            minModifiedWeight = w
-
-    u,w = rg[minExternal[0]].popitem()
-    rem = (minExternal[0],u)
-    rg[minExternal[0]].clear()
-    if minExternal[1] in rg:
-        rg[minExternal[1]][minExternal[0]] = w
-    else:
-        rg[minExternal[1]] = { minExternal[0] : w }
-    if rem[1] in g:
-        if rem[0] in g[rem[1]]:
-            del g[rem[1]][rem[0]]
-    if minExternal[1] in g:
-        g[minExternal[1]][minExternal[0]] = w
-    else:
-        g[minExternal[1]] = { minExternal[0] : w }
-
-# --------------------------------------------------------------------------------- #
-
-def mst(G, pad, root=0):
-    """ The Chu-Lui/Edmond's algorithm
-    arguments:
-    root - the root of the MST
-    G - the graph in which the MST lies
-    returns: a graph representation of the MST
-    Graph representation is the same as the one found at:
-    http://code.activestate.com/recipes/119466/
-    Explanation is copied verbatim here:
-    The input graph G is assumed to have the following
-    representation: A vertex can be any object that can
-    be used as an index into a dictionary.  G is a
-    dictionary, indexed by vertices.  For any vertex v,
-    G[v] is itself a dictionary, indexed by the neighbors
-    of v.  For any edge v->w, G[v][w] is the length of
-    the edge.  This is related to the representation in
-    <http://www.python.org/doc/essays/graphs.html>
-    where Guido van Rossum suggests representing graphs
-    as dictionaries mapping vertices to lists of neighbors,
-    however dictionaries of edges have many advantages
-    over lists: they can store extra information (here,
-    the lengths), they support fast existence tests,
-    and they allow easy modification of the graph by edge
-    insertion and removal.  Such modifications are not
-    needed here but are important in other graph algorithms.
-    Since dictionaries obey iterator protocol, a graph
-    represented as described here could be handed without
-    modification to an algorithm using Guido's representation.
-    Of course, G and G[v] need not be Python dict objects;
-    they can be any other object that obeys dict protocol,
-    for instance a wrapper in which vertices are URLs
-    and a call to G[v] loads the web page and finds its links.
+def mst(scores):
     """
+    https://github.com/tdozat/Parser/blob/0739216129cd39d69997d28cbc4133b360ea3934/lib/models/nn.py#L692  # NOQA
+    """
+    length = scores.shape[0]
+    scores = scores * (1 - np.eye(length))
+    heads = np.argmax(scores, axis=1)
+    heads[0] = 0
+    tokens = np.arange(1, length)
+    roots = np.where(heads[tokens] == 0)[0] + 1
+    if len(roots) < 1:
+        root_scores = scores[tokens, 0]
+        head_scores = scores[tokens, heads[tokens]]
+        new_root = tokens[np.argmax(root_scores / head_scores)]
+        heads[new_root] = 0
+    elif len(roots) > 1:
+        root_scores = scores[roots, 0]
+        scores[roots, 0] = 0
+        new_heads = np.argmax(scores[roots][:, tokens], axis=1) + 1
+        new_root = roots[np.argmin(
+            scores[roots, new_heads] / root_scores)]
+        heads[roots] = new_heads
+        heads[new_root] = 0
 
-    RG = _build_dict(G[0])
-    if root in RG:
-        RG[root] = {}
-    g = {}
-    for n in RG:
-        if len(RG[n]) == 0:
-            continue
-        minimum = 999999
-        s,d = None,None
-        for e in RG[n]:
-            if RG[n][e] < minimum:
-                minimum = RG[n][e]
-                s,d = n,e
-        if d in g:
-            g[d][s] = RG[s][d]
-        else:
-            g[d] = { s : RG[s][d] }
-            
-    cycles = []
-    visited = set()
-    for n in g:
-        if n not in visited:
-            cycle = _getCycle(n,g,visited)
-            cycles.append(cycle)
+    edges = defaultdict(set)
+    vertices = set((0,))
+    for dep, head in enumerate(heads[tokens]):
+        vertices.add(dep + 1)
+        edges[head].add(dep + 1)
+    for cycle in _find_cycle(vertices, edges):
+        dependents = set()
+        to_visit = set(cycle)
+        while len(to_visit) > 0:
+            node = to_visit.pop()
+            if node not in dependents:
+                dependents.add(node)
+                to_visit.update(edges[node])
+        cycle = np.array(list(cycle))
+        old_heads = heads[cycle]
+        old_scores = scores[cycle, old_heads]
+        non_heads = np.array(list(dependents))
+        scores[np.repeat(cycle, len(non_heads)),
+               np.repeat([non_heads], len(cycle), axis=0).flatten()] = 0
+        new_heads = np.argmax(scores[cycle][:, tokens], axis=1) + 1
+        new_scores = scores[cycle, new_heads] / old_scores
+        change = np.argmax(new_scores)
+        changed_cycle = cycle[change]
+        old_head = old_heads[change]
+        new_head = new_heads[change]
+        heads[changed_cycle] = new_head
+        edges[new_head].add(changed_cycle)
+        edges[old_head].remove(changed_cycle)
 
-    rg = _reverse(g)
-    for cycle in cycles:
-        if root in cycle:
-            continue
-        _mergeCycles(cycle, G, RG, g, rg)
-
-    # ===============
-    # fix the padding
-    # ===============
-    new_g = {}
-    for entry in g:
-        if entry < pad:
-            new_g[entry] = {}
-            for parent in g[entry]:
-                if parent < pad:
-                    new_g[entry][parent] = g[entry][parent]
-
-    parents = {}
-    for parent in new_g:
-        for children in new_g[parent]:
-            parents[children] = parent
+    return heads
 
 
-    return parents
+def _find_cycle(vertices, edges):
+    """
+    https://en.wikipedia.org/wiki/Tarjan%27s_strongly_connected_components_algorithm  # NOQA
+    https://github.com/tdozat/Parser/blob/0739216129cd39d69997d28cbc4133b360ea3934/lib/etc/tarjan.py  # NOQA
+    """
+    _index = 0
+    _stack = []
+    _indices = {}
+    _lowlinks = {}
+    _onstack = defaultdict(lambda: False)
+    _SCCs = []
+
+    def _strongconnect(v):
+        nonlocal _index
+        _indices[v] = _index
+        _lowlinks[v] = _index
+        _index += 1
+        _stack.append(v)
+        _onstack[v] = True
+
+        for w in edges[v]:
+            if w not in _indices:
+                _strongconnect(w)
+                _lowlinks[v] = min(_lowlinks[v], _lowlinks[w])
+            elif _onstack[w]:
+                _lowlinks[v] = min(_lowlinks[v], _indices[w])
+
+        if _lowlinks[v] == _indices[v]:
+            SCC = set()
+            while True:
+                w = _stack.pop()
+                _onstack[w] = False
+                SCC.add(w)
+                if not(w != v):
+                    break
+            _SCCs.append(SCC)
+
+    for v in vertices:
+        if v not in _indices:
+            _strongconnect(v)
+
+    return [SCC for SCC in _SCCs if len(SCC) > 1]
+
