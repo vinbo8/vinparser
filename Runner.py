@@ -1,3 +1,4 @@
+import torch
 import argparse
 import configparser
 import Loader
@@ -9,6 +10,8 @@ if __name__ == '__main__':
     arg_parser.add_argument('--tag', action='store_true')
     arg_parser.add_argument('--parse', action='store_true')
     arg_parser.add_argument('--config', default='./config.ini')
+    arg_parser.add_argument('--save', action='store', nargs=1)
+    arg_parser.add_argument('--load', action='store', nargs=1)
     arg_parser.add_argument('--train', action='store', nargs='*')
     arg_parser.add_argument('--dev', action='store', nargs='*')
     arg_parser.add_argument('--test', action='store', nargs='*')
@@ -77,10 +80,16 @@ if __name__ == '__main__':
             runnable.cuda()
 
         # training
-        print("Training")
-        for epoch in range(EPOCHS):
-            runnable.train_(epoch, train_loader)
-            # runnable.evaluate_(dev_loader)
+        if args.load:
+            print("Loading")
+            with open(args.load[0], "rb") as f:
+                runnable.load_state_dict(torch.load(f))
+
+        else:
+            print("Training")
+            for epoch in range(EPOCHS):
+                runnable.train_(epoch, train_loader)
+                # runnable.evaluate_(dev_loader)
 
         # test
         print("Eval")

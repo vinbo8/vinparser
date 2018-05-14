@@ -95,6 +95,7 @@ class Parser(torch.nn.Module):
 
         self.use_cuda = args.use_cuda
         self.use_chars = args.use_chars
+        self.save = args.save
         self.vocab = vocab
         # for writer
         self.test_file = args.test[0]
@@ -195,6 +196,10 @@ class Parser(torch.nn.Module):
             self.optimiser.step()
 
             print("Epoch: {}\t{}/{}\tloss: {}".format(epoch, (i + 1) * len(x_forms), len(train_loader.dataset), train_loss.data[0]))
+
+        if self.save:
+            with open(self.save[0], "wb") as f:
+                torch.save(self.state_dict(), f)
 
     def evaluate_(self, test_loader):
         las_correct, uas_correct, total = 0, 0, 0
@@ -327,6 +332,8 @@ class CLTagger(torch.nn.Module):
         return self.out_aux(mlp_out)
 
     def train_(self, epoch, train_loader, type_task="main"):
+
+
         self.train()
         train_loader.init_epoch()
 
