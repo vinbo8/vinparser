@@ -5,6 +5,7 @@ import numpy as np
 from torchtext import data, datasets, vocab
 import csv
 import re
+from torchtext import datasets
 
 csv.field_size_limit(sys.maxsize)
 
@@ -302,5 +303,23 @@ def get_iterators_cl(args, batch_size):
                        "vocab": vocab
                        }
         out.append(loader_dict)
-    
+
     return out
+
+
+def load_pos():
+    WORD = data.Field(init_token="<bos>", eos_token="<eos>", batch_first=True, include_lengths=True)
+    LANG = data.Field(init_token="<bos>", eos_token="<eos>", batch_first=True)
+    TAG = data.Field(init_token="<bos>", eos_token="<eos>", batch_first=True)
+
+    train, dev, test = datasets.UDPOS.splits(fields=(('word', WORD), ('lang', LANG), ('tag', TAG)),
+                                             path="./data/codeswitch/en-hi", train="langid_train.txt",
+                                             validation="langid_dev.txt", test="langid_test.txt")
+
+    WORD.build_vocab(train)
+    LANG.build_vocab(train)
+    TAG.build_vocab(train)
+
+    vocab = {'word': len(WORD.vocab), 'lang': len(LANG.vocab), 'tag': len(TAG.vocab)}
+    current_iterator = data.Iterator.splits((train, dev, test), batch_sizes=(10, 1, 1), sort_within_batch=True, repeat=False)
+    return current_iterator, vocab

@@ -580,3 +580,65 @@ class CSParser(torch.nn.Module):
         print("UAS = {}/{} = {}\nLAS = {}/{} = {}".format(uas_correct, total, uas_correct / total,
                                                           las_correct, total, las_correct / total))
 
+
+class LangID(torch.nn.Module):
+    def __init__(self, args, sizes):
+        super().__init__()
+        self.word_embed = torch.nn.Embedding(sizes['word'], 300)
+        self.lstm = torch.nn.LSTM(300, 300, batch_first=True, bidirectional=True)
+        self.hidden = torch.nn.Linear(600, 300)
+        self.out = torch.nn.Linear(300, sizes['lang'])
+
+        self.criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=2e-3)
+
+    def forward(self, *input):
+        words = input[0]
+        embeddings = self.word_embed(words)
+        lstm, _ = self.lstm(embeddings)
+        l1 = F.relu(self.hidden(lstm))
+        out = self.out(l1)
+
+        return out
+
+    def train_(self, epoch, train_loader):
+        self.train()
+        train_loader.init_epoch()
+
+        for i, batch in enumerate(train_loader):
+            (words, sizes), langs = batch.word, batch.lang
+            sizes = sizes.tolist()
+
+            mask = Helpers.get_mask(sizes)
+            pred = self.forward(words, sizes)
+
+            batch_size, max_len = langs.size()[0], langs.size()[1]
+            langs = langs.view(-1)
+            pred = pred.view(batch_size * max_len, -1)
+
+            loss = self.criterion(pred, langs)
+
+            self.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+
+            print("Epoch: {}\t{}/{}\tloss: {}".format(
+                epoch, (i + 1) * len(words), len(train_loader.dataset), loss.data[0]))
+
+    def evaluate_(self, loader):
+        self.eval()
+        correct, total = 0, 0
+        for i, batch in enumerate(loader):
+            (words, sizes), langs = batch.word, batch.lang
+            sizes = sizes.tolist()
+
+            pred = self.forward(words, sizes)
+
+            batch_size, max_len = langs.size()[0], langs.size()[1]
+            langs = langs.view(-1)
+            pred = pred.view(batch_size * max_len, -1)
+
+            correct += (pred.max(1)[1] == langs).nonzero().size(0)
+            total += pred.size()[0]
+
+        print("Accuracy: {}".format(correct / total))

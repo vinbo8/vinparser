@@ -4,6 +4,8 @@ import torch.utils.data
 import torch.nn.functional as F
 from torch.autograd import Variable
 from Conllu import ConllParser
+from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
+from torch.autograd import Variable
 
 DEBUG_SIZE = -1
 
@@ -135,3 +137,7 @@ def softmax_weighter(lang_labels):
 
     return Variable(w)
 
+
+def get_mask(sizes):
+    return pad_packed_sequence(pack_padded_sequence(Variable(torch.ones(len(sizes), max(sizes))),
+                                                    sizes, batch_first=True), batch_first=True)[0] > 0

@@ -1,11 +1,12 @@
 import argparse
 import configparser
 import Loader
-from Runnables import Tagger, Parser, CSParser, CLTagger
+from Runnables import Tagger, Parser, CSParser, CLTagger, LangID
 
 
 if __name__ == '__main__':
     arg_parser = argparse.ArgumentParser()
+    arg_parser.add_argument('--langid', action='store_true')
     arg_parser.add_argument('--tag', action='store_true')
     arg_parser.add_argument('--parse', action='store_true')
     arg_parser.add_argument('--config', default='./config.ini')
@@ -25,7 +26,7 @@ if __name__ == '__main__':
 
     # sanity checks
     # later, allow both tag and parse to do something like tag-first-parser
-    assert args.tag + args.parse == 1
+    assert args.tag + args.parse + args.langid == 1
     assert args.semtag + args.cl_tagger <= 1
 
     config = configparser.ConfigParser()
@@ -63,7 +64,19 @@ if __name__ == '__main__':
     # Actual loading begins here
     # Start with args
     # ==========================
-    if args.cl_tagger:
+    if args.langid:
+        score = 0
+        (train_loader, dev_loader, test_loader), sizes = Loader.load_pos()
+        runnable = LangID(args, sizes)
+
+        print("Training..")
+        for epoch in range(1):
+            runnable.train_(epoch, train_loader)
+
+        runnable.evaluate_(test_loader)
+
+
+    elif args.cl_tagger:
         iterators = Loader.get_iterators(args, BATCH_SIZE)
         run_cl_tagger(args, iterators)
 
