@@ -4,6 +4,33 @@ from torch.autograd import Variable
 import torch.nn.functional as F
 
 
+class WeightedCombUnb(torch.nn.Module):
+    def __init__(self, in1_features, in2_features):
+        super().__init__()
+        self.in1_features = in1_features
+        self.in2_features = in2_features
+
+        self.weight = torch.nn.Parameter(torch.rand(in1_features))
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        stdv = 1. / math.sqrt(self.weight.size(0))
+        self.weight.data.uniform_(-stdv, stdv)
+
+    def forward(self, input1, input2):
+        is_cuda = next(self.parameters()).is_cuda
+        print("in: ", input1.size(), input2.size(), self.weight.size())
+        batch_size, len, dim = input1.size()
+        output = input1 * F.sigmoid(self.weight * input2)
+        return output
+
+    def __repr__(self):
+        return self.__class__.__name__ + ' (' \
+            + 'in1_features=' + str(self.in1_features) \
+            + ', in2_features=' + str(self.in2_features) \
+            + ', out_features=' + str(self.output) + ')'
+
+
 class CharEmbedding(torch.nn.Module):
     def __init__(self, char_size, embed_dim, lstm_dim, lstm_layers):
         super().__init__()
