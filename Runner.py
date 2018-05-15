@@ -83,7 +83,7 @@ if __name__ == '__main__':
         if args.load:
             print("Loading")
             with open(args.load[0], "rb") as f:
-                runnable.load_state_dict(torch.load(f))
+                runnable.load_state_dict(torch.load(f, map_location=lambda storage, loc: storage))
 
         else:
             print("Training")

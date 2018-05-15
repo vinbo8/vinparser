@@ -3,6 +3,7 @@ import pprint
 import Helpers
 from scripts import cle
 from torch.autograd import Variable
+import torch.nn.functional as F
 from Modules import CharEmbedding, ShorterBiaffine, LongerBiaffine
 
 
@@ -226,6 +227,7 @@ class Parser(torch.nn.Module):
                 mask = mask.cuda()
 
             mask = Variable(mask)
+            mask[0, 0] = 0
             heads_correct = ((y_heads == y_pred_head) * mask)
             deprels_correct = ((y_deprels == y_pred_deprel) * mask)
 
@@ -246,8 +248,9 @@ class Parser(torch.nn.Module):
             deprel_vocab = self.vocab[1]
             deprels = [deprel_vocab.itos[i.data[0]] for i in y_pred_deprel.view(-1, 1)]
 
-            heads_softmaxes = self(x_forms, x_tags, pack, chars, length_per_word_per_sent)[0]
-            json = cle.mst(heads_softmaxes[0].data.numpy())
+            heads_softmaxes = self(x_forms, x_tags, pack, chars, length_per_word_per_sent)[0][0]
+            heads_softmaxes = F.softmax(heads_softmaxes, dim=1)
+            json = cle.mst(heads_softmaxes.data.numpy())
 
 
 #            json = cle.mst(i, pad) for i, pad in zip(self(x_forms, x_tags, pack, chars,
