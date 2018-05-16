@@ -556,7 +556,7 @@ class TagTwiceParser(torch.nn.Module):
             with open(self.save[0], "wb") as f:
                 torch.save(self.state_dict(), f)
 
-    def evaluate_(self, test_loader):
+    def evaluate_(self, test_loader, print_conllu=False):
         las_correct, uas_correct, total = 0, 0, 0
         self.eval()
         for i, batch in enumerate(test_loader):
@@ -589,7 +589,7 @@ class TagTwiceParser(torch.nn.Module):
                 pass
 
             try:
-                las_correct += (heads_correct * deprels_correct) .nonzero().size(0)
+                las_correct += (heads_correct * deprels_correct).nonzero().size(0)
             except RuntimeError:
                 pass
 
@@ -605,19 +605,14 @@ class TagTwiceParser(torch.nn.Module):
 
             total += mask.nonzero().size(0)
 
+            if print_conllu:
+                deprel_vocab = self.vocab[1]
+                deprels = [deprel_vocab.itos[i.data[0]] for i in y_pred_deprel.view(-1, 1)]
+                heads_softmaxes = self(x_forms, x_tags, x_sem, pack, chars, length_per_word_per_sent)[0][0]
+                heads_softmaxes = F.softmax(heads_softmaxes, dim=1)
+                json = cle.mst(heads_softmaxes.data.numpy())
 
-            deprel_vocab = self.vocab[1]
-            deprels = [deprel_vocab.itos[i.data[0]] for i in y_pred_deprel.view(-1, 1)]
-
-            heads_softmaxes = self(x_forms, x_tags, x_sem, pack, chars, length_per_word_per_sent)[0][0]
-            heads_softmaxes = F.softmax(heads_softmaxes, dim=1)
-            json = cle.mst(heads_softmaxes.data.numpy())
-
-
-#            json = cle.mst(i, pad) for i, pad in zip(self(x_forms, x_tags, pack, chars,
-#                                                           length_per_word_per_sent)[0], pack)
-
-            Helpers.write_to_conllu(self.test_file, json, deprels, i)
+                Helpers.write_to_conllu(self.test_file, json, deprels, i)
 
         print("UAS = {}/{} = {}\nLAS = {}/{} = {}".format(uas_correct, total, uas_correct / total,
                                                           las_correct, total, las_correct / total))
