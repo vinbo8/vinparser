@@ -105,6 +105,8 @@ class Parser(torch.nn.Module):
             self.embeddings_chars = CharEmbedding(sizes['chars'], embed_dim, lstm_dim, lstm_layers)
 
         self.embeddings_forms = torch.nn.Embedding(sizes['vocab'], embed_dim)
+        if args.embed:
+            self.embeddings_forms.weight.data.copy_(embeddings.vectors)
         self.embeddings_tags = torch.nn.Embedding(sizes['postags'], embed_dim)
         self.lstm = torch.nn.LSTM(2 * embed_dim, lstm_dim, lstm_layers,
                                   batch_first=True, bidirectional=True, dropout=0.33)

@@ -102,7 +102,7 @@ def get_iterators(args, batch_size):
         field_names = [i[1] for i in field_tuples]
         for field in field_names:
             if field == FORM and args.embed:
-                vecs = vocab.Vectors(name=args.embed)
+                vecs = vocab.Vectors(name=args.embed[n])
                 field.build_vocab(train, vectors=vecs)
             else:
                 field.build_vocab(train)
