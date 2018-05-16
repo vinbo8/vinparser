@@ -6,8 +6,39 @@ from torch.autograd import Variable
 from Conllu import ConllParser
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from torch.autograd import Variable
+import sys
 
 DEBUG_SIZE = -1
+
+
+def write_to_conllu(fname, out_dict, deprels, write_at):
+    with open(fname, "r") as f:
+        current_sent = 0
+        for line in f:
+            if line[0] == '#':
+                if current_sent == write_at:
+                    sys.stdout.write(line)
+                continue
+
+            if not line.rstrip():
+                if current_sent == write_at:
+                    sys.stdout.write(line)
+                    break
+                current_sent += 1
+                continue
+
+            if current_sent == write_at:
+                cols = line.split("\t")
+                id = cols[0]
+                # print line and skip
+                if "-" in id or "." in id:
+                    sys.stdout.write(line)
+                    continue
+                # ===
+
+                cols[6] = str(out_dict[int(id)])
+                cols[7] = str(deprels[int(id)])
+                sys.stdout.write("\t".join(cols))
 
 
 def build_data(fname, batch_size, train_conll=None):

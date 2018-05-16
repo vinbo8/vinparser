@@ -1,7 +1,9 @@
 import torch
-import torch.nn.functional as F
+import pprint
 import Helpers
+from scripts import cle
 from torch.autograd import Variable
+import torch.nn.functional as F
 from Modules import CharEmbedding, ShorterBiaffine, LongerBiaffine, LangModel
 
 
@@ -88,12 +90,16 @@ class Tagger(torch.nn.Module):
 
 
 class Parser(torch.nn.Module):
-    def __init__(self, sizes, args, embeddings=None, embed_dim=100, lstm_dim=400, lstm_layers=3,
+    def __init__(self, sizes, args, vocab, embeddings=None, embed_dim=100, lstm_dim=400, lstm_layers=3,
                  reduce_dim_arc=100, reduce_dim_label=100, learning_rate=1e-3):
         super().__init__()
 
         self.use_cuda = args.use_cuda
         self.use_chars = args.use_chars
+        self.save = args.save
+        self.vocab = vocab
+        # for writer
+        self.test_file = args.test[0]
 
         if self.use_chars:
             self.embeddings_chars = CharEmbedding(sizes['chars'], embed_dim, lstm_dim, lstm_layers)
@@ -192,6 +198,10 @@ class Parser(torch.nn.Module):
 
             print("Epoch: {}\t{}/{}\tloss: {}".format(epoch, (i + 1) * len(x_forms), len(train_loader.dataset), train_loss.data[0]))
 
+        if self.save:
+            with open(self.save[0], "wb") as f:
+                torch.save(self.state_dict(), f)
+
     def evaluate_(self, test_loader):
         las_correct, uas_correct, total = 0, 0, 0
         self.eval()
@@ -217,6 +227,7 @@ class Parser(torch.nn.Module):
                 mask = mask.cuda()
 
             mask = Variable(mask)
+            mask[0, 0] = 0
             heads_correct = ((y_heads == y_pred_head) * mask)
             deprels_correct = ((y_deprels == y_pred_deprel) * mask)
 
@@ -232,6 +243,20 @@ class Parser(torch.nn.Module):
                 pass
 
             total += mask.nonzero().size(0)
+
+
+            deprel_vocab = self.vocab[1]
+            deprels = [deprel_vocab.itos[i.data[0]] for i in y_pred_deprel.view(-1, 1)]
+
+            heads_softmaxes = self(x_forms, x_tags, pack, chars, length_per_word_per_sent)[0][0]
+            heads_softmaxes = F.softmax(heads_softmaxes, dim=1)
+            json = cle.mst(heads_softmaxes.data.numpy())
+
+
+#            json = cle.mst(i, pad) for i, pad in zip(self(x_forms, x_tags, pack, chars,
+#                                                           length_per_word_per_sent)[0], pack)
+
+            Helpers.write_to_conllu(self.test_file, json, deprels, i)
 
         print("UAS = {}/{} = {}\nLAS = {}/{} = {}".format(uas_correct, total, uas_correct / total,
                                                           las_correct, total, las_correct / total))

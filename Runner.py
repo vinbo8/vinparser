@@ -1,3 +1,4 @@
+import torch
 import argparse
 import configparser
 import Loader
@@ -10,6 +11,8 @@ if __name__ == '__main__':
     arg_parser.add_argument('--tag', action='store_true')
     arg_parser.add_argument('--parse', action='store_true')
     arg_parser.add_argument('--config', default='./config.ini')
+    arg_parser.add_argument('--save', action='store', nargs=1)
+    arg_parser.add_argument('--load', action='store', nargs=1)
     arg_parser.add_argument('--train', action='store', nargs='*')
     arg_parser.add_argument('--dev', action='store', nargs='*')
     arg_parser.add_argument('--test', action='store', nargs='*')
@@ -109,8 +112,8 @@ if __name__ == '__main__':
                 runnable = CSParser(sizes, args, embeddings=embeddings, embed_dim=EMBED_DIM, lstm_dim=LSTM_DIM, lstm_layers=LSTM_LAYERS,
                                   reduce_dim_arc=REDUCE_DIM_ARC, reduce_dim_label=REDUCE_DIM_LABEL, learning_rate=LEARNING_RATE)
             else:
-                runnable = Parser(sizes, args, embeddings=None, embed_dim=EMBED_DIM, lstm_dim=LSTM_DIM, lstm_layers=LSTM_LAYERS,
-                                reduce_dim_arc=REDUCE_DIM_ARC, reduce_dim_label=REDUCE_DIM_LABEL, learning_rate=LEARNING_RATE)
+                runnable = Parser(sizes, args, vocab, embeddings=None, embed_dim=EMBED_DIM, lstm_dim=LSTM_DIM, lstm_layers=LSTM_LAYERS,
+                                  reduce_dim_arc=REDUCE_DIM_ARC, reduce_dim_label=REDUCE_DIM_LABEL, learning_rate=LEARNING_RATE)
         elif args.tag:
             runnable = Tagger(sizes, args, embeddings=None, embed_dim=EMBED_DIM, lstm_dim=LSTM_DIM, lstm_layers=LSTM_LAYERS,
                               mlp_dim=MLP_DIM, learning_rate=LEARNING_RATE)
@@ -119,10 +122,16 @@ if __name__ == '__main__':
             runnable.cuda()
 
         # training
-        print("Training")
-        for epoch in range(EPOCHS):
-            runnable.train_(epoch, train_loader)
-            runnable.evaluate_(dev_loader)
+        if args.load:
+            print("Loading")
+            with open(args.load[0], "rb") as f:
+                runnable.load_state_dict(torch.load(f, map_location=lambda storage, loc: storage))
+
+        else:
+            print("Training")
+            for epoch in range(EPOCHS):
+                runnable.train_(epoch, train_loader)
+                # runnable.evaluate_(dev_loader)
 
         # test
         print("Eval")
