@@ -7,12 +7,12 @@ import torch.nn.functional as F
 class CharEmbedding(torch.nn.Module):
     def __init__(self, char_size, embed_dim, lstm_dim, lstm_layers):
         super().__init__()
-        self.embedding_chars = torch.nn.Embedding(char_size, embed_dim)
-        self.lstm = torch.nn.LSTM(embed_dim, int(150), lstm_layers,
+        self.embedding_chars = torch.nn.Embedding(char_size, 25)
+        self.lstm = torch.nn.LSTM(25, int(150), lstm_layers,
                                   batch_first=True, bidirectional=False, dropout=0.33)
         self.attention = LinearAttention(int(150))
-        self.mlp = torch.nn.Linear(300, embed_dim, bias=False)
-        self.lstm = torch.nn.LSTM(embed_dim, lstm_dim, lstm_layers,
+        self.mlp = torch.nn.Linear(300, 25, bias=False)
+        self.lstm = torch.nn.LSTM(25, lstm_dim, lstm_layers,
                                   batch_first=True, bidirectional=False, dropout=0.33)
         self.attention = LinearAttention(lstm_dim)
         self.mlp = torch.nn.Linear(2 * lstm_dim, embed_dim, bias=False)
