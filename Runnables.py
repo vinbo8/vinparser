@@ -405,8 +405,9 @@ class TagTwiceParser(torch.nn.Module):
             self.embeddings_chars = CharEmbedding(sizes['chars'], embed_dim, lstm_dim, lstm_layers)
 
         self.embeddings_forms = torch.nn.Embedding(sizes['vocab'], embed_dim)
+        self.embeddings_forms_rand = torch.nn.Embedding(sizes['vocab'], embed_dim)
         self.embeddings_tags = torch.nn.Embedding(sizes['postags'], embed_dim)
-        self.lstm = torch.nn.LSTM(2 * embed_dim, lstm_dim, lstm_layers,
+        self.lstm = torch.nn.LSTM(5 * embed_dim + sizes['postags'], lstm_dim, lstm_layers,
                                   batch_first=True, bidirectional=True, dropout=0.33)
         self.mlp_head = torch.nn.Linear(2 * lstm_dim, reduce_dim_arc)
         self.mlp_dep = torch.nn.Linear(2 * lstm_dim, reduce_dim_arc)
@@ -467,12 +468,10 @@ class TagTwiceParser(torch.nn.Module):
         # sem
         mlp_semtag = self.dropout(self.relu(self.mlp_semtag(output_semtag)))
         y_pred_semtag = self.out_semtag(mlp_semtag)
-        print(output_tag.size(), output_semtag.size())
 
         # concat original embeddings with sem lstm and softmax outs
         # embeds = torch.cat([form_embeds, y_pred_semtag, y_pred_tag], dim = 2)
         embeds = output_tag
-        print(embeds.size())
 
         # pack/unpack for LSTM_parse
         embeds = torch.nn.utils.rnn.pack_padded_sequence(embeds, pack.tolist(), batch_first=True)
@@ -487,8 +486,6 @@ class TagTwiceParser(torch.nn.Module):
         reduced_head_dep = self.dropout(self.relu(self.mlp_dep(output)))
         y_pred_head = self.biaffine(reduced_head_head, reduced_head_dep)
 
-        if self.debug:
-            return y_pred_head, Variable(torch.rand(y_pred_head.size()))
 
         # predict deprels using heads
         reduced_deprel_head = self.dropout(self.relu(self.mlp_deprel_head(output)))
@@ -573,7 +570,7 @@ class TagTwiceParser(torch.nn.Module):
             # get labels
             # TODO: ensure well-formed tree
             y_pred_head, y_pred_deprel, y_pred_semtag, y_pred_tag = [i.max(2)[1] for i in
-                                          self(x_forms, x_tags, pack, chars, length_per_word_per_sent)]
+                                          self(x_forms, x_tags, x_sem, pack, chars, length_per_word_per_sent)]
 
             mask = mask.type(torch.ByteTensor)
             if self.use_cuda:
@@ -612,7 +609,7 @@ class TagTwiceParser(torch.nn.Module):
             deprel_vocab = self.vocab[1]
             deprels = [deprel_vocab.itos[i.data[0]] for i in y_pred_deprel.view(-1, 1)]
 
-            heads_softmaxes = self(x_forms, x_tags, pack, chars, length_per_word_per_sent)[0][0]
+            heads_softmaxes = self(x_forms, x_tags, x_sem, pack, chars, length_per_word_per_sent)[0][0]
             heads_softmaxes = F.softmax(heads_softmaxes, dim=1)
             json = cle.mst(heads_softmaxes.data.numpy())
 

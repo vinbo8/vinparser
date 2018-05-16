@@ -19,7 +19,6 @@ class WeightedCombUnb(torch.nn.Module):
 
     def forward(self, input1, input2):
         is_cuda = next(self.parameters()).is_cuda
-        print("in: ", input1.size(), input2.size(), self.weight.size())
         batch_size, len, dim = input1.size()
         output = input1 * F.sigmoid(self.weight * input2)
         return output
