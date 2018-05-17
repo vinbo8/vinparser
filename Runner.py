@@ -89,8 +89,8 @@ if __name__ == '__main__':
             print("Training")
             for epoch in range(EPOCHS):
                 runnable.train_(epoch, train_loader)
-                # runnable.evaluate_(dev_loader)
+                runnable.evaluate_(dev_loader)
 
         # test
         print("Eval")
-        runnable.evaluate_(test_loader)
+        runnable.evaluate_(test_loader, print_conll=True)

@@ -5,7 +5,7 @@ if [[ -f "$root/results/$1" ]]; then echo "$1 exists: removing.. "; rm "$root/re
 cd ~/personal_work_troja/vinparser
 git checkout master
 git pull
-echo "$root/venv/bin/python $root/Runner.py --parse --use_cuda --use_chars --save $root/models/en_baseline.pt \
+echo "$root/venv/bin/python $root/Runner.py --parse --use_cuda --save $root/models/en_baseline.pt \
 --train $root/data/en-ud-train.conllu.sem \
 --dev $root/data/en-ud-dev.conllu.sem --test $root/data/en-ud-test.conllu.sem \
 --embed $root/data/embeds/wiki.en.vec --config $root/config.ini" > parse.sh
