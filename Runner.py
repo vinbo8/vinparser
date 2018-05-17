@@ -2,7 +2,7 @@ import torch
 import argparse
 import configparser
 import Loader
-from Runnables import Tagger, Parser, CLTagger
+from Runnables import Tagger, Parser, CLTagger, TagAndParse
 
 
 if __name__ == '__main__':
@@ -25,7 +25,6 @@ if __name__ == '__main__':
 
     # sanity checks
     # later, allow both tag and parse to do something like tag-first-parser
-    assert args.tag + args.parse == 1
     assert args.semtag + args.cl_tagger <= 1
 
     config = configparser.ConfigParser()
@@ -69,7 +68,10 @@ if __name__ == '__main__':
 
     else:
         (train_loader, dev_loader, test_loader), sizes, vocab = Loader.get_iterators(args, BATCH_SIZE)[0]
-        if args.parse:
+        if args.parse and args.tag:
+            runnable = TagAndParse(sizes, args, vocab, embeddings=vocab[0], embed_dim=EMBED_DIM, lstm_dim=LSTM_DIM, lstm_layers=LSTM_LAYERS,
+                              reduce_dim_arc=REDUCE_DIM_ARC, reduce_dim_label=REDUCE_DIM_LABEL, learning_rate=LEARNING_RATE)
+        elif args.parse:
             runnable = Parser(sizes, args, vocab, embeddings=vocab[0], embed_dim=EMBED_DIM, lstm_dim=LSTM_DIM, lstm_layers=LSTM_LAYERS,
                               reduce_dim_arc=REDUCE_DIM_ARC, reduce_dim_label=REDUCE_DIM_LABEL, learning_rate=LEARNING_RATE)
         elif args.tag:
