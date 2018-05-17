@@ -10,17 +10,19 @@ DEBUG_SIZE = -1
 
 
 def write_to_conllu(fname, out_dict, deprels, write_at):
+    out = fname + 'result.connlu'
+    fout = open(out, 'a')
     with open(fname, "r") as f:
         current_sent = 0
         for line in f:
             if line[0] == '#':
                 if current_sent == write_at:
-                    sys.stdout.write(line)
+                    fout.write(line)
                 continue
 
             if not line.rstrip():
                 if current_sent == write_at:
-                    sys.stdout.write(line)
+                    fout.write(line)
                     break
                 current_sent += 1
                 continue
@@ -30,14 +32,14 @@ def write_to_conllu(fname, out_dict, deprels, write_at):
                 id = cols[0]
                 # print line and skip
                 if "-" in id or "." in id:
-                    sys.stdout.write(line)
+                    fout.write(line)
                     continue
-                # ===
+               # ===
 
                 cols[6] = str(out_dict[int(id)])
                 cols[7] = str(deprels[int(id)])
-                sys.stdout.write("\t".join(cols))
-
+                fout.write("\t".join(cols))
+    fout.close()
 
 def build_data(fname, batch_size, train_conll=None):
     # build data

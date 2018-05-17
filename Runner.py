@@ -93,4 +93,4 @@ if __name__ == '__main__':
 
         # test
         print("Eval")
-        runnable.evaluate_(test_loader, print_conllu=True)
+        runnable.evaluate_(test_loader, print_conllu=False)
