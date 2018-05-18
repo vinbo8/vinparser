@@ -410,7 +410,7 @@ class TagAndParse(torch.nn.Module):
         self.tag_out = torch.nn.Linear(150, sizes['postags'])
 
         if self.use_chars:
-            self.embeddings_chars = CharEmbedding(sizes['chars'], embed_dim, lstm_dim, lstm_layers)
+            self.embeddings_chars = CharEmbedding(sizes['chars'], embed_dim, lstm_dim - 2, lstm_layers)
 
         if args.embed:
             self.embeddings_forms.weight.data.copy_(embeddings.vectors)
