@@ -607,15 +607,15 @@ class TagTwiceParserLearn(torch.nn.Module):
 
             total += mask.nonzero().size(0)
 
-            if print_conllu:
-                deprel_vocab = self.vocab[1]
-                deprels = [deprel_vocab.itos[i.data[0]] for i in y_pred_deprel.view(-1, 1)]
-                heads_softmaxes = self(x_forms, x_tags, x_sem, pack, chars, length_per_word_per_sent)[0][0]
-                heads_softmaxes = F.softmax(heads_softmaxes, dim=1)
-                json = cle.mst(heads_softmaxes.data.cpu().numpy())
+            #if print_conllu:
+               # deprel_vocab = self.vocab[1]
+              #  deprels = [deprel_vocab.itos[i.data[0]] for i in y_pred_deprel.view(-1, 1)]
+             #   heads_softmaxes = self(x_forms, x_tags, x_sem, pack, chars, length_per_word_per_sent)[0][0]
+            #    heads_softmaxes = F.softmax(heads_softmaxes, dim=1)
+           #     json = cle.mst(heads_softmaxes.data.cpu().numpy())
 
-                Helpers.write_to_conllu(self.test_file, json, deprels, i)
-
+          #      Helpers.write_to_conllu(self.test_file, json, deprels, i)
+            
         print("UAS = {}/{} = {}\nLAS = {}/{} = {}\nTAG = {}/{} = {}\n\nSEMTAG = {}/{} = {}\n".format(uas_correct, total, uas_correct / total,
                                                           las_correct, total, las_correct / total, 
                                                           tags_correct, total,  tags_correct / total,
@@ -637,13 +637,12 @@ class TagTwiceParser(torch.nn.Module):
 
         if self.use_chars:
             self.embeddings_chars = CharEmbedding(sizes['chars'], embed_dim, lstm_dim, lstm_layers)
-
         self.embeddings_forms = torch.nn.Embedding(sizes['vocab'], embed_dim)
-        self.embeddings_forms.weight.data.copy_(vocab[0].vectors)
-
+        if self.use_chars:
+            self.embeddings_forms.weight.data.copy_(vocab[0].vectors)
         self.embeddings_forms_rand = torch.nn.Embedding(sizes['vocab'], embed_dim)
      #   self.embeddings_tags = torch.nn.Embedding(sizes['postags'], embed_dim)
-        self.lstm = torch.nn.LSTM(700  + sizes['semtags'] + sizes['postags'], lstm_dim, lstm_layers + 1,
+        self.lstm = torch.nn.LSTM(700  + sizes['semtags'] + sizes['postags'], lstm_dim, lstm_layers,
                                   batch_first=True, bidirectional=True, dropout=0.33)
         self.mlp_head = torch.nn.Linear(2 * lstm_dim, reduce_dim_arc)
         self.mlp_dep = torch.nn.Linear(2 * lstm_dim, reduce_dim_arc)
