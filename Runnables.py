@@ -434,17 +434,17 @@ class TagAndParse(torch.nn.Module):
             self.label_biaffine.cuda()
 
     def forward(self, forms, tags, pack, chars, char_pack):
-        form_embeds = self.dropout(self.embeddings_forms(forms))
+        form_embeds = F.dropout(self.embeddings_forms(forms), p=0.33, training=self.training)
 
         # tag
         packed_form = torch.nn.utils.rnn.pack_padded_sequence(form_embeds, pack.tolist(), batch_first=True)
         out_tag_lstm, _ = self.tag_lstm(packed_form)
         out_tag_lstm, _ = torch.nn.utils.rnn.pad_packed_sequence(out_tag_lstm, batch_first=True)
-        out_tag_mlp = self.dropout(self.relu(self.tag_mlp(out_tag_lstm)))
+        out_tag_mlp = F.dropout(self.relu(self.tag_mlp(out_tag_lstm)), p=0.33, training=self.training)
         y_pred_postag = self.tag_out(out_tag_mlp)
 
         if self.use_chars:
-            form_embeds += self.dropout(self.embeddings_chars(chars, char_pack))
+            form_embeds += F.dropout(self.embeddings_chars(chars, char_pack), p=0.33, training=self.training)
 
         embeds = torch.cat([form_embeds, out_tag_lstm, y_pred_postag], dim=2)
 
@@ -454,13 +454,13 @@ class TagAndParse(torch.nn.Module):
         output, _ = torch.nn.utils.rnn.pad_packed_sequence(output, batch_first=True)
 
         # predict heads
-        reduced_head_head = self.dropout(self.relu(self.mlp_head(output)))
-        reduced_head_dep = self.dropout(self.relu(self.mlp_dep(output)))
+        reduced_head_head = F.dropout(self.relu(self.mlp_head(output)), p=0.33, training=self.training)
+        reduced_head_dep = F.dropout(self.relu(self.mlp_dep(output)), p=0.33, training=self.training)
         y_pred_head = self.biaffine(reduced_head_head, reduced_head_dep)
 
         # predict deprels using heads
-        reduced_deprel_head = self.dropout(self.relu(self.mlp_deprel_head(output)))
-        reduced_deprel_dep = self.dropout(self.relu(self.mlp_deprel_dep(output)))
+        reduced_deprel_head = F.dropout(self.relu(self.mlp_deprel_head(output)), p=0.33, training=self.training)
+        reduced_deprel_dep = F.dropout(self.relu(self.mlp_deprel_dep(output)), p=0.33, training=self.training)
         predicted_labels = y_pred_head.max(2)[1]
         selected_heads = torch.stack([torch.index_select(reduced_deprel_head[n], 0, predicted_labels[n])
                                         for n, _ in enumerate(predicted_labels)])
@@ -545,7 +545,7 @@ class TagAndParse(torch.nn.Module):
                 mask = mask.cuda()
 
             mask = Variable(mask)
-            mask[0, 0] = 0
+            mask[:, 0] = 0
             heads_correct = ((y_heads == y_pred_head) * mask)
             deprels_correct = ((y_deprels == y_pred_deprel) * mask)
 

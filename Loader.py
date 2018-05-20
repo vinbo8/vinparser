@@ -29,7 +29,7 @@ def conll_to_csv(args, fname, columns=10):
                 continue
 
             cols = [i.replace('"', '<qt>').replace(',', '<cm>') for i in line.rstrip("\n").split("\t")]
-            if '.' in cols[0]: continue
+            if '.' in cols[0] or '-' in cols[0]: continue
             if args.use_chars:
                 cols = cols[:2] + [cols[1]] + cols[2:]
             blokk = list(map(lambda x, y: x + y + ",", blokk, cols))
@@ -110,10 +110,10 @@ def get_iterators(args, batch_size):
         train_iterator = data.Iterator(train, batch_size=batch_size, sort_key=lambda x: len(x.form), train=True,
                                        sort_within_batch=True, device=device, repeat=False)
 
-        dev_iterator = data.Iterator(dev, batch_size=1, train=False, sort_within_batch=None,
+        dev_iterator = data.Iterator(dev, batch_size=1, train=False, sort_within_batch=True, sort_key=lambda x: len(x.form),
                                      sort=False, device=device, repeat=False)
 
-        test_iterator = data.Iterator(test, batch_size=1, train=False, sort_within_batch=None,
+        test_iterator = data.Iterator(test, batch_size=40, train=False, sort_within_batch=True, sort_key=lambda x: len(x.form),
                                       sort=False, device=device, repeat=False)
 
         # current_iterator = data.Iterator.splits((train, dev, test), batch_sizes=(batch_size, 1, 1),
