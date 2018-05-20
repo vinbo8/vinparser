@@ -513,7 +513,7 @@ class TagAndParse(torch.nn.Module):
             y_tags = x_tags.contiguous().view(batch_size * longest_sentence_in_batch)
 
             # sum losses
-            train_loss = self.criterion(y_pred_head, y_heads) + self.criterion(y_pred_deprel, y_deprels) + self.criterion(y_pred_postags, y_tags)
+            train_loss = self.criterion(y_pred_head, y_heads) + self.criterion(y_pred_deprel, y_deprels) + 0.5 * self.criterion(y_pred_postags, y_tags)
 
             self.zero_grad()
             train_loss.backward()
