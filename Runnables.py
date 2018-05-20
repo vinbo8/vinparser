@@ -407,6 +407,7 @@ class TagAndParse(torch.nn.Module):
         self.embeddings_forms = torch.nn.Embedding(sizes['vocab'], embed_dim)
         if args.embed:
             self.embeddings_forms.weight.data.copy_(embeddings.vectors)
+            self.embeddings_forms.weight.requires_grad = False
 
         self.embeddings_forms_random = torch.nn.Embedding(sizes['vocab'], embed_dim)
         self.tag_lstm = torch.nn.LSTM(embed_dim, 150, lstm_layers - 2, batch_first=True, bidirectional=True, dropout=0.33)
@@ -429,7 +430,8 @@ class TagAndParse(torch.nn.Module):
         self.biaffine = ShorterBiaffine(reduce_dim_arc)
         self.label_biaffine = LongerBiaffine(reduce_dim_label, reduce_dim_label, sizes['deprels'])
         self.criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
-        self.optimiser = torch.optim.Adam(self.parameters(), lr=learning_rate, betas=(0.9, 0.9))
+        params = filter(lambda p: p.requires_grad, self.parameters())
+        self.optimiser = torch.optim.Adam(params, lr=learning_rate, betas=(0.9, 0.9))
 
         if self.use_cuda:
             self.biaffine.cuda()
