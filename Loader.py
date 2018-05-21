@@ -113,7 +113,7 @@ def get_iterators(args, batch_size):
         dev_iterator = data.Iterator(dev, batch_size=1, train=False, sort_within_batch=True, sort_key=lambda x: len(x.form),
                                      sort=False, device=device, repeat=False)
 
-        test_iterator = data.Iterator(test, batch_size=40, train=False, sort_within_batch=True, sort_key=lambda x: len(x.form),
+        test_iterator = data.Iterator(test, batch_size=1, train=False, sort_within_batch=True, sort_key=lambda x: len(x.form),
                                       sort=False, device=device, repeat=False)
 
         # current_iterator = data.Iterator.splits((train, dev, test), batch_sizes=(batch_size, 1, 1),

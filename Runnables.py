@@ -407,7 +407,7 @@ class TagAndParse(torch.nn.Module):
         self.embeddings_forms = torch.nn.Embedding(sizes['vocab'], embed_dim)
         if args.embed:
             self.embeddings_forms.weight.data.copy_(embeddings.vectors)
-            self.embeddings_forms.weight.requires_grad = False
+            # self.embeddings_forms.weight.requires_grad = False
 
         self.embeddings_forms_random = torch.nn.Embedding(sizes['vocab'], embed_dim)
         self.tag_lstm = torch.nn.LSTM(embed_dim, 150, lstm_layers - 2, batch_first=True, bidirectional=True, dropout=0.33)
