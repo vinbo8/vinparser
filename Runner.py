@@ -57,6 +57,16 @@ if __name__ == '__main__':
             runnable.train_(epoch, train_loader_main, type_task="main")
             runnable.train_(epoch, train_loader_aux, type_task="aux")
 
+    # ====================================
+    # Another really, really ugly bastard
+    # ====================================
+    def run_multiling(args, iterators):
+        # first pass - just get all the vocabs
+        for iterator in iterators:
+            (train_loader, dev_loader, test_loader), sizes, vocab = iterator
+            runnable = TagAndParse(sizes, args, vocab, embeddings=vocab[0], embed_dim=EMBED_DIM, lstm_dim=LSTM_DIM, lstm_layers=LSTM_LAYERS,
+                                   reduce_dim_arc=REDUCE_DIM_ARC, reduce_dim_label=REDUCE_DIM_LABEL, learning_rate=LEARNING_RATE)
+
 
     # ==========================
     # Actual loading begins here
