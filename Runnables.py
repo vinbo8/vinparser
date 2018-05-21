@@ -409,7 +409,7 @@ class TagAndParse(torch.nn.Module):
             self.embeddings_forms.weight.data.copy_(embeddings.vectors)
             # self.embeddings_forms.weight.requires_grad = False
 
-        self.embeddings_forms_random = torch.nn.Embedding(sizes['vocab'], embed_dim)
+        # self.embeddings_forms_random = torch.nn.Embedding(sizes['vocab'], embed_dim)
         self.tag_lstm = torch.nn.LSTM(embed_dim, 150, lstm_layers - 2, batch_first=True, bidirectional=True, dropout=0.33)
         self.tag_mlp = torch.nn.Linear(300, 150)
         self.tag_out = torch.nn.Linear(150, sizes['postags'])
@@ -418,7 +418,7 @@ class TagAndParse(torch.nn.Module):
             self.embeddings_chars = CharEmbedding(sizes['chars'], embed_dim, lstm_dim - 2, lstm_layers)
 
         self.embeddings_tags = torch.nn.Embedding(sizes['postags'], embed_dim)
-        self.lstm = torch.nn.LSTM(2 * embed_dim + 300 + sizes['postags'], lstm_dim, lstm_layers,
+        self.lstm = torch.nn.LSTM(embed_dim + 300 + sizes['postags'], lstm_dim, lstm_layers,
                                   batch_first=True, bidirectional=True, dropout=0.33)
         self.mlp_head = torch.nn.Linear(2 * lstm_dim, reduce_dim_arc)
         self.mlp_dep = torch.nn.Linear(2 * lstm_dim, reduce_dim_arc)
@@ -439,7 +439,7 @@ class TagAndParse(torch.nn.Module):
 
     def forward(self, forms, tags, pack, chars, char_pack):
         form_embeds = F.dropout(self.embeddings_forms(forms), p=0.33, training=self.training)
-        form_embeds_random = F.dropout(self.embeddings_forms_random(forms), p=0.33, training=self.training)
+        # form_embeds_random = F.dropout(self.embeddings_forms_random(forms), p=0.33, training=self.training)
 
         if self.use_chars:
             form_embeds += F.dropout(self.embeddings_chars(chars, char_pack), p=0.33, training=self.training)
@@ -451,7 +451,7 @@ class TagAndParse(torch.nn.Module):
         out_tag_mlp = F.dropout(self.relu(self.tag_mlp(out_tag_lstm)), p=0.33, training=self.training)
         y_pred_postag = self.tag_out(out_tag_mlp)
 
-        embeds = torch.cat([form_embeds, form_embeds_random, out_tag_lstm, y_pred_postag], dim=2)
+        embeds = torch.cat([form_embeds, out_tag_lstm, y_pred_postag], dim=2)
 
         # pack/unpack for LSTM
         embeds = torch.nn.utils.rnn.pack_padded_sequence(embeds, pack.tolist(), batch_first=True)
