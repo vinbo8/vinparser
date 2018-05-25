@@ -70,7 +70,7 @@ if __name__ == '__main__':
     else:
         (train_loader, dev_loader, test_loader), sizes, vocab = Loader.get_iterators(args, BATCH_SIZE)[0]
         if args.parse:
-            runnable = TagTwiceParser(sizes, args, vocab, embeddings=None, embed_dim=EMBED_DIM, lstm_dim=LSTM_DIM, lstm_layers=LSTM_LAYERS,
+            runnable = TagOnceParser(sizes, args, vocab, embeddings=None, embed_dim=EMBED_DIM, lstm_dim=LSTM_DIM, lstm_layers=LSTM_LAYERS,
                               reduce_dim_arc=REDUCE_DIM_ARC, reduce_dim_label=REDUCE_DIM_LABEL, learning_rate=LEARNING_RATE)
         elif args.tag:
             runnable = Tagger(sizes, args, embeddings=None, embed_dim=EMBED_DIM, lstm_dim=LSTM_DIM, lstm_layers=LSTM_LAYERS,

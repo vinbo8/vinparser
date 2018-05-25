@@ -865,9 +865,9 @@ class TagOnceParser(torch.nn.Module):
  #           self.embeddings_chars = CharEmbedding(sizes['chars'], embed_dim, lstm_dim, lstm_layers)
         self.embeddings_forms = torch.nn.Embedding(sizes['vocab'], embed_dim)
         self.embeddings_forms.weight.data.copy_(vocab[0].vectors)
-        self.embeddings_forms_rand = torch.nn.Embedding(sizes['vocab'], embed_dim)
+        self.embeddings_forms_rand = torch.nn.Embedding(sizes['vocab'], int(embed_dim/2))
      #   self.embeddings_tags = torch.nn.Embedding(sizes['postags'], embed_dim)
-        self.lstm = torch.nn.LSTM(500   + sizes['postags'], lstm_dim, lstm_layers,
+        self.lstm = torch.nn.LSTM(850   + sizes['postags'], lstm_dim, lstm_layers,
                                   batch_first=True, bidirectional=True, dropout=0.33)
         self.mlp_head = torch.nn.Linear(2 * lstm_dim, reduce_dim_arc)
         self.mlp_dep = torch.nn.Linear(2 * lstm_dim, reduce_dim_arc)
@@ -875,12 +875,12 @@ class TagOnceParser(torch.nn.Module):
         self.mlp_deprel_dep = torch.nn.Linear(2 * lstm_dim, reduce_dim_label)
 
         #pos
-        self.mlp_tag = torch.nn.Linear(300, 150)
+        self.mlp_tag = torch.nn.Linear(400, 150)
         self.out_tag = torch.nn.Linear(150, sizes['postags'])
         #sem
         #self.mlp_semtag = torch.nn.Linear(500, 200)
         #self.out_semtag = torch.nn.Linear(200, sizes['semtags'])
-        self.lstm_tag = torch.nn.LSTM(embed_dim * 2, 150, 1,
+        self.lstm_tag = torch.nn.LSTM(int(embed_dim * 1.5), 200, 1,
                                   batch_first=True, bidirectional=True, dropout=0.33)
 
         #self.lstm_semtag = torch.nn.LSTM(embed_dim * 5 + sizes['postags'], 250, 1,
@@ -1067,9 +1067,9 @@ class TagOnceParser(torch.nn.Module):
                 json = cle.mst(heads_softmaxes.data.cpu().numpy())
 
                 Helpers.write_to_conllu(self.test_file, json, deprels, i)
-
-        print("UAS = {}/{} = {}\nLAS = {}/{} = {}\nTAG = {}/{} = {}\n".format(uas_correct, total, uas_correct / total,
-                                                          las_correct, total, las_correct / total,
-                                                          tags_correct, total,  tags_correct / total))
+        print(uas_correct, total, las_correct)
+        print("UAS = {}/{} = {}\nLAS = {}/{} = {}\nTAG = {}/{} = {}\n".format(uas_correct, total, uas_correct / int(total+1) ,
+                                                          las_correct, total, las_correct / int(total+1),
+                                                          tags_correct, total,  tags_correct / int(total+1) ))
 
 
