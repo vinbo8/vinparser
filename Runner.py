@@ -2,7 +2,7 @@ import torch
 import argparse
 import configparser
 import Loader
-from Runnables import Tagger, Parser, CLTagger, TagTwiceParser
+from Runnables import Tagger, Parser, CLTagger, TagTwiceParser, TagOnceParser
 
 
 if __name__ == '__main__':
@@ -93,4 +93,4 @@ if __name__ == '__main__':
 
         # test
         print("Eval")
-        runnable.evaluate_(test_loader, print_conllu=False)
+        runnable.evaluate_(test_loader, print_conllu=True)
