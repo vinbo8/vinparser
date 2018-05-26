@@ -73,7 +73,7 @@ if __name__ == '__main__':
             runnable = TagOnceParser(sizes, args, vocab, embeddings=None, embed_dim=EMBED_DIM, lstm_dim=LSTM_DIM, lstm_layers=LSTM_LAYERS,
                               reduce_dim_arc=REDUCE_DIM_ARC, reduce_dim_label=REDUCE_DIM_LABEL, learning_rate=LEARNING_RATE)
         elif args.tag:
-            runnable = Tagger(sizes, args, embeddings=None, embed_dim=EMBED_DIM, lstm_dim=LSTM_DIM, lstm_layers=LSTM_LAYERS,
+            runnable = Tagger(sizes, args, vocab, embeddings=None, embed_dim=EMBED_DIM, lstm_dim=LSTM_DIM, lstm_layers=LSTM_LAYERS,
                               mlp_dim=MLP_DIM, learning_rate=LEARNING_RATE)
 
         if args.use_cuda:
@@ -93,4 +93,4 @@ if __name__ == '__main__':
 
         # test
         print("Eval")
-        runnable.evaluate_(test_loader, print_conllu=True)
+        runnable.evaluate_(test_loader, print_conllu=False)

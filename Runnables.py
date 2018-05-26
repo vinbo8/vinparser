@@ -8,20 +8,25 @@ from Modules import CharEmbedding, ShorterBiaffine, LongerBiaffine, WeightedComb
 
 
 class Tagger(torch.nn.Module):
-    def __init__(self, sizes, args, embeddings=None, embed_dim=100, lstm_dim=100, lstm_layers=3,
+    def __init__(self, sizes, args, vocab, embeddings=None, embed_dim=100, lstm_dim=100, lstm_layers=3,
                  mlp_dim=100, learning_rate=1e-5):
         super().__init__()
 
+        self.use_cuda = args.use_cuda
+        self.vocab = vocab
         self.embeds = torch.nn.Embedding(sizes['vocab'], embed_dim)
-        self.embeds.weight.data.copy_(embeddings.vectors)
+        self.embeds.weight.data.copy_(vocab[0].vectors)
+        self.embeds.weight.requires_grad = False
         self.lstm = torch.nn.LSTM(embed_dim, lstm_dim, lstm_layers, batch_first=True, bidirectional=True, dropout=0.5)
         self.relu = torch.nn.ReLU()
         self.mlp = torch.nn.Linear(2 * lstm_dim, mlp_dim)
         self.out = torch.nn.Linear(mlp_dim, sizes['postags'])
         self.criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate, betas=(0.9, 0.9))
+        params = filter(lambda p: p.requires_grad, self.parameters())
+        self.optimizer = torch.optim.Adam(params, lr=learning_rate, betas=(0.9, 0.9))
+        #self.optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate, betas=(0.9, 0.9))
         self.dropout = torch.nn.Dropout(p=0.5)
-
+    
     def forward(self, forms, pack):
         # embeds + dropout
         form_embeds = self.dropout(self.embeds(forms))
@@ -81,6 +86,8 @@ class Tagger(torch.nn.Module):
             y_pred = self(x_forms, pack).max(2)[1]
 
             mask = Variable(mask.type(torch.ByteTensor))
+            if self.use_cuda:
+                mask = mask.cuda()
 
             correct += ((x_tags == y_pred) * mask).nonzero().size(0)
 
@@ -861,13 +868,14 @@ class TagOnceParser(torch.nn.Module):
         # for writer
         self.test_file = args.test[0]
 
-#        if self.use_chars:
- #           self.embeddings_chars = CharEmbedding(sizes['chars'], embed_dim, lstm_dim, lstm_layers)
+        if self.use_chars:
+            self.embeddings_chars = CharEmbedding(sizes['chars'], int(embed_dim/2), lstm_dim, lstm_layers)
         self.embeddings_forms = torch.nn.Embedding(sizes['vocab'], embed_dim)
         self.embeddings_forms.weight.data.copy_(vocab[0].vectors)
+        self.embeddings_forms.weight.requires_grad = False
         self.embeddings_forms_rand = torch.nn.Embedding(sizes['vocab'], int(embed_dim/2))
      #   self.embeddings_tags = torch.nn.Embedding(sizes['postags'], embed_dim)
-        self.lstm = torch.nn.LSTM(850   + sizes['postags'], lstm_dim, lstm_layers,
+        self.lstm = torch.nn.LSTM(850  + sizes['postags'], lstm_dim, lstm_layers,
                                   batch_first=True, bidirectional=True, dropout=0.33)
         self.mlp_head = torch.nn.Linear(2 * lstm_dim, reduce_dim_arc)
         self.mlp_dep = torch.nn.Linear(2 * lstm_dim, reduce_dim_arc)
@@ -880,7 +888,7 @@ class TagOnceParser(torch.nn.Module):
         #sem
         #self.mlp_semtag = torch.nn.Linear(500, 200)
         #self.out_semtag = torch.nn.Linear(200, sizes['semtags'])
-        self.lstm_tag = torch.nn.LSTM(int(embed_dim * 1.5), 200, 1,
+        self.lstm_tag = torch.nn.LSTM(int(embed_dim * 1.5) , 200, 1,
                                   batch_first=True, bidirectional=True, dropout=0.33)
 
         #self.lstm_semtag = torch.nn.LSTM(embed_dim * 5 + sizes['postags'], 250, 1,
@@ -892,7 +900,9 @@ class TagOnceParser(torch.nn.Module):
         self.biaffine = ShorterBiaffine(reduce_dim_arc)
         self.label_biaffine = LongerBiaffine(reduce_dim_label, reduce_dim_label, sizes['deprels'])
         self.criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
-        self.optimiser = torch.optim.Adam(self.parameters(), lr=learning_rate, betas=(0.9, 0.9))
+        params = filter(lambda p: p.requires_grad, self.parameters())
+        self.optimiser = torch.optim.Adam(params, lr=learning_rate, betas=(0.9, 0.9))
+#        self.optimiser = torch.optim.Adam(self.parameters(), lr=learning_rate, betas=(0.9, 0.9))
 
         if self.use_cuda:
             self.biaffine.cuda()
@@ -900,12 +910,11 @@ class TagOnceParser(torch.nn.Module):
 
     def forward(self, forms, tags, pack, chars, char_pack):
         form_embeds = self.dropout(self.embeddings_forms(forms))
-        form_embeds_rand = self.dropout(self.embeddings_forms_rand(forms))
+       # form_embeds_rand = self.dropout(self.embeddings_forms_rand(forms))
 
-    #    if self.use_chars:
-     #       form_embeds += self.dropout(self.embeddings_chars(chars, char_pack))
-
-        form_embeds = torch.cat([form_embeds_rand, form_embeds], dim=2)
+        if self.use_chars:
+            #form_embeds += self.dropout(self.embeddings_chars(chars, char_pack))
+             form_embeds =  self.dropout(torch.cat([form_embeds, self.embeddings_chars(chars, char_pack)], dim=2))
 
         # pack/unpack for LSTM_tag
         tagging_embeds = torch.nn.utils.rnn.pack_padded_sequence(form_embeds, pack.tolist(), batch_first=True)
@@ -917,7 +926,6 @@ class TagOnceParser(torch.nn.Module):
 
         # concat original embeddings with POS lstm and softmaxc outs
         embeds = torch.cat([output_tag, form_embeds, y_pred_tag], dim=2)
-
         # pack/unpack for LSTM_semtag
         #semtagging_embeds = torch.nn.utils.rnn.pack_padded_sequence(output_tag, pack.tolist(), batch_first=True)
         #output_semtag, _ = self.lstm_semtag(semtagging_embeds)
@@ -1068,8 +1076,8 @@ class TagOnceParser(torch.nn.Module):
 
                 Helpers.write_to_conllu(self.test_file, json, deprels, i)
         print(uas_correct, total, las_correct)
-        print("UAS = {}/{} = {}\nLAS = {}/{} = {}\nTAG = {}/{} = {}\n".format(uas_correct, total, uas_correct / int(total+1) ,
-                                                          las_correct, total, las_correct / int(total+1),
-                                                          tags_correct, total,  tags_correct / int(total+1) ))
+        print("UAS = {}/{} = {}\nLAS = {}/{} = {}\nTAG = {}/{} = {}\n".format(uas_correct, total, uas_correct / total,
+                                                          las_correct, total, las_correct / total,
+                                                          tags_correct, total,  tags_correct / total ))
 
 

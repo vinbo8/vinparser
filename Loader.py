@@ -193,6 +193,7 @@ def two_col_data(args, batch_size):
     for i in fields:
         if i == FORM and embeds is not '':
             vecs = vocab.Vectors(name=embeds)
+            print(vecs)
             i.build_vocab(train, vectors=vecs)
         else:
             i.build_vocab(train)
