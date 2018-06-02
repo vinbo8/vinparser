@@ -8,12 +8,15 @@ from Modules import CharEmbedding, ShorterBiaffine, LongerBiaffine
 
 
 class Tagger(torch.nn.Module):
-    def __init__(self, sizes, args, embeddings=None, embed_dim=100, lstm_dim=100, lstm_layers=3,
+    def __init__(self, sizes, args, vocab, chain=False, embeddings=None, embed_dim=100, lstm_dim=100, lstm_layers=3,
                  mlp_dim=100, learning_rate=1e-5):
         super().__init__()
 
         self.embeds = torch.nn.Embedding(sizes['vocab'], embed_dim)
-        self.embeds.weight.data.copy_(embeddings.vectors)
+        self.vocab = vocab
+        self.test_file = args.test
+        self.chain = chain
+        # self.embeds.weight.data.copy_(embeddings.vectors)
         self.lstm = torch.nn.LSTM(embed_dim, lstm_dim, lstm_layers, batch_first=True, bidirectional=True, dropout=0.5)
         self.relu = torch.nn.ReLU()
         self.mlp = torch.nn.Linear(2 * lstm_dim, mlp_dim)
@@ -67,9 +70,11 @@ class Tagger(torch.nn.Module):
             print("Epoch: {}\t{}/{}\tloss: {}".format(
                 epoch, (i + 1) * len(x_forms), len(train_loader.dataset), train_loss.data[0]))
 
-    def evaluate_(self, test_loader):
+    def evaluate_(self, test_loader, print_conll=False):
         correct, total = 0, 0
         self.eval()
+
+        tag_tensors = [i.upos for i in test_loader]
         for i, batch in enumerate(test_loader):
             (x_forms, pack), x_tags, y_heads, y_deprels = batch.form, batch.upos, batch.head, batch.deprel
 
@@ -86,8 +91,13 @@ class Tagger(torch.nn.Module):
 
             total += mask.nonzero().size(0)
 
-        print("Accuracy = {}/{} = {}".format(correct, total, (correct / total)))
+            if print_conll:
+                tag_vocab = self.vocab[2]
+                tags = [tag_vocab.itos[i.data[0]] for i in y_pred.view(-1, 1)]
+                Helpers.write_tags_to_conllu(self.test_file, tags, i)
 
+        print("Accuracy = {}/{} = {}".format(correct, total, (correct / total)))
+        if self.chain and print_conll: return tag_tensors
 
 class Parser(torch.nn.Module):
     def __init__(self, sizes, args, vocab, embeddings=None, embed_dim=100, lstm_dim=400, lstm_layers=3,
