@@ -871,8 +871,8 @@ class TagOnceParser(torch.nn.Module):
         if self.use_chars:
             self.embeddings_chars = CharEmbedding(sizes['chars'], 100 , lstm_dim, lstm_layers)
         self.embeddings_forms = torch.nn.Embedding(sizes['vocab'], embed_dim)
-        self.compress = torch.nn.Linear(300, 100)
-        self.embeddings_forms.weight.data.copy_(vocab[0].vectors)
+        #self.compress = torch.nn.Linear(300, 100)
+        #self.embeddings_forms.weight.data.copy_(vocab[0].vectors)
      #   self.embeddings_forms.weight.requires_grad = False
         self.embeddings_forms_rand = torch.nn.Embedding(sizes['vocab'], 100)
      #   self.embeddings_tags = torch.nn.Embedding(sizes['postags'], embed_dim)
@@ -911,12 +911,12 @@ class TagOnceParser(torch.nn.Module):
 
     def forward(self, forms, tags, pack, chars, char_pack):
         form_embeds = self.dropout(self.embeddings_forms(forms))
-        form_embeds = self.relu(self.compress(form_embeds))
+        #form_embeds = self.relu(self.compress(form_embeds))
         form_embeds_rand = self.dropout(self.embeddings_forms_rand(forms))
 
         if self.use_chars:
-             form_embeds += self.dropout(self.embeddings_chars(chars, char_pack))
-             form_embeds =  self.dropout(torch.cat([form_embeds, form_embeds_rand], dim=2))
+             #form_embeds += self.dropout(self.embeddings_chars(chars, char_pack))
+             form_embeds =  self.dropout(torch.cat([form_embeds_rand, self.embeddings_chars(chars, char_pack)], dim=2))
              
         # pack/unpack for LSTM_tag
         tagging_embeds = torch.nn.utils.rnn.pack_padded_sequence(form_embeds, pack.tolist(), batch_first=True)
