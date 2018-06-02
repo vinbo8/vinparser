@@ -14,6 +14,7 @@ class Tagger(torch.nn.Module):
 
         self.embeds = torch.nn.Embedding(sizes['vocab'], embed_dim)
         self.use_cuda = args.use_cuda
+        self.save = args.save
         self.vocab = vocab
         self.test_file = args.test
         self.chain = chain
@@ -74,6 +75,10 @@ class Tagger(torch.nn.Module):
 
             print("Epoch: {}\t{}/{}\tloss: {}".format(
                 epoch, (i + 1) * len(x_forms), len(train_loader.dataset), train_loss.data[0]))
+        
+        if self.save:
+            with open(os.path.join(self.save, 'tagger.pt'), "wb") as f:
+                torch.save(self.state_dict(), f)
 
     def evaluate_(self, test_loader, print_conll=False):
         correct, total = 0, 0
@@ -218,7 +223,7 @@ class Parser(torch.nn.Module):
             print("Epoch: {}\t{}/{}\tloss: {}".format(epoch, (i + 1) * len(x_forms), len(train_loader.dataset), train_loss.data[0]))
 
         if self.save:
-            with open(self.save[0], "wb") as f:
+            with open(os.path.join(self.save, 'parser.pt'), "wb") as f:
                 torch.save(self.state_dict(), f)
 
     def evaluate_(self, test_loader, print_conll=False):
