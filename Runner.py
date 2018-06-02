@@ -112,6 +112,8 @@ if __name__ == '__main__':
 
             runnable = Parser(sizes, args, vocab, embeddings=vocab, embed_dim=PARSE_EMBED_DIM, lstm_dim=PARSE_LSTM_DIM, lstm_layers=PARSE_LSTM_LAYERS,
                               reduce_dim_arc=PARSE_REDUCE_DIM_ARC, reduce_dim_label=PARSE_REDUCE_DIM_LABEL, learning_rate=PARSE_LEARNING_RATE)
+            
+            if args.use_cuda: runnable.cuda()
 
             print("Training parser")
             for epoch in range(PARSE_EPOCHS):
