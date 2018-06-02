@@ -84,6 +84,8 @@ class Tagger(torch.nn.Module):
 
             # get tags
             y_pred = self(x_forms, pack).max(2)[1]
+            if self.use_cuda:
+                y_pred = y_pred.cuda()
 
             mask = Variable(mask.type(torch.ByteTensor))
 
