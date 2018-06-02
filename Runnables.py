@@ -78,6 +78,8 @@ class Tagger(torch.nn.Module):
                 epoch, (i + 1) * len(x_forms), len(train_loader.dataset), train_loss.data[0]))
         
         if self.save:
+            if not os.path.exists(self.save):
+                os.makedirs(self.save)
             with open(os.path.join(self.save, 'tagger.pt'), "wb") as f:
                 torch.save(self.state_dict(), f)
 
@@ -224,6 +226,8 @@ class Parser(torch.nn.Module):
             print("Epoch: {}\t{}/{}\tloss: {}".format(epoch, (i + 1) * len(x_forms), len(train_loader.dataset), train_loss.data[0]))
 
         if self.save:
+            if not os.path.exists(self.save):
+                os.makedirs(self.save)
             with open(os.path.join(self.save, 'parser.pt'), "wb") as f:
                 torch.save(self.state_dict(), f)
 
