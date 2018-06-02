@@ -13,6 +13,7 @@ class Tagger(torch.nn.Module):
         super().__init__()
 
         self.embeds = torch.nn.Embedding(sizes['vocab'], embed_dim)
+        self.use_cuda = args.use_cuda
         self.vocab = vocab
         self.test_file = args.test
         self.chain = chain
@@ -38,7 +39,11 @@ class Tagger(torch.nn.Module):
         mlp_out = self.dropout(self.relu(self.mlp(lstm_out)))
 
         # reduce to dim no_of_tags
-        return self.out(mlp_out)
+        y_pred = self.out(mlp_out)
+        if self.cuda:
+            y_pred = y_pred.cuda()
+
+        return y_pred
 
     def train_(self, epoch, train_loader):
         self.train()
