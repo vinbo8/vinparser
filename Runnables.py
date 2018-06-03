@@ -21,7 +21,7 @@ class Tagger(torch.nn.Module):
         self.test_file = args.test
         self.chain = chain
         if args.embed:
-            self.embeds.weight.data.copy_(vocab[0].vectors)
+            self.embeds.weight.data.copy_(vocab.vectors)
         self.lstm = torch.nn.LSTM(100, lstm_dim, lstm_layers, batch_first=True, bidirectional=True, dropout=0.5)
         self.relu = torch.nn.ReLU()
         self.mlp = torch.nn.Linear(2 * lstm_dim, mlp_dim)
@@ -133,8 +133,8 @@ class Parser(torch.nn.Module):
             self.embeddings_chars = CharEmbedding(sizes['chars'], embed_dim, lstm_dim, lstm_layers)
 
         self.embeddings_forms = torch.nn.Embedding(sizes['vocab'], embed_dim)
-#        if args.embed:
-            #self.embeddings_forms.weight.data.copy_(vocab[0].vectors)
+        if args.embed:
+            self.embeddings_forms.weight.data.copy_(vocab.vectors)
         self.compress = torch.nn.Linear(300,100)                                                      
 
         self.embeddings_tags = torch.nn.Embedding(sizes['postags'], 100)
