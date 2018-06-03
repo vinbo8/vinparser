@@ -33,8 +33,8 @@ class WeightedCombUnb(torch.nn.Module):
 class CharEmbedding(torch.nn.Module):
     def __init__(self, char_size, embed_dim, lstm_dim, lstm_layers):
         super().__init__()
-        self.embedding_chars = torch.nn.Embedding(char_size, 150)
-        self.lstm = torch.nn.LSTM(150, int(150), 1,
+        self.embedding_chars = torch.nn.Embedding(char_size, 100)
+        self.lstm = torch.nn.LSTM(100, int(150), 1,
                                   batch_first=True, bidirectional=False, dropout=0.33)
         self.attention = LinearAttention(int(150))
         self.mlp = torch.nn.Linear(300, embed_dim, bias=False)
