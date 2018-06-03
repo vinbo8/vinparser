@@ -118,7 +118,7 @@ def get_iterators(args, batch_size):
 
     current_iterator = [train_iterator, dev_iterator, test_iterator]
 
-    sizes = {'vocab': len(FORM.vocab), 'postags': len(UPOS.vocab), 'deprels': len(DEPREL.vocab)}
+    sizes = {'vocab': len(FORM.vocab), 'postags': len(UPOS.vocab), 'deprels': len(DEPREL.vocab), 'feats': len(FEATS.vocab)}
 
     if args.use_chars:
         sizes['chars'] = len(CHAR.vocab)
@@ -126,7 +126,7 @@ def get_iterators(args, batch_size):
     if args.semtag:
         sizes['semtags'] = len(SEM.vocab)
 
-    return (current_iterator, sizes, [FORM.vocab, DEPREL.vocab, UPOS.vocab])
+    return (current_iterator, sizes, [FORM.vocab, DEPREL.vocab, UPOS.vocab, FEATS.vocab])
 
 
 ROOT_LINE_2 = "\t_\t_"

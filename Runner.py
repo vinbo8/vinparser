@@ -3,7 +3,7 @@ import torch
 import argparse
 import configparser
 import Loader
-from Runnables import Tagger, Parser, CLTagger, TagAndParse
+from Runnables import Tagger, Parser, CLTagger, TagAndParse, Analyser
 
 
 if __name__ == '__main__':
@@ -12,6 +12,7 @@ if __name__ == '__main__':
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument('--tag', action='store_true')
     arg_parser.add_argument('--parse', action='store_true')
+    arg_parser.add_argument('--morph', action='store_true')
     arg_parser.add_argument('--config', default='./config.ini')
     arg_parser.add_argument('--save', action='store')
     arg_parser.add_argument('--load', action='store')
@@ -132,6 +133,9 @@ if __name__ == '__main__':
         elif args.tag:
             runnable = Tagger(sizes, args, vocab, embeddings=None, embed_dim=TAG_EMBED_DIM, lstm_dim=TAG_LSTM_DIM, lstm_layers=TAG_LSTM_LAYERS,
                               mlp_dim=TAG_MLP_DIM, learning_rate=TAG_LEARNING_RATE)
+
+        elif args.morph:
+            runnable = Analyser(sizes, args, vocab)
 
         if args.use_cuda:
             runnable.cuda()

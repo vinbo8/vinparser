@@ -4,8 +4,66 @@ import pprint
 import Helpers
 from scripts import cle
 from torch.autograd import Variable
+from collections import Counter
 import torch.nn.functional as F
 from Modules import CharEmbedding, ShorterBiaffine, LongerBiaffine
+
+
+class Analyser(torch.nn.Module):
+    def __init__(self, sizes, args, vocab):
+        self.morph_vocab = vocab[3]
+        super().__init__()
+
+    def forward(self, stuff):
+        print("Ok")
+
+    def spawn_bucket_vocab(self, loader, train=True):
+        itos = []
+        for sentence in loader.dataset.feats:
+            for word in sentence:
+                if word == '_':
+                    continue
+                else:
+                    feats = word.split("|")
+                    for feat in feats:
+                        key = feat.split("=")[0]
+                        if key not in itos:
+                            itos.append(key)
+
+        itos.append('<unk>') 
+        stoi = {i: n for (n, i) in enumerate(itos)}
+        return (itos, stoi)
+
+    def train_(self, epoch, train_loader):
+        self.train()
+        train_loader.init_epoch()
+
+        bucket_itos, bucket_stoi = self.spawn_bucket_vocab(train_loader, train=True)
+        # check whether Long or Byte later
+        default_feat_vector = torch.LongTensor([False for i in bucket_itos])
+        for i, batch in enumerate(train_loader):
+            batch_morph = batch.feats
+            # get vectors
+            for sent_no, sentence in enumerate(batch_morph):
+                for word_no, word in enumerate(sentence):
+                    word = self.morph_vocab.itos[word.data[0]]
+                    if word == '_':
+                        batch_morph[sent_no, word_no] = Variable(default_feat_vector.clone())
+                    else:
+                        current_feat_vector = default_feat_vector.clone()
+                        feats = word.split("|")
+                        for feat in feats:
+                            key = feat.split("=")[0]
+                            try:
+                                current_feat_vector[bucket_stoi[key]] = True
+                            # check whether this is necessary - maybe just don't bother with unknown features in test
+                            # seeing as you can't really predict a value for an unknown key anyway
+                            except KeyError:
+                                current_feat_vector['<unk>'] = True
+
+                        batch_morph[sent_no, word_no] = Variable(current_feat_vector)
+
+            print("OK")
 
 
 class Tagger(torch.nn.Module):
