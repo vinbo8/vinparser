@@ -14,13 +14,15 @@ class Tagger(torch.nn.Module):
         super().__init__()
 
         self.embeds = torch.nn.Embedding(sizes['vocab'], embed_dim)
+        self.compress = torch.nn.Linear(300,100)
         self.use_cuda = args.use_cuda
         self.save = args.save
         self.vocab = vocab
         self.test_file = args.test
         self.chain = chain
-        # self.embeds.weight.data.copy_(embeddings.vectors)
-        self.lstm = torch.nn.LSTM(embed_dim, lstm_dim, lstm_layers, batch_first=True, bidirectional=True, dropout=0.5)
+        if args.embed:
+            self.embeds.weight.data.copy_(vocab[0].vectors)
+        self.lstm = torch.nn.LSTM(100, lstm_dim, lstm_layers, batch_first=True, bidirectional=True, dropout=0.5)
         self.relu = torch.nn.ReLU()
         self.mlp = torch.nn.Linear(2 * lstm_dim, mlp_dim)
         self.out = torch.nn.Linear(mlp_dim, sizes['postags'])
@@ -31,6 +33,7 @@ class Tagger(torch.nn.Module):
     def forward(self, forms, pack):
         # embeds + dropout
         form_embeds = self.dropout(self.embeds(forms))
+        form_embeds = self.relu(self.compress(form_embeds))
 
         # pack/unpack for LSTM
         packed = torch.nn.utils.rnn.pack_padded_sequence(form_embeds, pack.tolist(), batch_first=True)
@@ -130,10 +133,12 @@ class Parser(torch.nn.Module):
             self.embeddings_chars = CharEmbedding(sizes['chars'], embed_dim, lstm_dim, lstm_layers)
 
         self.embeddings_forms = torch.nn.Embedding(sizes['vocab'], embed_dim)
-        if args.embed:
-            self.embeddings_forms.weight.data.copy_(embeddings.vectors)
-        self.embeddings_tags = torch.nn.Embedding(sizes['postags'], embed_dim)
-        self.lstm = torch.nn.LSTM(2 * embed_dim, lstm_dim, lstm_layers,
+#        if args.embed:
+            #self.embeddings_forms.weight.data.copy_(vocab[0].vectors)
+        self.compress = torch.nn.Linear(300,100)                                                      
+
+        self.embeddings_tags = torch.nn.Embedding(sizes['postags'], 100)
+        self.lstm = torch.nn.LSTM(200, lstm_dim, lstm_layers,
                                   batch_first=True, bidirectional=True, dropout=0.33)
         self.mlp_head = torch.nn.Linear(2 * lstm_dim, reduce_dim_arc)
         self.mlp_dep = torch.nn.Linear(2 * lstm_dim, reduce_dim_arc)
@@ -153,6 +158,7 @@ class Parser(torch.nn.Module):
 
     def forward(self, forms, tags, pack, chars, char_pack):
         form_embeds = self.dropout(self.embeddings_forms(forms))
+        form_embeds = self.relu(self.compress(form_embeds))
         tag_embeds = self.dropout(self.embeddings_tags(tags))
         composed_embeds = form_embeds
 
