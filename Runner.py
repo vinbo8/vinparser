@@ -1,3 +1,4 @@
+import sys
 import torch
 import argparse
 import configparser
@@ -123,6 +124,7 @@ if __name__ == '__main__':
             # test
             print("Evaluating parser")
             runnable.evaluate_(test_loader, print_conll=True)
+            sys.exit() 
 
         elif args.parse:
             runnable = Parser(sizes, args, vocab, embeddings=vocab, embed_dim=PARSE_EMBED_DIM, lstm_dim=PARSE_LSTM_DIM, lstm_layers=PARSE_LSTM_LAYERS,
