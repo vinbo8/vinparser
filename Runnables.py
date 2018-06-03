@@ -112,7 +112,7 @@ class Tagger(torch.nn.Module):
                 Helpers.write_tags_to_conllu(self.test_file, tags, i)
 
         print("Accuracy = {}/{} = {}".format(correct, total, (correct / total)))
-        if self.chain and print_conll: return tag_tensors
+        if self.chain: return tag_tensors
 
 class Parser(torch.nn.Module):
     def __init__(self, sizes, args, vocab, embeddings=None, embed_dim=100, lstm_dim=400, lstm_layers=3,
