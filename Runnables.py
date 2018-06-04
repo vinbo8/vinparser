@@ -10,60 +10,62 @@ from Modules import CharEmbedding, ShorterBiaffine, LongerBiaffine
 
 
 class Analyser(torch.nn.Module):
-    def __init__(self, sizes, args, vocab):
-        self.morph_vocab = vocab[3]
+    def __init__(self, sizes, args, vocab, chain=False, embeddings=None, embed_dim=100, lstm_dim=100, lstm_layers=3,
+                 mlp_dim=100, learning_rate=1e-5):
         super().__init__()
+        self.cuda = args.use_cuda
 
-    def forward(self, stuff):
-        print("Ok")
+        self.morph_vocab = vocab[3]
+        self.feat_vocab = []
+        for i in self.morph_vocab.itos:
+            if "=" not in i:
+                self.feat_vocab.append(i)
+            else:
+                self.feat_vocab.extend([j.split("=")[0] for j in i.split("|")])
+        # TODO: could use a Vocab object but don't care right now
+        self.feat_vocab = set(self.feat_vocab)
+        self.feat_vocab_itos = list(self.feat_vocab)
+        self.feat_vocab_stoi = {i: n for (n, i) in enumerate(self.feat_vocab_itos)}
 
-    def spawn_bucket_vocab(self, loader, train=True):
-        itos = []
-        for sentence in loader.dataset.feats:
-            for word in sentence:
-                if word == '_':
-                    continue
-                else:
-                    feats = word.split("|")
-                    for feat in feats:
-                        key = feat.split("=")[0]
-                        if key not in itos:
-                            itos.append(key)
+        # components
+        self.embeds = torch.nn.Embedding(sizes['vocab'], embed_dim)
+        self.lstm = torch.nn.LSTM(embed_dim, lstm_dim, lstm_layers, batch_first=True, bidirectional=True, dropout=0.5)
+        self.mlp = torch.nn.Linear(2 * lstm_dim, mlp_dim)
+        self.out = torch.nn.Linear(mlp_dim, len(self.feat_vocab))
 
-        itos.append('<unk>') 
-        stoi = {i: n for (n, i) in enumerate(itos)}
-        return (itos, stoi)
+        self.optimiser = torch.optim.Adam(self.parameters(), lr=learning_rate, betas=(0.9, 0.9))
+        self.criterion = torch.nn.BCEWithLogitsLoss()
 
+    def forward(self, x_forms, pack):
+        embeds = F.dropout(self.embeds(x_forms), p=0.33, training=self.training)
+        packed = torch.nn.utils.rnn.pack_padded_sequence(embeds, pack.tolist(), batch_first=True)
+        lstm_out, _ = self.lstm(packed) 
+        # TODO: try adding pad_value to match the loss pad value
+        lstm_out, _ = torch.nn.utils.rnn.pad_packed_sequence(lstm_out, batch_first=True)
+        mlp_out = F.dropout(F.relu(self.mlp(lstm_out)), p=0.33, training=self.training)
+        out_pred = self.out(mlp_out)
+        if self.cuda:
+            out_pred = out_pred.cuda()
+
+        return out_pred
+    
     def train_(self, epoch, train_loader):
         self.train()
         train_loader.init_epoch()
 
-        bucket_itos, bucket_stoi = self.spawn_bucket_vocab(train_loader, train=True)
-        # check whether Long or Byte later
-        default_feat_vector = torch.LongTensor([False for i in bucket_itos])
         for i, batch in enumerate(train_loader):
-            batch_morph = batch.feats
-            # get vectors
-            for sent_no, sentence in enumerate(batch_morph):
-                for word_no, word in enumerate(sentence):
-                    word = self.morph_vocab.itos[word.data[0]]
-                    if word == '_':
-                        batch_morph[sent_no, word_no] = Variable(default_feat_vector.clone())
-                    else:
-                        current_feat_vector = default_feat_vector.clone()
-                        feats = word.split("|")
-                        for feat in feats:
-                            key = feat.split("=")[0]
-                            try:
-                                current_feat_vector[bucket_stoi[key]] = True
-                            # check whether this is necessary - maybe just don't bother with unknown features in test
-                            # seeing as you can't really predict a value for an unknown key anyway
-                            except KeyError:
-                                current_feat_vector['<unk>'] = True
+            (x_forms, pack), x_tags = batch.form, batch.upos
+            new_batch_tensor = Helpers.extract_batch_bucket_vector(batch, self.morph_vocab, self.feat_vocab_itos, self.feat_vocab_stoi)
+            predicted_tensor = self.forward(x_forms, pack)
 
-                        batch_morph[sent_no, word_no] = Variable(current_feat_vector)
+            train_loss = self.criterion(predicted_tensor, new_batch_tensor.type(torch.FloatTensor))
 
-            print("OK")
+            self.zero_grad()
+            train_loss.backward()
+            self.optimiser.step()
+
+            print("Epoch: {}\t{}/{}\tloss: {}".format(
+                epoch, (i + 1) * len(x_forms), len(train_loader.dataset), train_loss.data[0]))
 
 
 class Tagger(torch.nn.Module):

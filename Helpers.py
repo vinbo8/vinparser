@@ -179,3 +179,54 @@ def safe_char_lookup(char_dict, char):
         return char_dict[char]
     except KeyError:
         return 2
+
+def spawn_bucket_vocab(loader, train=True):
+        itos = []
+        for sentence in loader.dataset.feats:
+            for word in sentence:
+                if word == '_':
+                    continue
+                else:
+                    feats = word.split("|")
+                    for feat in feats:
+                        key = feat.split("=")[0]
+                        if key not in itos:
+                            itos.append(key)
+
+        itos.append('<unk>') 
+        stoi = {i: n for (n, i) in enumerate(itos)}
+        return (itos, stoi)
+
+def extract_batch_bucket_vector(batch, morph_vocab, bucket_itos, bucket_stoi):
+    default_feat_vector = torch.LongTensor([False for i in bucket_itos])
+    batch_morph = batch.feats
+    new_batch_tensor = []
+    # get vectors
+    for sent_no, sentence in enumerate(batch_morph):
+        sentence_tensor = [] 
+        for word_no, word in enumerate(sentence):
+            word = morph_vocab.itos[word.data[0]]
+            if word == '_':
+                sentence_tensor.append(Variable(default_feat_vector.clone()))
+
+            elif word == '<pad>':
+                current_feat_vector = default_feat_vector.clone()
+                current_feat_vector[bucket_stoi['<pad>']] = True
+                sentence_tensor.append(Variable(current_feat_vector))
+
+            else:
+                current_feat_vector = default_feat_vector.clone()
+                feats = word.split("|")
+                for feat in feats:
+                    key = feat.split("=")[0]
+                    try:
+                        current_feat_vector[bucket_stoi[key]] = True
+                    # check whether this is necessary - maybe just don't bother with unknown features in test
+                    # seeing as you can't really predict a value for an unknown key anyway
+                    except KeyError:
+                        current_feat_vector[bucket_stoi['<unk>']] = True
+
+                sentence_tensor.append(Variable(current_feat_vector))
+        new_batch_tensor.append(torch.stack(sentence_tensor))
+
+    return torch.stack(new_batch_tensor)
