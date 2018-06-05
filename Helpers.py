@@ -197,6 +197,33 @@ def spawn_bucket_vocab(loader, train=True):
         stoi = {i: n for (n, i) in enumerate(itos)}
         return (itos, stoi)
 
+def extract_batch_bucket_class(batch, morph_vocab, bucket_itos, bucket_stoi):
+    batch_morph = batch.feats
+    new_batch_tensor = []
+    # get vectors
+    for sent_no, sentence in enumerate(batch_morph):
+        sentence_tensor = [] 
+        for word_no, word in enumerate(sentence):
+            word = morph_vocab.itos[word.data[0]]
+            if word == '_':
+                sentence_tensor.append(bucket_stoi['_'])
+
+            elif word == '<pad>':
+                sentence_tensor.append(bucket_stoi['<pad>'])
+
+            else:
+                feats = "&".join([j.split("=")[0] for j in word.split("|")])
+                try:
+                    sentence_tensor.append(bucket_stoi[feats])
+                    # check whether this is necessary - maybe just don't bother with unknown features in test
+                    # seeing as you can't really predict a value for an unknown key anyway
+                except KeyError:
+                    sentence_tensor.append(bucket_stoi['<unk>'])
+
+        new_batch_tensor.append(Variable(torch.LongTensor(sentence_tensor)))
+
+    return torch.stack(new_batch_tensor)
+
 def extract_batch_bucket_vector(batch, morph_vocab, bucket_itos, bucket_stoi):
     default_feat_vector = torch.LongTensor([False for i in bucket_itos])
     batch_morph = batch.feats

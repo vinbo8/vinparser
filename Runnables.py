@@ -14,8 +14,20 @@ class Analyser(torch.nn.Module):
                  mlp_dim=100, learning_rate=1e-5):
         super().__init__()
         self.cuda = args.use_cuda
-
         self.morph_vocab = vocab[3]
+
+        # real mvp
+        self.bucket_vocab = []
+        for i in self.morph_vocab.itos:
+            if "=" not in i:
+                self.bucket_vocab.append(i)
+            else:
+                self.bucket_vocab.append("&".join([j.split("=")[0] for j in i.split("|")]))
+        self.bucket_vocab = set(self.bucket_vocab)
+        self.bucket_vocab_itos = list(self.bucket_vocab)
+        self.bucket_vocab_stoi = {i: n for (n, i) in enumerate(self.bucket_vocab_itos)}
+
+        # ignore this for now
         self.feat_vocab = []
         for i in self.morph_vocab.itos:
             if "=" not in i:
@@ -31,10 +43,10 @@ class Analyser(torch.nn.Module):
         self.embeds = torch.nn.Embedding(sizes['vocab'], embed_dim)
         self.lstm = torch.nn.LSTM(embed_dim, lstm_dim, lstm_layers, batch_first=True, bidirectional=True, dropout=0.5)
         self.mlp = torch.nn.Linear(2 * lstm_dim, mlp_dim)
-        self.out = torch.nn.Linear(mlp_dim, len(self.feat_vocab))
+        self.out = torch.nn.Linear(mlp_dim, len(self.bucket_vocab))
 
         self.optimiser = torch.optim.Adam(self.parameters(), lr=learning_rate, betas=(0.9, 0.9))
-        self.criterion = torch.nn.BCEWithLogitsLoss()
+        self.criterion = torch.nn.CrossEntropyLoss(ignore_index=self.bucket_vocab_stoi['<pad>'])
 
     def forward(self, x_forms, pack):
         embeds = F.dropout(self.embeds(x_forms), p=0.33, training=self.training)
@@ -55,10 +67,13 @@ class Analyser(torch.nn.Module):
 
         for i, batch in enumerate(train_loader):
             (x_forms, pack), x_tags = batch.form, batch.upos
-            new_batch_tensor = Helpers.extract_batch_bucket_vector(batch, self.morph_vocab, self.feat_vocab_itos, self.feat_vocab_stoi)
+            new_batch_tensor = Helpers.extract_batch_bucket_class(batch, self.morph_vocab, self.feat_vocab_itos, self.feat_vocab_stoi)
             predicted_tensor = self.forward(x_forms, pack)
 
-            train_loss = self.criterion(predicted_tensor, new_batch_tensor.type(torch.FloatTensor))
+            batch_size, longest_sentence_in_batch = x_forms.size()
+            predicted_tensor = predicted_tensor.contiguous().view(batch_size * longest_sentence_in_batch, -1)
+            new_batch_tensor = new_batch_tensor.view(batch_size * longest_sentence_in_batch)
+            train_loss = self.criterion(predicted_tensor, new_batch_tensor)
 
             self.zero_grad()
             train_loss.backward()
