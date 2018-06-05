@@ -90,7 +90,7 @@ class Tagger(torch.nn.Module):
 
         self.embeds = torch.nn.Embedding(sizes['vocab'], embed_dim)
         self.compress = torch.nn.Linear(300,100)
-        self.use_cuda = args.use_cuda
+        self.cuda = args.use_cuda
         self.save = args.save
         self.vocab = vocab
         self.test_file = args.test
