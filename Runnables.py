@@ -14,6 +14,7 @@ class Analyser(torch.nn.Module):
                  mlp_dim=100, learning_rate=1e-5):
         super().__init__()
         self.cuda = args.use_cuda
+        self.vocab = vocab
         self.morph_vocab = vocab[3]
 
         # real mvp
@@ -41,15 +42,18 @@ class Analyser(torch.nn.Module):
 
         # components
         self.embeds = torch.nn.Embedding(sizes['vocab'], embed_dim)
-        self.lstm = torch.nn.LSTM(embed_dim, lstm_dim, lstm_layers, batch_first=True, bidirectional=True, dropout=0.5)
+        self.embeds_tags = torch.nn.Embedding(sizes['postags'], embed_dim)
+        self.lstm = torch.nn.LSTM(2 * embed_dim, lstm_dim, lstm_layers, batch_first=True, bidirectional=True, dropout=0.5)
         self.mlp = torch.nn.Linear(2 * lstm_dim, mlp_dim)
         self.out = torch.nn.Linear(mlp_dim, len(self.bucket_vocab))
 
         self.optimiser = torch.optim.Adam(self.parameters(), lr=learning_rate, betas=(0.9, 0.9))
         self.criterion = torch.nn.CrossEntropyLoss(ignore_index=self.bucket_vocab_stoi['<pad>'])
 
-    def forward(self, x_forms, pack):
-        embeds = F.dropout(self.embeds(x_forms), p=0.33, training=self.training)
+    def forward(self, x_forms, x_tags, pack):
+        form_embeds = F.dropout(self.embeds(x_forms), p=0.33, training=self.training)
+        tag_embeds = F.dropout(self.embeds_tags(x_tags), p=0.33, training=self.training)
+        embeds = torch.cat([form_embeds, tag_embeds], dim=2)
         packed = torch.nn.utils.rnn.pack_padded_sequence(embeds, pack.tolist(), batch_first=True)
         lstm_out, _ = self.lstm(packed) 
         # TODO: try adding pad_value to match the loss pad value
@@ -67,8 +71,8 @@ class Analyser(torch.nn.Module):
 
         for i, batch in enumerate(train_loader):
             (x_forms, pack), x_tags = batch.form, batch.upos
-            new_batch_tensor = Helpers.extract_batch_bucket_class(batch, self.morph_vocab, self.feat_vocab_itos, self.feat_vocab_stoi)
-            predicted_tensor = self.forward(x_forms, pack)
+            new_batch_tensor = Helpers.extract_batch_bucket_class(batch, self.morph_vocab, self.bucket_vocab_itos, self.bucket_vocab_stoi)
+            predicted_tensor = self.forward(x_forms, x_tags, pack)
 
             batch_size, longest_sentence_in_batch = x_forms.size()
             predicted_tensor = predicted_tensor.contiguous().view(batch_size * longest_sentence_in_batch, -1)
@@ -81,6 +85,35 @@ class Analyser(torch.nn.Module):
 
             print("Epoch: {}\t{}/{}\tloss: {}".format(
                 epoch, (i + 1) * len(x_forms), len(train_loader.dataset), train_loss.data[0]))
+
+    def evaluate_(self, test_loader, print_conll=False):
+        self.eval()
+        test_loader.init_epoch()
+        correct, total = 0, 0
+
+        for i, batch in enumerate(test_loader):
+            (x_forms, pack), x_tags = batch.form, batch.upos
+
+            new_batch_tensor = Helpers.extract_batch_bucket_class(batch, self.morph_vocab, self.bucket_vocab_itos, self.bucket_vocab_stoi)
+            predicted_tensor = self(x_forms, x_tags, pack).max(2)[1]
+
+            mask = torch.zeros(pack.size()[0], max(pack)).type(torch.LongTensor)
+            for n, size in enumerate(pack):
+                mask[n, 0:size] = 1
+
+            mask = Variable(mask.type(torch.ByteTensor))
+            if self.cuda:
+                mask = mask.cuda()
+
+            try:
+                correct += ((new_batch_tensor == predicted_tensor) * mask).nonzero().size(0)
+            except RuntimeError:
+                pass
+
+            total += mask.nonzero().size(0)
+
+        print("Accuracy = {}/{} = {}".format(correct, total, (correct / total)))
+
 
 
 class Tagger(torch.nn.Module):
