@@ -44,21 +44,20 @@ class Analyser(torch.nn.Module):
         self.embeds = torch.nn.Embedding(sizes['vocab'], embed_dim)
         self.embeds_tags = torch.nn.Embedding(sizes['postags'], embed_dim)
         self.lstm = torch.nn.LSTM(2 * embed_dim, lstm_dim, lstm_layers, batch_first=True, bidirectional=True, dropout=0.5)
-        self.mlp = torch.nn.Linear(2 * lstm_dim, mlp_dim)
+        self.mlp = torch.nn.Linear(2 * embed_dim, mlp_dim)
         self.out = torch.nn.Linear(mlp_dim, len(self.bucket_vocab))
 
         self.optimiser = torch.optim.Adam(self.parameters(), lr=learning_rate, betas=(0.9, 0.9))
         self.criterion = torch.nn.CrossEntropyLoss(ignore_index=self.bucket_vocab_stoi['<pad>'])
 
     def forward(self, x_forms, x_tags, pack):
-        form_embeds = F.dropout(self.embeds(x_forms), p=0.33, training=self.training)
-        tag_embeds = F.dropout(self.embeds_tags(x_tags), p=0.33, training=self.training)
+        form_embeds = F.dropout(self.embeds(x_forms), p=0.5, training=self.training)
+        tag_embeds = F.dropout(self.embeds_tags(x_tags), p=0.5, training=self.training)
         embeds = torch.cat([form_embeds, tag_embeds], dim=2)
         packed = torch.nn.utils.rnn.pack_padded_sequence(embeds, pack.tolist(), batch_first=True)
         lstm_out, _ = self.lstm(packed) 
-        # TODO: try adding pad_value to match the loss pad value
         lstm_out, _ = torch.nn.utils.rnn.pad_packed_sequence(lstm_out, batch_first=True)
-        mlp_out = F.dropout(F.relu(self.mlp(lstm_out)), p=0.33, training=self.training)
+        mlp_out = F.dropout(F.relu(self.mlp(embeds)), p=0.5, training=self.training)
         out_pred = self.out(mlp_out)
         if self.cuda:
             out_pred = out_pred.cuda()
@@ -88,7 +87,6 @@ class Analyser(torch.nn.Module):
 
     def evaluate_(self, test_loader, print_conll=False):
         self.eval()
-        test_loader.init_epoch()
         correct, total = 0, 0
 
         for i, batch in enumerate(test_loader):
