@@ -197,6 +197,23 @@ def spawn_bucket_vocab(loader, train=True):
         stoi = {i: n for (n, i) in enumerate(itos)}
         return (itos, stoi)
 
+def extract_batch_bucket_dict(batch, morph_vocab):
+    batch_morph = batch.feats
+    new_batch_tensor = []
+    for sent_no, sentence in enumerate(batch_morph):
+        sentence_tensor = []
+        for word_no, word in enumerate(sentence):
+            word = morph_vocab.itos[word.data[0]]
+            if word in ['_', '<unk>', '<pad>']:
+                sentence_tensor.append({})
+            else:
+                pairs = {k: v for (k, v) in [j.split("=") for j in word.split("|")]}
+                sentence_tensor.append(pairs)
+
+        new_batch_tensor.append(sentence_tensor)
+    return new_batch_tensor
+
+
 def extract_batch_bucket_class(batch, morph_vocab, bucket_itos, bucket_stoi):
     batch_morph = batch.feats
     new_batch_tensor = []

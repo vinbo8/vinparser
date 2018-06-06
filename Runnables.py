@@ -2,6 +2,7 @@ import os
 import torch
 import pprint
 import Helpers
+import numpy as np
 from scripts import cle
 from torch.autograd import Variable
 from collections import Counter
@@ -27,6 +28,32 @@ class Analyser(torch.nn.Module):
         self.bucket_vocab = set(self.bucket_vocab)
         self.bucket_vocab_itos = list(self.bucket_vocab)
         self.bucket_vocab_stoi = {i: n for (n, i) in enumerate(self.bucket_vocab_itos)}
+
+        # key indexed dicts
+        # ignore '_', '<pad>', etc: don't predict anything if they are the predicted cats
+        # itos: {'Number': ['Sing', 'Plur']}
+        # stoi: {'Number': {'Sing': 0, 'Plur': 1}}
+        self.dict_vocab = {}
+        for i in self.morph_vocab.itos:
+            if "=" not in i:
+                continue
+            else:
+                pairs = [j.split("=") for j in i.split("|")]
+                for (key, value) in pairs:
+                    try:
+                        self.dict_vocab[key].append(value)
+                    except KeyError:
+                        self.dict_vocab[key] = [value]
+
+        # make it a set dict
+        self.dict_vocab = {k: set(v) for (k, v) in self.dict_vocab.items()}
+        self.dict_vocab_itos = {k: list(v) for (k, v) in self.dict_vocab.items()}
+        self.dict_vocab_stoi = {}
+        for key in self.dict_vocab_itos:
+            self.dict_vocab_stoi[key] = {}
+            for n, value in enumerate(self.dict_vocab_itos[key]):
+                self.dict_vocab_stoi[key][value] = n
+                    
 
         # ignore this for now
         self.feat_vocab = []
@@ -72,6 +99,10 @@ class Analyser(torch.nn.Module):
             (x_forms, pack), x_tags = batch.form, batch.upos
             new_batch_tensor = Helpers.extract_batch_bucket_class(batch, self.morph_vocab, self.bucket_vocab_itos, self.bucket_vocab_stoi)
             predicted_tensor = self.forward(x_forms, x_tags, pack)
+
+            def get_cat_name(n):
+                return self.bucket_vocab_itos[n]
+
 
             batch_size, longest_sentence_in_batch = x_forms.size()
             predicted_tensor = predicted_tensor.contiguous().view(batch_size * longest_sentence_in_batch, -1)
