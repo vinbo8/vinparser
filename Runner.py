@@ -1,23 +1,26 @@
+import sys
 import torch
 import argparse
 import configparser
 import Loader
-from Runnables import Tagger, Parser, CSParser, CLTagger, LangID
+from Runnables import Tagger, Parser, CSParser, LangID, CLTagger, Analyser
 
 
 if __name__ == '__main__':
+    TAG_PARAMS, PARSE_PARAMS = {}, {}
+
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument('--langid', action='store_true')
     arg_parser.add_argument('--tag', action='store_true')
     arg_parser.add_argument('--parse', action='store_true')
+    arg_parser.add_argument('--morph', action='store_true')
     arg_parser.add_argument('--config', default='./config.ini')
-    arg_parser.add_argument('--save', action='store', nargs=1)
-    arg_parser.add_argument('--load', action='store', nargs=1)
-    arg_parser.add_argument('--train', action='store', nargs='*')
-    arg_parser.add_argument('--dev', action='store', nargs='*')
-    arg_parser.add_argument('--test', action='store', nargs='*')
-    arg_parser.add_argument('--embed', action='store', nargs='*')
-    arg_parser.add_argument('--lm', action='store', nargs='*')
+    arg_parser.add_argument('--save', action='store')
+    arg_parser.add_argument('--load', action='store')
+    arg_parser.add_argument('--train', action='store')
+    arg_parser.add_argument('--dev', action='store')
+    arg_parser.add_argument('--test', action='store')
+    arg_parser.add_argument('--embed', action='store')
     arg_parser.add_argument('--use_chars', action='store_true')
     arg_parser.add_argument('--use_cuda', action='store_true')
     # aux tasks
@@ -35,15 +38,25 @@ if __name__ == '__main__':
     config = configparser.ConfigParser()
     config.read(args.config)
 
-    BATCH_SIZE = int(config['parser']['BATCH_SIZE'])
-    EMBED_DIM = int(config['parser']['EMBED_DIM'])
-    LSTM_DIM = int(config['parser']['LSTM_DIM'])
-    LSTM_LAYERS = int(config['parser']['LSTM_LAYERS'])
-    REDUCE_DIM_ARC = int(config['parser']['REDUCE_DIM_ARC'])
-    REDUCE_DIM_LABEL = int(config['parser']['REDUCE_DIM_LABEL'])
-    LEARNING_RATE = float(config['parser']['LEARNING_RATE'])
-    MLP_DIM = int(config['tagger']['MLP_DIM'])
-    EPOCHS = int(config['parser']['EPOCHS'])
+    # parser
+    PARSE_BATCH_SIZE = int(config['parser']['BATCH_SIZE'])
+    PARSE_EMBED_DIM = int(config['parser']['EMBED_DIM'])
+    PARSE_LSTM_DIM = int(config['parser']['LSTM_DIM'])
+    PARSE_LSTM_LAYERS = int(config['parser']['LSTM_LAYERS'])
+    PARSE_REDUCE_DIM_ARC = int(config['parser']['REDUCE_DIM_ARC'])
+    PARSE_REDUCE_DIM_LABEL = int(config['parser']['REDUCE_DIM_LABEL'])
+    PARSE_LEARNING_RATE = float(config['parser']['LEARNING_RATE'])
+
+    # tagger
+    TAG_BATCH_SIZE = int(config['tagger']['BATCH_SIZE'])
+    TAG_EMBED_DIM = int(config['tagger']['EMBED_DIM'])
+    TAG_LSTM_DIM = int(config['tagger']['LSTM_DIM'])
+    TAG_LSTM_LAYERS = int(config['tagger']['LSTM_LAYERS'])
+    TAG_LEARNING_RATE = float(config['tagger']['LEARNING_RATE'])
+    TAG_MLP_DIM = int(config['tagger']['MLP_DIM'])
+
+    PARSE_EPOCHS = int(config['parser']['EPOCHS'])
+    TAG_EPOCHS = int(config['tagger']['EPOCHS'])
 
     # =============================
     # Ignore these functions
@@ -58,10 +71,9 @@ if __name__ == '__main__':
 
         runnable = CLTagger(args, sizes_main, sizes_aux, vocab_main, vocab_aux)
 
-        for epoch in range(EPOCHS):
+        for epoch in range(PARSE_EPOCHS):
             runnable.train_(epoch, train_loader_main, type_task="main")
             runnable.train_(epoch, train_loader_aux, type_task="aux")
-
 
     # ==========================
     # Actual loading begins here
@@ -80,23 +92,23 @@ if __name__ == '__main__':
 
 
     elif args.cl_tagger:
-        iterators = Loader.get_iterators(args, BATCH_SIZE)
+        iterators = Loader.get_iterators(args, PARSE_BATCH_SIZE)
         run_cl_tagger(args, iterators)
 
     # ========================
     # Run language model thing
     # ========================
     elif args.lm:
-        (train_loader, dev_loader, test_loader), lm_loader, sizes, vocab = Loader.get_treebank_and_txt(args, BATCH_SIZE)
+        (train_loader, dev_loader, test_loader), lm_loader, sizes, vocab = Loader.get_treebank_and_txt(args, PARSE_BATCH_SIZE)
 
-        runnable = CSParser(sizes, args, embeddings=None, embed_dim=EMBED_DIM, lstm_dim=LSTM_DIM, lstm_layers=LSTM_LAYERS,
-                            reduce_dim_arc=REDUCE_DIM_ARC, reduce_dim_label=REDUCE_DIM_LABEL, learning_rate=LEARNING_RATE)
+        runnable = CSParser(sizes, args, vocab, embeddings=vocab, embed_dim=PARSE_EMBED_DIM, lstm_dim=PARSE_LSTM_DIM, lstm_layers=PARSE_LSTM_LAYERS,
+                            reduce_dim_arc=PARSE_REDUCE_DIM_ARC, reduce_dim_label=PARSE_REDUCE_DIM_LABEL, learning_rate=PARSE_LEARNING_RATE)
 
         if args.use_cuda:
             runnable.cuda()
 
         print("Training")
-        for epoch in range(EPOCHS):
+        for epoch in range(PARSE_EPOCHS):
             runnable.train_(epoch, lm_loader, task_type="aux")
             # runnable.train_(epoch, train_loader)
             runnable.evaluate_(dev_loader)
@@ -105,18 +117,54 @@ if __name__ == '__main__':
     # Normal stuff
     # ========================
     else:
-        (train_loader, dev_loader, test_loader), sizes, vocab = Loader.get_iterators(args, BATCH_SIZE)[0]
-        if args.parse:
-            if args.code_switch:
-                embeddings = vocab.vectors if args.embed else None
-                runnable = CSParser(sizes, args, embeddings=embeddings, embed_dim=EMBED_DIM, lstm_dim=LSTM_DIM, lstm_layers=LSTM_LAYERS,
-                                  reduce_dim_arc=REDUCE_DIM_ARC, reduce_dim_label=REDUCE_DIM_LABEL, learning_rate=LEARNING_RATE)
-            else:
-                runnable = Parser(sizes, args, vocab, embeddings=None, embed_dim=EMBED_DIM, lstm_dim=LSTM_DIM, lstm_layers=LSTM_LAYERS,
-                                  reduce_dim_arc=REDUCE_DIM_ARC, reduce_dim_label=REDUCE_DIM_LABEL, learning_rate=LEARNING_RATE)
+        (train_loader, dev_loader, test_loader), sizes, vocab = Loader.get_iterators(args, PARSE_BATCH_SIZE)[0]
+        if args.parse and args.code_switch:
+            runnable = CSParser(sizes, args, vocab, embeddings=vocab, embed_dim=PARSE_EMBED_DIM, lstm_dim=PARSE_LSTM_DIM, lstm_layers=PARSE_LSTM_LAYERS,
+                                reduce_dim_arc=PARSE_REDUCE_DIM_ARC, reduce_dim_label=PARSE_REDUCE_DIM_LABEL, learning_rate=PARSE_LEARNING_RATE)
+
+        # ============
+        # Wall of code
+        # ============
+        if args.parse and args.tag:
+            runnable = Tagger(sizes, args, vocab, chain=True, embeddings=None, embed_dim=TAG_EMBED_DIM, lstm_dim=TAG_LSTM_DIM, lstm_layers=TAG_LSTM_LAYERS,
+                              mlp_dim=TAG_MLP_DIM, learning_rate=TAG_LEARNING_RATE)
+
+            if args.use_cuda: runnable.cuda()
+
+            print("Training tagger")
+            for epoch in range(TAG_EPOCHS):
+                runnable.train_(epoch, train_loader)
+                runnable.evaluate_(dev_loader)
+
+            # test
+            print("Evaluating tagger")
+            tag_tensors = runnable.evaluate_(test_loader, print_conll=True)
+            test_loader.data().upos = (i for i in tag_tensors)
+
+            runnable = Parser(sizes, args, vocab, embeddings=vocab, embed_dim=PARSE_EMBED_DIM, lstm_dim=PARSE_LSTM_DIM, lstm_layers=PARSE_LSTM_LAYERS,
+                              reduce_dim_arc=PARSE_REDUCE_DIM_ARC, reduce_dim_label=PARSE_REDUCE_DIM_LABEL, learning_rate=PARSE_LEARNING_RATE)
+            
+            if args.use_cuda: runnable.cuda()
+
+            print("Training parser")
+            for epoch in range(PARSE_EPOCHS):
+                runnable.train_(epoch, train_loader)
+                runnable.evaluate_(dev_loader)
+
+            # test
+            print("Evaluating parser")
+            runnable.evaluate_(test_loader, print_conll=True)
+            sys.exit() 
+
+        elif args.parse:
+            runnable = Parser(sizes, args, vocab, embeddings=vocab, embed_dim=PARSE_EMBED_DIM, lstm_dim=PARSE_LSTM_DIM, lstm_layers=PARSE_LSTM_LAYERS,
+                              reduce_dim_arc=PARSE_REDUCE_DIM_ARC, reduce_dim_label=PARSE_REDUCE_DIM_LABEL, learning_rate=PARSE_LEARNING_RATE)
         elif args.tag:
-            runnable = Tagger(sizes, args, embeddings=None, embed_dim=EMBED_DIM, lstm_dim=LSTM_DIM, lstm_layers=LSTM_LAYERS,
-                              mlp_dim=MLP_DIM, learning_rate=LEARNING_RATE)
+            runnable = Tagger(sizes, args, vocab, embeddings=None, embed_dim=TAG_EMBED_DIM, lstm_dim=TAG_LSTM_DIM, lstm_layers=TAG_LSTM_LAYERS,
+                              mlp_dim=TAG_MLP_DIM, learning_rate=TAG_LEARNING_RATE)
+
+        elif args.morph:
+            runnable = Analyser(sizes, args, vocab)
 
         if args.use_cuda:
             runnable.cuda()
@@ -124,15 +172,15 @@ if __name__ == '__main__':
         # training
         if args.load:
             print("Loading")
-            with open(args.load[0], "rb") as f:
+            with open(args.load, "rb") as f:
                 runnable.load_state_dict(torch.load(f, map_location=lambda storage, loc: storage))
 
         else:
             print("Training")
-            for epoch in range(EPOCHS):
+            for epoch in range(TAG_EPOCHS):
                 runnable.train_(epoch, train_loader)
-                # runnable.evaluate_(dev_loader)
+                runnable.evaluate_(dev_loader)
 
         # test
         print("Eval")
-        runnable.evaluate_(test_loader)
+        runnable.evaluate_(test_loader, print_conll=True)

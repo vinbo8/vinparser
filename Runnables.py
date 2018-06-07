@@ -1,20 +1,88 @@
+import os
 import torch
 import pprint
 import Helpers
 from scripts import cle
 from torch.autograd import Variable
+from collections import Counter
 import torch.nn.functional as F
 from Modules import CharEmbedding, ShorterBiaffine, LongerBiaffine, LangModel
 
 
+class Analyser(torch.nn.Module):
+    def __init__(self, sizes, args, vocab, chain=False, embeddings=None, embed_dim=100, lstm_dim=100, lstm_layers=3,
+                 mlp_dim=100, learning_rate=1e-5):
+        super().__init__()
+        self.cuda = args.use_cuda
+
+        self.morph_vocab = vocab[3]
+        self.feat_vocab = []
+        for i in self.morph_vocab.itos:
+            if "=" not in i:
+                self.feat_vocab.append(i)
+            else:
+                self.feat_vocab.extend([j.split("=")[0] for j in i.split("|")])
+        # TODO: could use a Vocab object but don't care right now
+        self.feat_vocab = set(self.feat_vocab)
+        self.feat_vocab_itos = list(self.feat_vocab)
+        self.feat_vocab_stoi = {i: n for (n, i) in enumerate(self.feat_vocab_itos)}
+
+        # components
+        self.embeds = torch.nn.Embedding(sizes['vocab'], embed_dim)
+        self.lstm = torch.nn.LSTM(embed_dim, lstm_dim, lstm_layers, batch_first=True, bidirectional=True, dropout=0.5)
+        self.mlp = torch.nn.Linear(2 * lstm_dim, mlp_dim)
+        self.out = torch.nn.Linear(mlp_dim, len(self.feat_vocab))
+
+        self.optimiser = torch.optim.Adam(self.parameters(), lr=learning_rate, betas=(0.9, 0.9))
+        self.criterion = torch.nn.BCEWithLogitsLoss()
+
+    def forward(self, x_forms, pack):
+        embeds = F.dropout(self.embeds(x_forms), p=0.33, training=self.training)
+        packed = torch.nn.utils.rnn.pack_padded_sequence(embeds, pack.tolist(), batch_first=True)
+        lstm_out, _ = self.lstm(packed) 
+        # TODO: try adding pad_value to match the loss pad value
+        lstm_out, _ = torch.nn.utils.rnn.pad_packed_sequence(lstm_out, batch_first=True)
+        mlp_out = F.dropout(F.relu(self.mlp(lstm_out)), p=0.33, training=self.training)
+        out_pred = self.out(mlp_out)
+        if self.cuda:
+            out_pred = out_pred.cuda()
+
+        return out_pred
+    
+    def train_(self, epoch, train_loader):
+        self.train()
+        train_loader.init_epoch()
+
+        for i, batch in enumerate(train_loader):
+            (x_forms, pack), x_tags = batch.form, batch.upos
+            new_batch_tensor = Helpers.extract_batch_bucket_vector(batch, self.morph_vocab, self.feat_vocab_itos, self.feat_vocab_stoi)
+            predicted_tensor = self.forward(x_forms, pack)
+
+            train_loss = self.criterion(predicted_tensor, new_batch_tensor.type(torch.FloatTensor))
+
+            self.zero_grad()
+            train_loss.backward()
+            self.optimiser.step()
+
+            print("Epoch: {}\t{}/{}\tloss: {}".format(
+                epoch, (i + 1) * len(x_forms), len(train_loader.dataset), train_loss.data[0]))
+
+
 class Tagger(torch.nn.Module):
-    def __init__(self, sizes, args, embeddings=None, embed_dim=100, lstm_dim=100, lstm_layers=3,
+    def __init__(self, sizes, args, vocab, chain=False, embeddings=None, embed_dim=100, lstm_dim=100, lstm_layers=3,
                  mlp_dim=100, learning_rate=1e-5):
         super().__init__()
 
         self.embeds = torch.nn.Embedding(sizes['vocab'], embed_dim)
-        self.embeds.weight.data.copy_(embeddings.vectors)
-        self.lstm = torch.nn.LSTM(embed_dim, lstm_dim, lstm_layers, batch_first=True, bidirectional=True, dropout=0.5)
+        self.compress = torch.nn.Linear(300,100)
+        self.use_cuda = args.use_cuda
+        self.save = args.save
+        self.vocab = vocab
+        self.test_file = args.test
+        self.chain = chain
+        if args.embed:
+            self.embeds.weight.data.copy_(vocab[0].vectors)
+        self.lstm = torch.nn.LSTM(100, lstm_dim, lstm_layers, batch_first=True, bidirectional=True, dropout=0.5)
         self.relu = torch.nn.ReLU()
         self.mlp = torch.nn.Linear(2 * lstm_dim, mlp_dim)
         self.out = torch.nn.Linear(mlp_dim, sizes['postags'])
@@ -25,6 +93,7 @@ class Tagger(torch.nn.Module):
     def forward(self, forms, pack):
         # embeds + dropout
         form_embeds = self.dropout(self.embeds(forms))
+        form_embeds = self.relu(self.compress(form_embeds))
 
         # pack/unpack for LSTM
         packed = torch.nn.utils.rnn.pack_padded_sequence(form_embeds, pack.tolist(), batch_first=True)
@@ -35,7 +104,11 @@ class Tagger(torch.nn.Module):
         mlp_out = self.dropout(self.relu(self.mlp(lstm_out)))
 
         # reduce to dim no_of_tags
-        return self.out(mlp_out)
+        y_pred = self.out(mlp_out)
+        if self.cuda:
+            y_pred = y_pred.cuda()
+
+        return y_pred
 
     def train_(self, epoch, train_loader):
         self.train()
@@ -66,10 +139,18 @@ class Tagger(torch.nn.Module):
 
             print("Epoch: {}\t{}/{}\tloss: {}".format(
                 epoch, (i + 1) * len(x_forms), len(train_loader.dataset), train_loss.data[0]))
+        
+        if self.save:
+            if not os.path.exists(self.save):
+                os.makedirs(self.save)
+            with open(os.path.join(self.save, 'tagger.pt'), "wb") as f:
+                torch.save(self.state_dict(), f)
 
-    def evaluate_(self, test_loader):
+    def evaluate_(self, test_loader, print_conll=False):
         correct, total = 0, 0
         self.eval()
+
+        tag_tensors = [i.upos for i in test_loader]
         for i, batch in enumerate(test_loader):
             (x_forms, pack), x_tags, y_heads, y_deprels = batch.form, batch.upos, batch.head, batch.deprel
 
@@ -81,13 +162,20 @@ class Tagger(torch.nn.Module):
             y_pred = self(x_forms, pack).max(2)[1]
 
             mask = Variable(mask.type(torch.ByteTensor))
+            if self.cuda:
+                mask = mask.cuda()
 
             correct += ((x_tags == y_pred) * mask).nonzero().size(0)
 
             total += mask.nonzero().size(0)
 
-        print("Accuracy = {}/{} = {}".format(correct, total, (correct / total)))
+            if print_conll:
+                tag_vocab = self.vocab[2]
+                tags = [tag_vocab.itos[i.data[0]] for i in y_pred.view(-1, 1)]
+                Helpers.write_tags_to_conllu(self.test_file, tags, i)
 
+        print("Accuracy = {}/{} = {}".format(correct, total, (correct / total)))
+        if self.chain: return tag_tensors
 
 class Parser(torch.nn.Module):
     def __init__(self, sizes, args, vocab, embeddings=None, embed_dim=100, lstm_dim=400, lstm_layers=3,
@@ -105,8 +193,12 @@ class Parser(torch.nn.Module):
             self.embeddings_chars = CharEmbedding(sizes['chars'], embed_dim, lstm_dim, lstm_layers)
 
         self.embeddings_forms = torch.nn.Embedding(sizes['vocab'], embed_dim)
-        self.embeddings_tags = torch.nn.Embedding(sizes['postags'], embed_dim)
-        self.lstm = torch.nn.LSTM(2 * embed_dim, lstm_dim, lstm_layers,
+        if args.embed:
+            self.embeddings_forms.weight.data.copy_(vocab[0].vectors)
+        self.compress = torch.nn.Linear(300,100)                                                      
+
+        self.embeddings_tags = torch.nn.Embedding(sizes['postags'], 100)
+        self.lstm = torch.nn.LSTM(200, lstm_dim, lstm_layers,
                                   batch_first=True, bidirectional=True, dropout=0.33)
         self.mlp_head = torch.nn.Linear(2 * lstm_dim, reduce_dim_arc)
         self.mlp_dep = torch.nn.Linear(2 * lstm_dim, reduce_dim_arc)
@@ -126,6 +218,7 @@ class Parser(torch.nn.Module):
 
     def forward(self, forms, tags, pack, chars, char_pack):
         form_embeds = self.dropout(self.embeddings_forms(forms))
+        form_embeds = self.relu(self.compress(form_embeds))
         tag_embeds = self.dropout(self.embeddings_tags(tags))
         composed_embeds = form_embeds
 
@@ -199,10 +292,12 @@ class Parser(torch.nn.Module):
             print("Epoch: {}\t{}/{}\tloss: {}".format(epoch, (i + 1) * len(x_forms), len(train_loader.dataset), train_loss.data[0]))
 
         if self.save:
-            with open(self.save[0], "wb") as f:
+            if not os.path.exists(self.save):
+                os.makedirs(self.save)
+            with open(os.path.join(self.save, 'parser.pt'), "wb") as f:
                 torch.save(self.state_dict(), f)
 
-    def evaluate_(self, test_loader):
+    def evaluate_(self, test_loader, print_conll=False):
         las_correct, uas_correct, total = 0, 0, 0
         self.eval()
         for i, batch in enumerate(test_loader):
@@ -244,19 +339,19 @@ class Parser(torch.nn.Module):
 
             total += mask.nonzero().size(0)
 
+            if print_conll:
+                deprel_vocab = self.vocab[1]
+                deprels = [deprel_vocab.itos[i.data[0]] for i in y_pred_deprel.view(-1, 1)]
 
-            deprel_vocab = self.vocab[1]
-            deprels = [deprel_vocab.itos[i.data[0]] for i in y_pred_deprel.view(-1, 1)]
-
-            heads_softmaxes = self(x_forms, x_tags, pack, chars, length_per_word_per_sent)[0][0]
-            heads_softmaxes = F.softmax(heads_softmaxes, dim=1)
-            json = cle.mst(heads_softmaxes.data.numpy())
+                heads_softmaxes = self(x_forms, x_tags, pack, chars, length_per_word_per_sent)[0][0]
+                heads_softmaxes = F.softmax(heads_softmaxes, dim=1)
+                json = cle.mst(heads_softmaxes.data.numpy())
 
 
 #            json = cle.mst(i, pad) for i, pad in zip(self(x_forms, x_tags, pack, chars,
 #                                                           length_per_word_per_sent)[0], pack)
 
-            Helpers.write_to_conllu(self.test_file, json, deprels, i)
+                Helpers.write_to_conllu(self.test_file, json, deprels, i)
 
         print("UAS = {}/{} = {}\nLAS = {}/{} = {}".format(uas_correct, total, uas_correct / total,
                                                           las_correct, total, las_correct / total))
@@ -388,7 +483,7 @@ class CLTagger(torch.nn.Module):
 
 
 class CSParser(torch.nn.Module):
-    def __init__(self, sizes, args, embeddings=None, embed_dim=100, lstm_dim=400, lstm_layers=3,
+    def __init__(self, sizes, args, vocab, embeddings=None, embed_dim=100, lstm_dim=400, lstm_layers=3,
                  reduce_dim_arc=100, reduce_dim_label=100, learning_rate=1e-3):
         super().__init__()
 
