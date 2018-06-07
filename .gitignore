@@ -109,6 +109,6 @@ ENV/
 
 # relevant to project
 .vector_cache/*
-./scripts/parse.sh
-./scripts/deploy.sh
-./scripts/submit_job.sh
+scripts/parse.sh
+scripts/deploy.sh
+scripts/submit_job.sh
