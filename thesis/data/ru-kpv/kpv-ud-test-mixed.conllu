@@ -1,0 +1,1008 @@
+# sent_id = belyx-011.020
+# text = Кымӧрыс недыр повзьӧдчӧм бӧрын вешйис бокӧ .
+# text_rus = Туча после того, как немного попугала, ушла в сторону.
+# spoken_comparison = kpv_vym19570000-292_1a-Vym-1
+1	Туча	туча	NOUN	N	_	5	nsubj	_	rus
+2	недыр	недыр	ADV	Adv	_	3	advmod	_	_
+3	повзьӧдчӧм	повзьӧдчыны	VERB	V	_	5	obl	_	_
+4	бӧрын	бӧр	ADV	Adv	_	3	advmod	_	_
+5	ушла	уйти	VERB	V	_	0	root	_	rus
+6	в	в	ADP	Pr	_	7	case	_	rus
+7	сторону	сторона	NOUN	N	_	5	obl	_	rus
+8	.	.	PUNCT	CLB	_	5	punct	_	_
+
+# sent_id = belyx-011.021
+# text = А ачым думайта , мый грӧзитӧ кӧ енэжыс гыма зэрӧн , сідз-тадз ставыс оз помась .
+# text_rus = А сам думаю, что если небеса грозят громом и дождём, просто так всё не закончится.
+# spoken_comparison = kpv_izva20140325-2narty
+1	А	а	SCONJ	CS	_	3	cc	_	mixed
+2	сам	сам	ADJ	A	_	3	amod	_	rus
+3	думаю	думать	VERB	V	_	0	root	_	rus
+4	,	,	PUNCT	CLB	_	6	punct	_	_
+5	что	что	CCONJ	CONJ	_	6	conj	_	rus
+6	грӧзитӧ	грӧзитны	VERB	V	_	3	acl	_	_
+7	кӧ	кӧ	SCONJ	CS	_	6	mark	_	_
+8	енэжыс	енэж	NOUN	N	_	6	nsubj	_	_
+9	гыма	гыма	ADJ	A	_	10	amod	_	_
+10	зэрӧн	зэр	NOUN	N	_	6	obl	_	_
+11	,	,	PUNCT	CLB	_	15	punct	_	_
+12	сідз-тадз	сідз-тадз	ADV	Adv	_	15	advmod	_	_
+13	всё	всё	PRON	Pron	_	15	nsubj	_	_
+14	оз	оз	AUX	V	_	15	aux	_	rus
+15	помась	помасьны	VERB	V	_	3	acl	_	_
+16	.	.	PUNCT	CLB	_	3	punct	_	_
+
+# sent_id = belyx-011.022
+# text = Коркӧ век нин гымалас и зэрас .
+# text_rus = Когда-то всё равно пройдёт гром и дождь.
+# spoken_comparison = kpv_izva20000320-1AndrejevaMM-825
+1	Коркӧ	коркӧ	ADV	Adv	_	4	advmod	_	_
+2	всё	век	ADV	Adv	_	4	advmod	_	rus
+3	равно	нин	ADJ	A	_	2	fixed	_	rus
+4	гымалас	гымавны	VERB	V	_	0	root	_	_
+5	и	и	CCONJ	CC	_	6	cc	_	mixed
+6	зэрас	зэрны	VERB	V	_	4	conj	_	_
+7	.	.	PUNCT	CLB	_	4	punct	_	_
+
+# sent_id = belyx-011.023
+# text = Пукавны вадорын водзӧ вӧлі весьшӧрӧ .
+# text_rus = Сидеть у берега было попусту.
+# spoken_comparison = kpv_vym19570000-292_1a-Vym-1
+1	Сидеть	сидеть	VERB	V	_	4	xcomp	_	rus
+2	вадорын	вадор	NOUN	N	_	1	nmod	_	_
+3	водзӧ	водз	ADV	Adv	_	1	advmod	_	_
+4	было	быть	VERB	V	_	0	root	_	rus
+5	попусту	попусту	ADV	Adv	_	4	advmod	_	rus
+6	.	.	PUNCT	CLB	_	4	punct	_	_
+
+# sent_id = belyx-011.024
+# text = Ньӧжйӧник чукӧрті чери кыян кӧлуйӧс да мӧдӧдчи гортлань .
+# text_rus = По-тихоньку собрал рыболовные снасти и пошёл в сторону дома.
+# spoken_comparison = kpv_izva20150406-3-a.0928
+1	Ньӧжйӧник	ньӧжйӧник	ADV	Adv	_	2	advmod	_	_
+2	чукӧрті	чукӧртны	VERB	V	_	0	root	_	_
+3	чери	чери	NOUN	N	_	4	nmod	_	_
+4	кыян	кыян	NOUN	N	_	5	nmod	_	_
+5	кӧлуйӧс	кӧлуй	NOUN	N	_	2	obj	_	_
+6	да	да	CCONJ	CC	_	5	cc	_	_
+7	мӧдӧдчи	мӧдӧдчыны	VERB	V	_	2	conj	_	_
+8	в	в	ADP	Pr	_	9	case	_	rus
+9	сторону	сторона	NOUN	N	_	7	obl	_	rus
+10	дома	дом	NOUN	N	_	9	nmod	_	rus
+11	.	.	PUNCT	CLB	_	2	punct	_	_
+
+# sent_id = belyx-011.025
+# text = Тӧдлытӧг асыв-войвывсяньыс тыдовтчис нӧшта кымӧр пласт да ӧдйӧ кутіс кайны енэж шӧрлань .
+# text_rus = Незаметно с северо-востока показалась ещё туча и быстро стала направляться к середине неба.
+# spoken_comparison = kpv_vym19570000-292_1a-Vym-1
+1	Незаметно	незаметно	ADV	Adv	_	3	advmod	_	rus
+2	асыв-войвывсяньыс	асыв-войвыв	NOUN	N	_	3	obl	_	_
+3	тыдовтчис	тыдовтчыны	VERB	V	_	0	root	_	_
+4	нӧшта	нӧшта	ADV	Adv	_	3	advmod	_	_
+5	кымӧр	кымӧр	NOUN	N	_	6	nmod	_	_
+6	пласт	пласт	NOUN	N	_	3	nsubj	_	_
+7	да	да	CCONJ	CC	_	3	cc	_	_
+8	быстро	быстро	ADV	Adv	_	9	advmod	_	rus
+9	стала	стать	VERB	V	_	3	acl	_	rus
+10	направляться	направляться	VERB	V	_	9	xcomp	_	rus
+11	енэж	енэж	NOUN	N	_	12	nmod	_	_
+12	шӧрлань	шӧр	NOUN	N	_	10	obl	_	_
+13	.	.	PUNCT	CLB	_	3	punct	_	_
+
+# sent_id = belyx-011.026
+# text = Сійӧ вочасӧн пыр паськаліс да лӧзӧдіс .
+# text_rus = Постепенно она становилась шире и синела.
+# spoken_comparison = kpv_izva20150407-1-b.125
+1	Сійӧ	сійӧ	PRON	Pron	_	4	nsubj	_	_
+2	вочасӧн	вочасӧн	ADV	Adv	_	4	advmod	_	_
+3	пыр	пыр	ADV	Adv	_	4	advmod	_	_
+4	паськаліс	паськавны	VERB	V	_	0	root	_	_
+5	и	и	CCONJ	CC	_	6	cc	_	rus
+6	синела	синеть	VERB	V	_	4	conj	_	rus
+7	.	.	PUNCT	CLB	_	6	punct	_	_
+
+# sent_id = belyx-011.027
+# text = Сы вылӧ видзӧдігмоз весиг шуштӧм лолі сьӧлӧм вылын .
+# text_rus = Смотря на неё, даже грустно становилось на сердце.
+# spoken_comparison = kpv_izva20150407-1-b.125
+1	Сы	сійӧ	PRON	Pron	Pers|Sg3|Cmpl	3	obl	_	_
+2	вылӧ	вылӧ	ADP	Po	Spat|Sg|Ill	1	case	_	_
+3	видзӧдігмоз	видзӧдны	VERB	V	Ger	8	acl	_	_
+4	весиг	весиг	ADV	Adv	_	8	mark	_	_
+5	шуштӧм	шуштӧм	ADJ	A	_	6	amod	_	_
+6	становилось	становится	VERB	V	Ind|Prt1|Sg3	8	cop	_	_
+7	на	на	ADP	Pr	Sg|Nom	8	case	_	rus
+8	сердце	сердце	NOUN	N	Spat|Sg|Ine	0	root	_	rus
+9	.	.	PUNCT	CLB	_	8	punct	_	_
+
+# sent_id = belyx-011.028
+# text = Воа ог нӧ эськӧ зэрӧдзыс гортӧдз ?
+# text_rus = Дойду ли до начала дождя до дома?
+# spoken_comparison = kpv_izva20140329-1-b-541
+1	Воа	воны	VERB	V	Ind|Prs|Sg1	0	root	_	_
+2	ог	оз	VERB	V	Neg|Ind|Prs|Sg1	1	appos	_	_
+3	нӧ	нӧ	PART	Pcle	_	1	discourse	_	_
+4	эськӧ	эськӧ	PART	Pcle	_	1	discourse	_	_
+5	зэрӧдзыс	зэр	NOUN	N	Sg|Ter|PxSg3	6	nmod	_	_
+6	до	до	ADP	Pr	Sg|Ter	7	case	_	rus
+7	дома	дом	NOUN	N	_	1	obl	_	rus
+8	?	?	PUNCT	CLB	_	1	punct	_	_
+
+# sent_id = belyx-011.029
+# text = Ӧд мунны колӧ бура унакодь на .
+# text_rus = Ведь пройти надо немало.
+# spoken_comparison = kpv_izva20150406-3-a.0482
+1	Ведь	ведь	PART	Pcle	_	2	advmod	_	rus
+2	пройти	пройти	VERB	V	_	3	xcomp	_	rus
+3	надо	надо	VERB	V	_	0	root	_	rus
+4	бура	бура	ADV	Adv	_	5	advmod	_	_
+5	унакодь	унакодь	ADV	A	_	3	advmod	_	_
+6	на	на	ADV	Adv	_	5	advmod	_	_
+7	.	.	PUNCT	CLB	_	3	punct	_	_
+
+# sent_id = belyx-011.030
+# text = Ӧддзӧді воськовъясӧс .
+# text_rus = Ускорил шаги.
+# spoken_comparison = kpv_vym19570000-292_1a-Vym-1
+1	Ускорил	ускорить	VERB	V	_	0	root	_	rus
+2	воськовъясӧс	воськов	NOUN	N	_	1	obj	_	_
+3	.	.	PUNCT	CLB	_	2	punct	_	_
+
+# sent_id = belyx-011.031
+# text = Но кымӧрыд локтіс нӧшта ӧдйӧджык .
+# text_rus = Но туча шла ещё быстрее.
+# spoken_comparison = kpv_vym19570000-292_1a-Vym-1
+1	Но	но	CCONJ	CC	_	3	cc	_	mixed
+2	кымӧрыд	кымӧр	NOUN	N	_	3	nsubj	_	_
+3	локтіс	локны	VERB	V	_	0	root	_	_
+4	ещё	ещё	ADV	Adv	_	5	advmod	_	rus
+5	быстрее	быстро	ADV	Adv	_	3	advmod	_	_
+6	.	.	PUNCT	CLB	_	5	punct	_	_
+
+# sent_id = belyx-011.032
+# text = Кутіс нин гымавны-чардавны .
+# text_rus = Уже начались гром и молнии.
+# spoken_comparison = kpv_vym19570000-292_1a-Vym-1
+1	Начались	начать	VERB	V	_	0	root	_	rus
+2	нин	нин	ADV	Adv	_	3	advmod	_	_
+3	гымавны-чардавны	гымавны-чардавны	VERB	V	_	1	xcomp	_	_
+4	.	.	PUNCT	CLB	_	3	punct	_	_
+
+# sent_id = belyx-011.033
+# text = А сэсся вылісянь мӧдӧдчисны гырысь зэр войтъяс .
+# text_rus = А потом сверху пошли большие капли дождя.
+# spoken_comparison = kpv_izva20150403-1-b-0832 / kpv_izva20150403-3-b.1242
+1	А	а	SCONJ	CS	_	4	cc	_	mixed
+2	потом	потом	ADV	Adv	_	4	advmod	_	rus
+3	сверху	сверху	ADV	Adv	_	4	obl	_	rus
+4	пошли	пойти	VERB	V	_	0	root	_	rus
+5	гырысь	гырысь	ADJ	A	_	7	amod	_	_
+6	зэр	зэр	NOUN	N	_	7	nmod	_	_
+7	войтъяс	войт	NOUN	N	_	4	nsubj	_	_
+8	.	.	PUNCT	CLB	_	4	punct	_	_
+
+# sent_id = belyx-011.034
+# text = Сэк жӧ удиті на воны сӧмын пипу рас весьтӧдз .
+# text_rus = До этого успел дойти только к осиновой роще.
+# spoken_comparison = kpv_vym19570000-292_1a-Vym-1-12
+1	Сэк	сэк	ADV	Adv	_	3	advmod	_	_
+2	жӧ	жӧ	PART	Pcle	_	3	advmod	_	_
+3	удиті	удитны	VERB	V	_	0	root	_	_
+4	на	на	ADV	Adv	_	3	advmod	_	_
+5	воны	воны	VERB	V	_	3	xcomp	_	_
+6	только	только	ADV	Adv	_	5	advmod	_	rus
+7	к	к	ADP	Pr	_	9	case	_	rus
+8	осиновой	осиновой	ADJ	N	_	9	amod	_	rus
+9	роще	роще	NOUN	N	_	5	obl	_	rus
+10	.	.	PUNCT	CLB	_	3	punct	_	_
+
+# sent_id = belyx-011.035
+# text = Зэрсьыс дзебсьыны вӧлі весьшӧрӧ нин .
+# text_rus = От дождя прятаться было уже бесполезно.
+# spoken_comparison = kpv_izva20000321ChuprovII.295
+1	Зэрсьыс	зэр	NOUN	N	_	2	obl	_	_
+2	дзебсьыны	дзебсьыны	VERB	V	_	0	root	_	_
+3	вӧлі	вӧвны	VERB	V	_	2	xcomp	_	_
+4	весьшӧрӧ	весьшӧрӧ	ADV	Adv	_	2	advmod	_	_
+5	уже	уже	ADV	Adv	_	2	advmod	_	_
+6	.	.	PUNCT	CLB	_	2	punct	_	_
+
+# sent_id = belyx-011.036
+# text = Думайта да , мед кӧтӧдас .
+# text_rus = Думаю, пусть намокну.
+# spoken_comparison = 
+1	Думайта	думайтны	VERB	V	_	0	root	_	_
+2	да	да	PART	Pcle	_	1	advmod	_	_
+3	,	,	PUNCT	CLB	_	5	punct	_	_
+4	пусть	пусть	PART	Pcle	_	5	discourse	_	rus
+5	намокну	намокнуть	VERB	V	_	1	acl	_	rus
+6	.	.	PUNCT	CLB	_	1	punct	_	_
+
+# sent_id = belyx-011.037
+# text = Зэригас кая гортӧдз .
+# text_rus = В дождь дойду до дома.
+# spoken_comparison = 
+1	Зэригас	зэрны	VERB	V	_	2	acl	_	_
+2	кая	кайны	VERB	V	_	0	root	_	_
+3	до	до	ADP	Pr	_	4	case	_	rus
+4	дома	дом	NOUN	N	_	2	obl	_	rus
+5	.	.	PUNCT	CLB	_	2	punct	_	_
+
+# sent_id = belyx-011.038
+# text = Эг нин сэтшӧма кут тэрмасьны .
+# text_rus = Уже не стал сильно торопиться.
+# spoken_comparison = 
+1	Эг	оз	AUX	V	_	4	aux	_	_
+2	нин	нин	ADV	Adv	_	4	advmod	_	_
+3	сэтшӧма	сэтшӧма	ADV	Adv	_	4	advmod	_	_
+4	кут	кутны	VERB	V	_	0	root	_	_
+5	тэрмасьны	тэрмасьны	VERB	V	_	4	xcomp	_	_
+6	.	.	PUNCT	CLB	_	4	punct	_	_
+
+# sent_id = belyx-011.039
+# text = Друг асыв-войвывсянь бара воис зэв ыджыд тӧв·ныр , коді муртса кок·йылысь эз пӧрӧд .
+# text_rus = Вдруг с северо-востока опять пришёл порыв ветра, который чуть не сбил с ног.
+# spoken_comparison = 
+1	Вдруг	вдруг	ADV	Adv	_	4	advmod	_	rus
+2	асыв-войвывсянь	асыв-войвыв	NOUN	N	_	4	obl	_	_
+3	бара	бара	ADV	Adv	_	4	advmod	_	_
+4	воис	воны	VERB	V	_	0	root	_	_
+5	зэв	зэв	ADV	Adv	_	6	advmod	_	_
+6	ыджыд	ыджыд	ADJ	A	_	7	amod	_	_
+7	тӧв·ныр	тӧв·ныр	NOUN	N	_	4	nsubj	_	_
+8	,	,	PUNCT	CLB	_	13	punct	_	_
+9	который	который	CCONJ	CC	_	13	nsubj	_	rus
+10	чуть	чуть	ADJ	A	_	11	amod	_	rus
+11	не	кок·йыв	NOUN	N	_	13	obl	_	rus
+12	сбил	оз	AUX	V	_	13	aux	_	rus
+13	с	с	ADP	Pr	_	14	case	_	rus
+14	ног	ног	VERB	V	_	4	acl	_	rus
+15	.	.	PUNCT	CLB	_	4	punct	_	_
+
+# sent_id = belyx-011.040
+# text = Лолӧй быдӧн эз кут сюрны , сэтшӧма ёсь тӧлыс сатшис горшӧ .
+# text_rus = Даже дыхания не хватало, так сильно ветер перехватывал горло.
+# spoken_comparison = 
+1	Лолӧй	лов	NOUN	N	_	4	nsubj	_	_
+2	быдӧн	быд	NOUN	N	_	4	nmod	_	_
+3	эз	оз	AUX	V	_	4	aux	_	_
+4	кут	кутны	VERB	V	_	0	root	_	_
+5	сюрны	сюрны	VERB	V	_	4	xcomp	_	_
+6	,	,	PUNCT	CLB	_	10	punct	_	_
+7	так	так	ADV	Adv	_	10	advmod	_	rus
+8	сильно	сильно	ADJ	A	_	9	amod	_	rus
+9	ветер	ветер	NOUN	N	_	10	nsubj	_	rus
+10	перехватывал	перехватывать	VERB	V	_	4	advcl	_	rus
+11	горло	горло	NOUN	N	_	10	obl	_	rus
+12	.	.	PUNCT	CLB	_	4	punct	_	_
+
+# sent_id = belyx-011.041
+# text = Тӧв·ныркӧд тшӧтш сынӧдыс кутіс рудӧдны .
+# text_rus = Вместе с порывом ветра воздух становился серым.
+# spoken_comparison = 
+1	Тӧв·ныркӧд	тӧв·ныр	NOUN	N	_	4	obl	_	_
+2	тшӧтш	тшӧтш	ADV	Adv	_	1	advmod	_	_
+3	сынӧдыс	сынӧд	NOUN	N	_	4	nsubj	_	_
+4	кутіс	кутны	VERB	V	_	0	root	_	_
+5	рудӧдны	рудӧдны	VERB	V	_	4	xcomp	_	_
+6	.	.	PUNCT	CLB	_	4	punct	_	_
+
+# sent_id = belyx-011.042
+# text = Тайӧ рудыс зэв ӧдйӧ матыстчис мелань .
+# text_rus = Эта серость очень быстро приблизилась ко мне.
+# spoken_comparison = 
+1	Тайӧ	тайӧ	PRON	Pron	_	2	det	_	_
+2	рудыс	руд	ADJ	A	_	5	nsubj	_	_
+3	очень	очень	ADV	Adv	_	4	advmod	_	rus
+4	ӧдйӧ	ӧдйӧ	ADV	Adv	_	5	advmod	_	_
+5	матыстчис	матыстчыны	VERB	V	_	0	root	_	_
+6	к	к	ADP	Pr	_	7	case	_	rus
+7	мне	я	PRON	Pron	_	5	obl	_	rus
+8	.	.	PUNCT	CLB	_	5	punct	_	_
+
+# sent_id = belyx-011.043
+# text = Медбӧрын чужӧмӧ кучкисны йи торъяс .
+# text_rus = В последний момент в лицо ударили льдинки.
+# spoken_comparison = 
+1	Медбӧрын	медбӧрын	ADV	Adv	_	3	advmod	_	_
+2	чужӧмӧ	чужӧм	NOUN	N	_	3	obl	_	_
+3	кучкисны	кучкыны	VERB	V	_	0	root	_	_
+4	йи	йи	NOUN	N	_	5	nmod	_	_
+5	торъяс	тор	NOUN	N	_	3	nsubj	_	_
+6	.	.	PUNCT	CLB	_	3	punct	_	_
+
+# sent_id = belyx-011.044
+# text = Тайӧ , вӧлӧмкӧ , шер .
+# text_rus = Это, оказывается, град.
+# spoken_comparison = 
+1	Это	это	PRON	Pron	_	5	det	_	rus
+2	,	,	PUNCT	CLB	_	3	punct	_	_
+3	вӧлӧмкӧ	вӧлӧмкӧ	ADV	Adv	_	5	advmod	_	_
+4	,	,	PUNCT	CLB	_	5	punct	_	_
+5	град	град	NOUN	N	_	0	root	_	rus
+6	.	.	PUNCT	CLB	_	5	punct	_	_
+
+# sent_id = belyx-011.045
+# text = Восьлавны водзӧ эг нин кут вермыны .
+# text_rus = Шагать дальше я уже не мог.
+# spoken_comparison = 
+1	Шагать	шагать	VERB	V	_	6	xcomp	_	rus
+2	дальше	дальше	ADV	Adv	_	1	advmod	_	rus
+3	эг	оз	AUX	V	_	5	aux	_	_
+4	нин	нин	ADV	Adv	_	5	advmod	_	_
+5	кут	кутны	VERB	V	_	0	root	_	_
+6	вермыны	вермыны	VERB	V	_	5	xcomp	_	_
+7	.	.	PUNCT	CLB	_	5	punct	_	_
+
+# sent_id = belyx-011.046
+# text = Тӧлыс да шерыс пӧрӧдісны кок·йывсьыд .
+# text_rus = Ветер и град сбили с ног.
+# spoken_comparison = 
+1	Ветер	ветер	NOUN	N	_	4	nsubj	_	rus
+2	да	да	CCONJ	CC	_	3	cc	_	_
+3	град	град	NOUN	N	_	1	conj	_	rus
+4	пӧрӧдісны	пӧрӧдны	VERB	V	_	0	root	_	_
+5	кок·йывсьыд	кок·йыв	NOUN	N	_	4	obl	_	_
+6	.	.	PUNCT	CLB	_	4	punct	_	_
+
+# sent_id = belyx-011.047
+# text = Туйыс зэр вӧснаыс лоис ичӧтик ю кодь .
+# text_rus = Дорога из-за дождя стала похожа на небольшую речку.
+# spoken_comparison = 
+1	Туйыс	туй	NOUN	N	_	4	nsubj	_	_
+2	зэр	зэр	NOUN	N	_	4	obl	_	_
+3	вӧснаыс	вӧсна	ADP	Po	_	2	case	_	_
+4	стала	стать	VERB	V	_	0	root	_	rus
+5	похожа	похож	ADJ	A	_	8	amod	_	rus
+6	на	на	NOUN	N	_	8	case	_	rus
+7	небольшую	небольшой	ADV	Adv	_	8	advmod	_	rus
+8	речку	речка	NOUN	N	_	4	nmod	_	rus
+9	.	.	PUNCT	CLB	_	4	punct	_	_
+
+# sent_id = belyx-011.048
+# text = Дугдывтӧг гымаліс-чардаліс .
+# text_rus = Без конца гремел гром и сверкали молнии.
+# spoken_comparison = 
+1	Без	без	ADP	Pr	_	2	case	_	rus
+2	конца	конец	NOUN	N	_	3	nmod	_	rus
+3	гымаліс-чардаліс	гымавны-чардавны	VERB	V	_	0	root	_	_
+4	.	.	PUNCT	CLB	_	3	punct	_	_
+
+# sent_id = belyx-011.049
+# text = Гым-биясыс быттьӧ дзик орччӧн орӧдлісны сынӧдсӧ .
+# text_rus = Молнии словно совсем рядом разрывали воздух.
+# spoken_comparison = 
+1	Гым-биясыс	гым-би	NOUN	N	_	5	nsubj	_	_
+2	быттьӧ	быттьӧ	PART	Pcle	_	5	advmod	_	_
+3	совсем	совсем	ADV	Adv	_	4	advmod	_	rus
+4	рядом	рядом	ADV	Adv	_	5	advmod	_	rus
+5	орӧдлісны	орӧдлыны	VERB	V	_	0	root	_	_
+6	сынӧдсӧ	сынӧд	NOUN	N	_	5	obj	_	_
+7	.	.	PUNCT	CLB	_	5	punct	_	_
+
+# sent_id = belyx-011.050
+# text = Вӧчны нинӧм .
+# text_rus = Делать нечего.
+# spoken_comparison = 
+1	Вӧчны	вӧчны	VERB	V	Inf	0	root	_	_
+2	нечего	нинӧм	PRON	Pron	Neg|Sg|Nom	1	advmod	_	rus
+3	.	.	PUNCT	CLB	_	1	punct	_	_
+
+# sent_id = belyx-011.051
+# text = Пыри пипу раскас да сувті неыджыд эрд вылӧ .
+# text_rus = Зашёл в осиновую рощу и встал на небольшую поляну.
+# spoken_comparison = 
+1	Пыри	пырны	VERB	V	Ind|Prt1|Sg3	0	root	_	_
+2	пипу	пипу	NOUN	N	Sg|Nom	3	nmod	_	_
+3	раскас	рас	NOUN	N	Sg|Ill|PxSg3	1	obl	_	_
+4	да	да	CCONJ	CC	_	5	cc	_	_
+5	встал	встать	VERB	V	Ind|Prt1|Sg3	1	conj	_	rus
+6	на	на	ADP	Pr	_	8	case	_	rus
+7	небольшую	небольшой	ADJ	A	Sg|Nom	8	amod	_	rus
+8	поляну	поляна	NOUN	NOUN	Spat|Sg|Ill	5	obl	_	rus
+9	.	.	PUNCT	CLB	_	1	punct	_	_
+
+# sent_id = belyx-011.052
+# text = Гымалігад пу улын сулавны оз позь .
+# text_rus = При грозе под деревом стоять нельзя.
+# spoken_comparison = 
+1	Гымалігад	гымавны	VERB	V	Ger|Sg|Ill|PxSg2	4	acl	_	_
+2	под	под	ADP	Pr	Sg|Nom	4	case	_	rus
+3	деревом	дерево	NOUN	N	Spat|Ine	2	obl	_	rus
+4	сулавны	сулавны	VERB	V	Inf	6	xcomp	_	_
+5	оз	оз	AUX	V	Neg|Ind|Prs|Sg3	6	aux	_	_
+6	позь	позьны	VERB	V	ConNeg	0	root	_	_
+7	.	.	PUNCT	CLB	_	6	punct	_	_
+
+# sent_id = belyx-011.053
+# text = Татчӧ тӧв·нырыс эз нин сэтшӧма писькӧдчы .
+# text_rus = До сюда порывы ветра не так сильно доходили.
+# spoken_comparison = 
+1	Татчӧ	татчӧ	ADV	Adv	_	6	obl	_	_
+2	тӧв·нырыс	тӧв·ныр	NOUN	N	Sg|Nom|PxSg3	6	nsubj	_	_
+3	не	не	AUX	V	Neg|Ind|Pr|Sg3	6	aux	_	rus
+4	нин	нин	ADV	Adv	_	6	advmod	_	_
+5	сэтшӧма	сэтшӧма	ADV	Adv	_	6	advmod	_	_
+6	доходили	доходили	VERB	V	Imprt|Sg2	0	root	_	rus
+7	.	.	PUNCT	CLB	_	6	punct	_	_
+
+# sent_id = belyx-011.054
+# text = Но чардби дугдывтӧг югъяліс син водзын .
+# text_rus = Но молния без остановок сверкала перед глазами.
+# spoken_comparison = 
+1	Но	но	CCONJ	CC	_	4	cc	_	mixed
+2	чардби	чардби	NOUN	N	Sg|Nom	4	nsubj	_	_
+3	дугдывтӧг	дугдывны	VERB	V	Car	4	acl	_	_
+4	сверкала	сверкать	VERB	V	Ind|Prt1|Sg3	0	root	_	rus
+5	син	син	NOUN	N	N|Sg|Nom	4	obl	_	_
+6	водзын	водз	ADP	Po	Spat|Sg|Ine	5	case	_	_
+7	.	.	PUNCT	CLB	_	4	punct	_	_
+
+# sent_id = belyx-011.055
+# text = Ас кежысь казьтышті нин , гашкӧ , став Енсӧ , тӧдсаясӧс и тӧдтӧмъясӧс , мед , кӧнкӧ найӧ эмӧсь кӧ , эз жӧ эновтны туй выв мортӧс .
+# text_rus = Про себя вспомнил уже, может быть, всех Богов, знакомых и незнакомых, чтобы, если они где-то есть, не оставили человека в дороге.
+# spoken_comparison = 
+1	Ас	ас	ADJ	A	Refl|Attr	2	amod	_	_
+2	кежысь	кежысь	ADP	Po	Sg|Ela	3	advmod	_	_
+3	вспомнил	вспомнить	VERB	V	Ind|Prt1|Sg3	0	root	_	rus
+4	уже	уже	ADV	Adv	_	3	advmod	_	rus
+5	,	,	PUNCT	CLB	_	6	punct	_	_
+6	гашкӧ	гашкӧ	ADV	Adv	_	24	advmod	_	_
+7	,	,	PUNCT	CLB	_	8	punct	_	_
+8	всех	всё	PRON	Pron	Qnt	9	advmod	_	rus
+9	Богов	бог	NOUN	N	N|Sg|Acc|Clt|Clt	24	nsubj	_	rus
+10	,	,	PUNCT	CLB	_	11	punct	_	_
+11	тӧдсаясӧс	тӧдса	NOUN	N	Pl|Acc	9	appos	_	_
+12	и	и	CCONJ	CC	_	13	cc	_	mixed
+13	тӧдтӧмъясӧс	тӧдтӧм	NOUN	N	Der|A|Der|N|Pl|Acc	11	appos	_	_
+14	,	,	PUNCT	CLB	_	15	punct	_	_
+15	мед	мед	ADV	Adv	_	22	advmod	_	_
+16	,	,	PUNCT	CLB	_	17	punct	_	_
+17	кӧнкӧ	кӧнкӧ	ADV	Adv	Indef|Der	18	obl	_	_
+18	найӧ	найӧ	PRON	Pron	Pers|Pl3|Nom	8	advcl	_	_
+19	эмӧсь	эм	ADJ	A	Cop|Pl	18	cop	_	_
+20	кӧ	кӧ	SCONJ	CS	_	18	mark	_	_
+21	,	,	PUNCT	CLB	_	22	punct	_	_
+22	эз	оз	AUX	V	Neg|Ind|Pr|Pl3	24	aux	_	_
+23	жӧ	жӧ	PART	Pcle	_	24	discourse	_	_
+24	эновтны	эновтны	VERB	V	Inf	3	acl	_	_
+25	туй	туй	NOUN	N	Sg|Nom	26	nmod	_	_
+26	выв	выв	NOUN	N	Sg|Nom	27	nmod	_	_
+27	мортӧс	морт	NOUN	N	Sg|Acc	24	obj	_	_
+28	.	.	PUNCT	CLB	_	3	punct	_	_
+
+# sent_id = belyx-011.056
+# text = И со шерыс вочасӧн вешйис бокӧ .
+# text_rus = И вот град по-тихоньку отошёл в сторону.
+# spoken_comparison = 
+1	И	и	SCONJ	CS	_	5	cc	_	mixed
+2	вот	вот	PART	Pcle	Dem	5	discourse	_	rus
+3	шерыс	шер	NOUN	N	Sg|Nom|PxSg3	5	nsubj	_	_
+4	вочасӧн	вочасӧн	ADV	Adv	_	5	advmod	_	_
+5	вешйис	вешйыны	VERB	V	Ind|Prt1|Sg3	0	root	_	_
+6	бокӧ	бокӧ	ADP	Po	Spat|Sg|Ill	5	obl	_	_
+7	.	.	PUNCT	CLB	_	5	punct	_	_
+
+# sent_id = belyx-011.057
+# text = Зэрыс мӧдӧдчис надзӧнджык .
+# text_rus = Дождь шёл медленее.
+# spoken_comparison = 
+1	Дождь	Дождь	NOUN	N	Sg|Nom|PxSg3	2	nsubj	_	rus
+2	мӧдӧдчис	мӧдӧдчыны	VERB	V	Ind|Prt1|Sg3	0	root	_	_
+3	надзӧнджык	надзӧн	ADV	Adv	Comp	2	advmod	_	_
+4	.	.	PUNCT	CLB	_	2	punct	_	_
+
+# sent_id = belyx-011.058
+# text = Воддза моз гымаліс .
+# text_rus = Гремело как раньше.
+# spoken_comparison = 
+1	Воддза	воддза	ADJ	A	_	2	amod	_	_
+2	моз	моз	ADV	Adv	_	3	advmod	_	_
+3	гымаліс	гымавны	VERB	V	Ind|Prt1|Sg3	0	root	_	rus
+4	.	.	PUNCT	CLB	_	3	punct	_	_
+
+# sent_id = belyx-011.059
+# text = Но эз нин сэтшӧм яра .
+# text_rus = Но уже не так сильно.
+# spoken_comparison = 
+1	Но	но	CCONJ	CC	_	2	cc	_	mixed
+2	эз	оз	AUX	V	Neg|Ind|Pr|Sg3	0	root	_	_
+3	нин	нин	ADV	Adv	_	2	advmod	_	_
+4	сэтшӧм	сэтшӧм	ADJ	A	_	5	amod	_	_
+5	сильно	сильно	ADV	Adv	_	2	advmod	_	rus
+6	.	.	PUNCT	CLB	_	2	punct	_	_
+
+# sent_id = belyx-011.060
+# text = Сэсся и гымыс вешйис .
+# text_rus = Затем и гром отошёл.
+# spoken_comparison = 
+1	Затем	сэсся	CCONJ	CONJ	_	4	cc	_	rus
+2	и	и	PART	Pcle	_	4	discourse	_	mixed
+3	гром	гым	NOUN	N	Sg|Nom|PxSg3	4	nsubj	_	rus
+4	вешйис	вешйыны	VERB	V	Ind|Prt1|Sg3	0	root	_	_
+5	.	.	PUNCT	CLB	_	4	punct	_	_
+
+# sent_id = belyx-011.061
+# text = Ньӧжйӧник мӧдӧдчи гортлань .
+# text_rus = Не торопясь направился в сторону дома.
+# spoken_comparison = 
+1	Ньӧжйӧник	ньӧжйӧник	ADV	Adv	_	2	advmod	_	_
+2	мӧдӧдчи	мӧдӧдчыны	VERB	V	Ind|Prt1|Sg3	0	root	_	_
+3	в	в	ADP	Pr	Sg|Apr	5	case	_	rus
+4	сторону	сторона	NOUN	N	_	5	nmod	_	rus
+5	дома	дом	NOUN	N	_	2	obl	_	rus
+6	.	.	PUNCT	CLB	_	2	punct	_	_
+
+# sent_id = belyx-011.062
+# text = Паськӧмӧй вӧлі брӧд ва .
+# text_rus = Одежда была насквозь мокрой.
+# spoken_comparison = 
+1	Одежда	одежда	NOUN	N	Sg|Nom|PxSg1	4	nsubj	_	rus
+2	вӧлі	вӧвны	VERB	V	Ind|Prt1|Sg3	4	cop	_	_
+3	брӧд	брӧд	ADV	Adv	_	4	advmod	_	_
+4	ва	ва	NOUN	N	Sg|Nom	0	root	_	_
+5	.	.	PUNCT	CLB	_	4	punct	_	_
+
+# sent_id = belyx-011.063
+# text = Муртса верми восьлавны ляти кодь туйӧд .
+# text_rus = Еле мог шагать по грязной дороге.
+# spoken_comparison = 
+1	Муртса	муртса	ADV	Adv	_	2	advmod	_	_
+2	верми	вермыны	VERB	V	Ind|Prt1|Sg3	0	root	_	_
+3	восьлавны	восьлавны	VERB	V	Inf	2	xcomp	_	_
+4	ляти	ляти	NOUN	N	Sg|Nom	5	nmod	_	_
+5	кодь	кодь	ADJ	A	_	6	advmod	_	_
+6	туйӧд	туй	NOUN	N	Sg|Prl	3	obl	_	_
+7	.	.	PUNCT	CLB	_	2	punct	_	_
+
+# sent_id = belyx-011.064
+# text = Лысваыс болскакыліс сапӧг пытшкын .
+# text_rus = Роса булькала в сапоге.
+# spoken_comparison = 
+1	Роса	роса	NOUN	N	Sg|Nom|PxSg3	2	nsubj	_	rus
+2	болскакыліс	болскакывны	VERB	V	Ind|Prt1|Sg3	0	root	_	_
+3	в	в	ADP	Pr	Sg|Nom	4	case	_	rus
+4	сапоге	сапог	NOUN	N	Spat|Sg|Ine	2	obl	_	rus
+5	.	.	PUNCT	CLB	_	2	punct	_	_
+
+# sent_id = belyx-011.065
+# text = Медбӧрын кыр йылын тыдовтчисны сиктса керкаяс .
+# text_rus = Затем на пригорке появились сельские дома.
+# spoken_comparison = 
+1	Затем	затем	ADV	Adv	Ine	2	advmod	_	rus
+2	кыр	кыр	NOUN	N	Sg|Nom	4	obl	_	_
+3	йылын	йылын	ADP	Po	Spat|Sg|Ine	2	case	_	_
+4	тыдовтчисны	тыдовтчыны	VERB	V	Ind|Prt1|Pl3	0	root	_	_
+5	сельские	сельской	ADJ	A	_	6	amod	_	rus
+6	дома	дом	NOUN	N	Pl|Nom	4	nsubj	_	rus
+7	.	.	PUNCT	CLB	_	4	punct	_	_
+
+# sent_id = belyx-011.066
+# text = Тэрыбджыка восьлавны вын-эбӧсӧй эз нин тырмы .
+# text_rus = Шагать быстрее сил уже не было.
+# spoken_comparison = 
+1	Тэрыбджыка	тэрыб	ADV	Adv	Adv	2	advmod	_	_
+2	восьлавны	восьлавны	VERB	V	Inf	6	xcomp	_	_
+3	вын-эбӧсӧй	вын-эбӧс	NOUN	N	Sg|Nom|PxSg1	6	nsubj	_	_
+4	не	не	PART	Pcle	Neg|Ind|Pr|Sg3	6	advmod	_	rus
+5	уже	уже	ADV	Adv	_	6	advmod	_	rus
+6	было	было	VERB	V	Imprt|Sg2	0	root	_	rus
+7	.	.	PUNCT	CLB	_	6	punct	_	_
+
+# sent_id = belyx-011.067
+# text = Мамӧй паныдаліс кильчӧ вылӧ петӧмӧн .
+# text_rus = Мама встретила, выйдя на крыльцо.
+# spoken_comparison = 
+1	Мама	мама	NOUN	N	Sg|Nom|PxSg1	2	nsubj	_	rus
+2	встретила	встретить	VERB	V	Ind|Prt1|Sg3	0	root	_	rus
+3	кильчӧ	кильчӧ	NOUN	N	Sg|Nom	2	obl	_	_
+4	вылӧ	вылӧ	ADP	Po	Spat|Sg|Ill	3	case	_	_
+5	петӧмӧн	петны	VERB	V	Ger|Sg|Ins	2	acl	_	_
+6	.	.	PUNCT	CLB	_	2	punct	_	_
+
+# sent_id = belyx-011.068
+# text = — Мыйла нӧ водзджык эн вермы кайны , — жалитӧмпырысь шуис меным .
+# text_rus = — Почему не смог раньше прийти, — с жалостью сказала мама.
+# spoken_comparison = 
+1	—	—	PUNCT	PUNCT	CLB	2	punct	_	_
+2	Почему	Почему	SCONJ	CS	_	6	cc	_	rus
+3	нӧ	нӧ	PART	Pcle	_	6	discourse	_	_
+4	раньше	раньше	ADV	Adv	_	6	advmod	_	rus
+5	эн	оз	AUX	V	Neg|Ind|Pr|Sg2	6	aux	_	_
+6	вермы	вермыны	VERB	V	ConNeg	0	root	_	_
+7	кайны	кайны	VERB	V	Inf	6	xcomp	_	_
+8	,	,	PUNCT	CLB	_	11	punct	_	_
+9	—	—	PUNCT	PUNCT	CLB	11	punct	_	_
+10	жалитӧмпырысь	жалитӧмпырысь	ADV	Adv	_	11	advmod	_	_
+11	сказала	сказать	VERB	V	Ind|Prt1|Sg3	6	parataxis	_	_
+12	мама	мама	PRON	Pron	Pers|Sg1|Dat	11	nsubj	_	rus
+13	.	.	PUNCT	CLB	_	6	punct	_	_
+
+# sent_id = belyx-011.069
+# text = — Он ӧд тӧд , мый татшӧма зэрны-гымавны кутас , — нурбыльті сӧмын .
+# text_rus = — Не знаешь, что будет такой дождь с грозой,  — брякнул под нос только.
+# spoken_comparison = 
+1	—	—	PUNCT	PUNCT	CLB	2	punct	_	_
+2	Он	оз	AUX	V	Neg|Ind|Prs|Sg2	4	aux	_	_
+3	ӧд	ӧд	PART	Pcle	_	4	discourse	_	_
+4	тӧд	тӧд	NOUN	N	Sg|Nom	0	root	_	_
+5	,	,	PUNCT	CLB	_	6	punct	_	_
+6	что	что	SCONJ	CS	_	9	mark	_	rus
+7	татшӧма	татшӧма	ADV	Adv	_	8	advmod	_	_
+8	зэрны-гымавны	зэрны-гымавны	VERB	V	Inf	9	xcomp	_	_
+9	кутас	кутны	VERB	V	Ind|Fut|Sg3	4	acl	_	_
+10	,	,	PUNCT	CLB	_	12	punct	_	_
+11	—	—	PUNCT	PUNCT	CLB	12	punct	_	_
+12	нурбыльті	нурбыльтны	VERB	V	Ind|Prt1|Sg3	4	parataxis	_	_
+13	только	только	ADV	Adv	_	12	advmod	_	rus
+14	.	.	PUNCT	CLB	_	4	punct	_	_
+
+# sent_id = belyx-011.070
+# text = Керкаӧ пырӧм бӧрын тэрмасьӧмӧн пӧрччи сӧдз ваӧдз кӧтасьӧм кӧм-паськӧмӧс да тэрыба кайи паччӧр вылӧ шонтысьыштны , став тайӧ страксьыс пальӧдчыштны .
+# text_rus = После того, как зашёл домой, торопясь снял насквозь промокшую одежду и обувь, и быстро залез на печку погреться, прийти в себя от этого страха.
+# spoken_comparison = 
+1	Керкаӧ	керка	NOUN	N	Sg|Ill	2	nmod	_	_
+2	пырӧм	пырӧм	NOUN	N	Sg|Nom	3	acl	_	_
+3	бӧрын	бӧрын	ADV	Adv	Spat|Ine	5	advmod	_	_
+4	тэрмасьӧмӧн	тэрмасьӧмӧн	ADV	Adv	_	5	advmod	_	_
+5	пӧрччи	пӧрччыны	VERB	V	Ind|Prt1|Sg3	0	root	_	_
+6	сӧдз	сӧдз	ADJ	A	_	7	amod	_	_
+7	ваӧдз	ва	NOUN	N	Sg|Ter	8	nmod	_	_
+8	кӧтасьӧм	кӧтасьӧм	NOUN	N	Sg|Nom	9	nmod	_	_
+9	кӧм-паськӧмӧс	кӧм-паськӧм	NOUN	N	Sg|Acc	5	obj	_	_
+10	и	и	CCONJ	CC	_	12	cc	_	rus
+11	быстро	быстро	ADV	Adv	_	12	advmod	_	rus
+12	кайи	кайны	VERB	V	Ind|Prt1|Sg3	5	conj	_	_
+13	паччӧр	паччӧр	NOUN	N	Sg|Nom	12	obl	_	_
+14	вылӧ	вылын	ADP	Po	Spat|Sg|Ill	13	case	_	_
+15	шонтысьыштны	шонтысьыштны	VERB	V	Inf	12	xcomp	_	_
+16	,	,	PUNCT	CLB	_	17	punct	_	_
+17	став	став	PRON	Pron	Qnt	18	det	_	_
+18	тайӧ	тайӧ	PRON	Pron	Dem|Sg|Nom	19	det	_	_
+19	страксьыс	страк	NOUN	N	Sg|Ela|PxSg3	20	obl	_	_
+20	пальӧдчыштны	пальӧдчыштны	VERB	V	Inf	15	conj	_	_
+21	.	.	PUNCT	CLB	_	5	punct	_	_
+
+# sent_id = belyx-011.071
+# text = Шерыс уна омӧльтор вайӧма сэки сиктсаяслы .
+# text_rus = Град много проблем принёс тогда сельчанам.
+# spoken_comparison = 
+1	Шерыс	шер	NOUN	N	Sg|Nom|PxSg3	4	nsubj	_	_
+2	много	много	ADV	Qnt	Sg|Nom	3	advmod	_	rus
+3	проблем	проблема	NOUN	N	Sg|Nom	4	obj	_	rus
+4	вайӧма	вайны	VERB	V	Ind|Prt2|Sg3	0	root	_	_
+5	сэки	сэки	ADV	Adv	_	4	advmod	_	_
+6	сиктсаяслы	сиктса	NOUN	N	Pl|Dat	4	iobj	_	_
+7	.	.	PUNCT	CLB	_	4	punct	_	_
+
+# sent_id = belyx-011.072
+# text = Чеглалӧма картупель да град выв пуктас коръяс , пӧрӧдӧма потшӧсъяс .
+# text_rus = Сломал листья картофеля и овощей, повалил заборы.
+# spoken_comparison = 
+1	Чеглалӧма	чеглавны	VERB	V	Ind|Prt2|Sg3	0	root	_	_
+2	картупель	картупель	NOUN	N	Sg|Nom	7	nmod	_	_
+3	да	да	CCONJ	CC	_	6	cc	_	_
+4	град	град	NOUN	N	Sg|Nom	5	nmod	_	_
+5	выв	выв	NOUN	N	Sg|Nom	6	nmod	_	_
+6	пуктас	пуктас	NOUN	N	Sg|Nom	7	nmod	_	_
+7	коръяс	кор	NOUN	N	Pl|Nom	1	nsubj	_	_
+8	,	,	PUNCT	CLB	_	9	punct	_	_
+9	пӧрӧдӧма	пӧрӧдны	VERB	V	Ind|Prt2|Sg3	1	parataxis	_	rus
+10	потшӧсъяс	потшӧс	NOUN	N	Pl|Nom	9	nsubj	_	rus
+11	.	.	PUNCT	CLB	_	1	punct	_	_
+
+# sent_id = belyx-011.073
+# text = А кодлыськӧ весиг чашнитӧма керка·вевтсӧ .
+# text_rus = А у кого-то даже снёс крышу.
+# spoken_comparison = 
+1	А	а	SCONJ	CS	_	4	cc	_	_
+2	кодлыськӧ	коді	PRON	Pron	Sg|Abl|Der|Indef	4	obl	_	_
+3	весиг	весиг	ADV	Adv	_	4	advmod	_	_
+4	снёс	снести	VERB	V	Ind|Prt2|Sg3	0	root	_	rus
+5	крышу	крыша	NOUN	N	Sg|Acc|PxSg3	4	obj	_	rus
+6	.	.	PUNCT	CLB	_	4	punct	_	_
+
+# sent_id = belyx-011.074
+# text = И шензи нӧшта , кор тӧдмалі , мый шерыслӧн туйыс зэв векньыдик и вӧлӧма .
+# text_rus = И удивился ещё, что полоса града была очень узкой.
+# spoken_comparison = 
+1	И	и	SCONJ	CS	_	2	cc	_	mixed
+2	шензи	шензьыны	VERB	V	Ind|Prt1|Sg3	0	root	_	_
+3	ещё	ещё	ADV	Adv	_	2	advmod	_	rus
+4	,	,	PUNCT	CLB	_	5	punct	_	_
+5	кор	кор	SCONJ	CS	_	6	mark	_	_
+6	тӧдмалі	тӧдмавны	VERB	V	Ind|Prt1|Sg3	2	advcl	_	_
+7	,	,	PUNCT	CLB	_	8	punct	_	_
+8	что	что	SCONJ	CS	_	14	mark	_	rus
+9	шерыслӧн	шер	NOUN	N	Sg|Gen|PxSg3	10	nmod	_	_
+10	туйыс	туй	NOUN	N	Sg|Nom|PxSg3	12	nsubj	_	_
+11	очень	очень	ADV	Adv	_	12	advmod	_	rus
+12	векньыдик	векньыдик	ADJ	A	_	14	amod	_	_
+13	и	и	PART	Pcle	_	14	discourse	_	mixed
+14	вӧлӧма	вӧвны	VERB	V	Ind|Prt2|Sg3	6	acl	_	_
+15	.	.	PUNCT	CLB	_	2	punct	_	_
+
+# sent_id = belyx-011.075
+# text = Неылысса сикт-грездын сы йылысь абу весиг тӧдлӧмаӧсь .
+# text_rus = В близлежащих селах и деревнях о нём даже не знали.
+# spoken_comparison = 
+1	Неылысса	неылысса	ADJ	A	_	2	amod	_	_
+2	сикт-грездын	сикт-грезд	NOUN	N	Sg|Ine	7	obl	_	_
+3	сы	сійӧ	PRON	Pron	Pers|Sg3|Cmpl	7	obj	_	_
+4	йылысь	йылысь	ADP	Po	Spat|Sg|Ela	3	case	_	_
+5	абу	абу	VERB	V	_	7	aux	_	_
+6	даже	даже	ADV	Adv	_	7	advmod	_	rus
+7	тӧдлӧмаӧсь	тӧдлыны	VERB	V	Ind|Prt2|Pl3	0	root	_	_
+8	.	.	PUNCT	CLB	_	7	punct	_	_
+
+# sent_id = kpv_four_battles.001
+# text = Став челядь миян странаын тӧдӧны Климент Ефремович Ворошиловӧс , Советскӧй Союзса маршалӧс , Оборона кузя Народнӧй Комиссарӧс .
+# text_rus = Все ребята нашей страны знают Климента Ефремовича Ворошилова, маршала Советского Союза, Народного Комиссара Обороны.
+# spoken_comparison = 
+1	Все	все	PRON	Pron	_	2	det	_	rus
+2	ребята	ребята	NOUN	N	_	5	nsubj	_	rus
+3	нашей	наш	PRON	Pron	_	4	nmod	_	rus
+4	страны	страна	NOUN	N	_	5	obl	_	rus
+5	тӧдӧны	тӧдны	VERB	V	_	0	root	_	_
+6	Климент	Климент	NOUN	N	_	5	obj	_	_
+7	Ефремович	Ефрем	NOUN	N	_	6	flat	_	_
+8	Ворошиловӧс	Ворошилов	NOUN	N	_	7	flat	_	_
+9	,	,	PUNCT	CLB	_	10	punct	_	_
+10	маршала	маршала	NOUN	N	_	6	appos	_	rus
+11	Советского	советской	ADJ	A	_	12	amod	_	rus
+12	Союза	союз	NOUN	N	_	10	nmod	_	rus
+13	,	,	PUNCT	CLB	_	14	punct	_	_
+14	Оборона	оборона	NOUN	N	_	17	nmod	_	_
+15	кузя	кузя	ADV	Adv	_	14	advmod	_	_
+16	Народнӧй	народнӧй	ADJ	A	_	17	amod	_	_
+17	Комиссарӧс	комиссар	NOUN	N	_	6	appos	_	_
+18	.	.	PUNCT	CLB	_	5	punct	_	_
+
+# sent_id = kpv_four_battles.002
+# text = Тӧдӧны сійӧс и радейтӧны .
+# text_rus = Знают его и любят.
+# spoken_comparison = 
+1	Тӧдӧны	тӧдны	VERB	V	_	0	root	_	_
+2	сійӧс	сійӧ	PRON	Pron	_	1	obj	_	_
+3	и	и	CCONJ	CC	_	1	cc	_	mixed
+4	любят	любить	VERB	V	_	1	conj	_	rus
+5	.	.	PUNCT	CLB	_	1	punct	_	_
+
+# sent_id = kpv_four_battles.003
+# text = И , дерт , кӧсйӧны тӧдны сы йылысь дзик ставсӧ .
+# text_rus = И, конечно, хотят знать о нем решительно все.
+# spoken_comparison = 
+1	И	и	SCONJ	CS	_	5	cc	_	mixed
+2	,	,	PUNCT	CLB	_	5	punct	_	_
+3	конечно	конечно	ADV	Adv	_	5	advmod	_	rus
+4	,	,	PUNCT	CLB	_	5	punct	_	_
+5	кӧсйӧны	кӧсйыны	VERB	V	_	0	root	_	_
+6	тӧдны	тӧдны	VERB	V	_	5	xcomp	_	_
+7	сы	сійӧ	PRON	Pron	_	10	nmod	_	_
+8	йылысь	йылысь	ADP	Po	_	7	case	_	_
+9	решительно	решительно	ADV	Adv	_	10	advmod	_	rus
+10	все	все	PRON	Pron	_	6	obj	_	rus
+11	.	.	PUNCT	CLB	_	5	punct	_	_
+
+# sent_id = kpv_four_battles.004
+# text = Кыдзи сійӧ оліс ичӧтдырйиыс ?
+# text_rus = Как жил он в детстве?
+# spoken_comparison = 
+1	Кыдзи	кыдзи	ADV	CONJ	_	3	advmod	_	_
+2	сійӧ	сійӧ	PRON	Pron	_	3	nsubj	_	_
+3	оліс	овны	VERB	V	_	0	root	_	_
+4	в	в	ADP	Pr	_	5	case	_	rus
+5	детстве	детство	NOUN	N	_	3	obl	_	rus
+6	?	?	PUNCT	CLB	_	3	punct	_	_
+
+# sent_id = kpv_four_battles.005
+# text = Кыдзи сійӧ лои большевикӧн ?
+# text_rus = Как он стал большевиком?
+# spoken_comparison = 
+1	Кыдзи	кыдзи	ADV	Adv	_	3	advmod	_	_
+2	сійӧ	сійӧ	PRON	Pron	_	3	nsubj	_	_
+3	лои	лоны	VERB	V	_	0	root	_	_
+4	большевиком	большевик	NOUN	N	_	3	obl	_	rus
+5	?	?	PUNCT	CLB	_	3	punct	_	_
+
+# sent_id = kpv_four_battles.006
+# text = Кыдзи лои Краснӧй Армияса командирӧн ?
+# text_rus = Как стал командиром Красной армии?
+# spoken_comparison = 
+1	Кыдзи	кыдзи	ADV	Adv	_	2	advmod	_	_
+2	лои	лоны	VERB	V	_	0	root	_	_
+3	командиром	краснӧй	NOUN	N	_	2	obl	_	rus
+4	Красной	армияса	ADJ	A	_	5	amod	_	rus
+5	армии	командир	NOUN	N	_	3	nmod	_	rus
+6	?	?	PUNCT	CLB	_	2	punct	_	_
+
+# sent_id = kpv_four_battles.007
+# text = Кыдзи нуӧдіс бойӧ миянлысь армияясӧс белӧйяслы паныд ?
+# text_rus = Как вел в бой против белых наши армии?
+# spoken_comparison = 
+1	Как	Как	ADV	Adv	_	2	advmod	_	rus
+2	вел	вести	VERB	V	_	0	root	_	rus
+3	бойӧ	бой	NOUN	N	_	2	obl	_	_
+4	миянлысь	ми	PRON	Pron	_	5	nmod	_	_
+5	армияясӧс	армия	NOUN	N	_	2	obj	_	_
+6	белӧйяслы	белӧй	ADJ	A	_	2	iobj	_	_
+7	паныд	паныд	ADP	Po	_	6	case	_	_
+8	?	?	PUNCT	CLB	_	2	punct	_	_
+
+# sent_id = kpv_four_battles.008
+# text = Кыдзи вермывліс врагъясӧс ?
+# text_rus = Как побеждал врагов?
+# spoken_comparison = 
+1	Как	как	ADV	Adv	_	2	advmod	_	rus
+2	вермывліс	вермывлыны	VERB	V	_	0	root	_	_
+3	врагов	враг	NOUN	N	_	2	obj	_	rus
+4	?	?	PUNCT	CLB	_	2	punct	_	_
+
+# sent_id = kpv_four_battles.x1
+# text = Дженьыдик висьтӧ ыджыд мортлӧн олӧмыс оз тӧр .
+# text_rus = Жизнь большого человека не укладывается в короткий рассказ.
+# spoken_comparison = 
+1	Дженьыдик	дженьыдик	ADJ	A	_	2	amod	_	_
+2	висьтӧ	висьт	NOUN	N	_	7	obl	_	_
+3	ыджыд	ыджыд	ADJ	A	_	4	amod	_	_
+4	мортлӧн	морт	NOUN	N	_	5	nmod	_	_
+5	олӧмыс	олӧм	NOUN	N	_	7	nsubj	_	_
+6	не	не	PART	Pcle	_	7	advmod	_	rus
+7	укладывается	укладываться	VERB	V	_	0	root	_	rus
+8	.	.	PUNCT	CLB	_	7	punct	_	_
+
+# sent_id = kpv_four_battles.x2
+# text = Враг быттьӧ сыліс кытчӧкӧ .
+# text_rus = Враг точно бесследно провалился куда-то.
+# spoken_comparison = 
+1	Враг	враг	NOUN	N	_	3	nsubj	_	mixed
+2	быттьӧ	быттьӧ	PART	Pcle	_	3	advmod	_	_
+3	сыліс	сывны	VERB	V	_	0	root	_	_
+4	кытчӧкӧ	кытчӧ	ADV	Adv	_	3	obl	_	_
+5	.	.	PUNCT	CLB	_	3	punct	_	_
+
+# sent_id = kpv_four_battles.x3
+# text = Кытчӧ сійӧ воши ?
+# text_rus = Куда он делся?
+# spoken_comparison = 
+1	Куда	куда	ADV	Adv	_	3	advmod	_	rus
+2	сійӧ	сійӧ	PRON	Pron	_	3	nsubj	_	_
+3	воши	вошны	VERB	V	_	0	root	_	_
+4	?	?	PUNCT	CLB	_	3	punct	_	_
+
+# sent_id = kpv_four_battles.x4
+# text = Некод оз тӧд !
+# text_rus = Неизвестно!
+# spoken_comparison = 
+1	Некод	некод	PRON	Pron	_	3	nsubj	_	_
+2	оз	оз	AUX	V	_	3	aux	_	_
+3	тӧд	тӧдны	VERB	V	_	0	root	_	_
+4	!	!	PUNCT	CLB	_	3	punct	_	_
+
+# sent_id = kpv_four_battles.x64
+# text = Шоферыс , том зонка на , дзикӧдз растеряйтчис .
+# text_rus = Водитель машины, еще молодой парнишка, совсем растерялся.
+# spoken_comparison = 
+1	Шоферыс	шофёр	NOUN	N	_	8	nsubj	_	_
+2	,	,	PUNCT	CLB	_	1	punct	_	_
+3	том	том	ADJ	A	_	4	amod	_	_
+4	зонка	зонка	NOUN	N	_	1	appos	_	_
+5	на	на	ADV	Adv	_	4	advmod	_	_
+6	,	,	PUNCT	CLB	_	8	punct	_	_
+7	совсем	совсем	ADV	Adv	_	8	advmod	_	rus
+8	растерялся	растеряться	VERB	V	_	0	root	_	rus
+9	.	.	PUNCT	CLB	_	8	punct	_	_
+
+# sent_id = kpv_four_battles.x65
+# text = Мый вӧчны ?
+# text_rus = Что делать?
+# spoken_comparison = 
+1	Мый	мый	PRON	Pron	_	2	obj	_	_
+2	вӧчны	вӧчны	VERB	V	_	0	root	_	_
+3	?	?	PUNCT	CLB	_	2	punct	_	_
+
+# sent_id = kpv_four_battles.x69
+# text = Чорыд киыс Ворошиловлӧн усис сылы пельпом вылас .
+# text_rus = Твердая рука Ворошилова легла ему на плечо.
+# spoken_comparison = 
+1	Твердая	твердый	ADJ	A	_	2	amod	_	rus
+2	рука	рука	NOUN	N	_	4	nsubj	_	rus
+3	Ворошилова	Ворошилов	NOUN	N	_	2	nmod	_	rus
+4	усис	усьны	VERB	V	_	0	root	_	_
+5	сылы	сійӧ	PRON	Pron	_	6	nmod	_	_
+6	пельпом	пельпом	NOUN	N	_	4	obl	_	_
+7	вылас	вылын	ADP	Po	_	6	case	_	_
+8	.	.	PUNCT	CLB	_	4	punct	_	_
+
+# sent_id = kpv_izva20140327-3-b-099
+# text = Но вӧвъяссӧ миян унаӧн видзӧны .
+1	Но	но	CCONJ	CC	_	5	cc	_	_
+2	вӧвъяссӧ	вӧв	NOUN	N	_	5	obj	_	_
+3	миян	ми	PRON	Pron	_	5	nmod	_	_
+4	унаӧн	уна	ADV	Adv	_	5	advmod	_	_
+5	видзӧны	видзны	VERB	V	_	0	root	_	_
+6	.	.	PUNCT	CLB	_	5	punct	_	_
+
+# sent_id = kpv-gt.01
+# text = Ныв ёртыслы гижис письмӧ .
+# text_rus = 
+# spoken_comparison = 
+1	Ныв	ныв	NOUN	N	_	3	nsubj	_	rus
+2	ёртыслы	ёрт	NOUN	N	_	3	iobj	_	_
+3	гижис	гижны	VERB	V	_	0	root	_	rus
+4	письмӧ	письмӧ	NOUN	N	_	3	obj	_	_
+5	.	.	PUNCT	CLB	_	3	punct	_	_
+
+# sent_id = kpv-gt.02
+# text = Меным кажитчӧ , мый зэрӧ .
+# text_rus = Мне кажется , что идёт дождь . 
+# spoken_comparison = 
+1	Мне	мне	PRON	Pron	_	2	obl	_	rus
+2	кажется	кажеться	VERB	V	_	0	root	_	rus
+3	,	,	PUNCT	CLB	_	2	punct	_	_
+4	мый	мый	SCONJ	_	_	5	mark	_	_
+5	зэрӧ	зэрны	VERB	V	_	2	ccomp	_	_
+6	.	_	PUNCT	CLB	_	2	punct	_	_
+
+# sent_id = kpv-gt.03
+# text = Сійӧ заводитліс чӧвтны куритчӧмсӧ да юӧмсӧ
+# text_rus = Он попытался бросить курить и пить .
+# spoken_comparison = 
+1	Он	oн	PRON	Pron	_	2	nsubj	_	rus
+2	попытался	попытаться	VERB	V	_	0	root	_	rus
+3	чӧвтны	чӧвтны	VERB	V	_	2	xcomp	_	_
+4	куритчӧмсӧ	куритчӧм	NOUN	N	_	3	obj	_	_
+5	да	да	CCONJ	CC	_	4	cc	_	_
+6	юӧмсӧ	юӧм	NOUN	N	_	4	conj	_	_
+7	.	.	PUNCT	CLB	_	2	punct	_	_
+
+# sent_id = kpv-gt.04
+# text = Кӧсъян мунны ?
+# text_rus = Хочешь пойти ?
+# spoken_comparison = 
+1	Кӧсъян	кӧсйыны	VERB	V	_	0	root	_	_
+2	пойти	пойти	VERB	V	_	1	xcomp	_	rus
+3	?	?	PUNCT	CLB	_	1	punct	_	_
+
+# sent_id = kpv-gt.05
+# text = Сэм , восьты ӧшиньсӧ !
+# text_rus = Сэм , открой окно ! 
+# spoken_comparison = 
+1	Сэм	сэм	PROPN	N	_	3	vocative	_	_
+2	,	,	PUNCT	CLB	_	3	punct	_	_
+3	восьты	восьтны	VERB	V	_	0	root	_	rus
+4	ӧшиньсӧ	ӧшинь	NOUN	N	_	3	obj	_	_
+5	!	!	PUNCT	CLB	_	3	punct	_	_
+
+# sent_id = kpv-gt.06
+# text = Сійӧ тшӧктіс верӧсыслы мыськыны машинасӧ .
+# text_rus = Она заставила мужа помыть машину . 
+# spoken_comparison = 
+1	Сійӧ	сійӧ	PRON	Pron	_	2	nsubj	_	_
+2	тшӧктіс	тшӧктыны	VERB	V	_	0	root	_	_
+3	мужа	муж	NOUN	N	_	2	obl	_	rus
+4	мыськыны	мыськыны	VERB	V	_	2	xcomp	_	_
+5	машину	машина	NOUN	N	_	4	obj	_	rus
+6	.	.	PUNCT	CLB	_	2	punct	_	_
+
+# sent_id = kpv-gt.07
+# text = Петилӧн суседыс краситӧма заборсӧ .
+# text_rus = Сосед Пети покрасил забор . 
+# spoken_comparison = 
+1	Петилӧн	Пети	PROPN	N	_	2	nmod	_	_
+2	суседыс	сусед	NOUN	N	_	3	nsubj	_	_
+3	покрасил	покрасить	VERB	V	_	0	root	_	rus
+4	забор	забор	NOUN	N	_	3	obj	_	rus
+5	.	.	PUNCT	CLB	_	3	punct	_	_
+
+# sent_id = kpv-gt.08
+# text = Менам батьӧ тэнад батьсьыд бурджык .
+# text_rus = Мой папа круче твоего . 
+# spoken_comparison = 
+1	Менам	ме	PRON	Pron	_	2	nmod	_	rus
+2	батьӧ	бать	NOUN	N	_	5	nsubj	_	rus
+3	тэнад	тэ	PRON	Pron	_	4	nmod	_	_
+4	батьсьыд	бать	NOUN	N	_	5	iobj	_	_
+5	бурджык	бур	ADJ	A	_	0	root	_	_
+6	.	.	PUNCT	CLB	_	5	punct	_	_
+
