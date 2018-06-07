@@ -25,15 +25,8 @@ if __name__ == '__main__':
     arg_parser.add_argument('--use_cuda', action='store_true')
     # aux tasks
     arg_parser.add_argument('--semtag', action='store_true')
-    arg_parser.add_argument('--code_switch', action='store_true')
-    arg_parser.add_argument('--cl_tagger', action='store_true')
-    arg_parser.add_argument('--random_bs', action='store', nargs='*')
+    arg_parser.add_argument('--lm', action='store_true')
     args = arg_parser.parse_args()
-
-    # sanity checks
-    # later, allow both tag and parse to do something like tag-first-parser
-    assert args.tag + args.parse + args.langid == 1
-    assert args.semtag + args.cl_tagger <= 1
 
     config = configparser.ConfigParser()
     config.read(args.config)
@@ -58,23 +51,6 @@ if __name__ == '__main__':
     PARSE_EPOCHS = int(config['parser']['EPOCHS'])
     TAG_EPOCHS = int(config['tagger']['EPOCHS'])
 
-    # =============================
-    # Ignore these functions
-    # Seriously, don't look at them
-    # =============================
-    def run_cl_tagger(args, iterators):
-        assert len(iterators) == 2, "r u ok because this not how aux tasks work fam"
-
-        main, aux = iterators[0], iterators[1]
-        (train_loader_main, dev_loader_main, test_loader_main), sizes_main, vocab_main = main
-        (train_loader_aux, dev_loader_aux, test_loader_aux), sizes_aux, vocab_aux = aux
-
-        runnable = CLTagger(args, sizes_main, sizes_aux, vocab_main, vocab_aux)
-
-        for epoch in range(PARSE_EPOCHS):
-            runnable.train_(epoch, train_loader_main, type_task="main")
-            runnable.train_(epoch, train_loader_aux, type_task="aux")
-
     # ==========================
     # Actual loading begins here
     # Start with args
@@ -90,10 +66,6 @@ if __name__ == '__main__':
 
         runnable.evaluate_(test_loader)
 
-
-    elif args.cl_tagger:
-        iterators = Loader.get_iterators(args, PARSE_BATCH_SIZE)
-        run_cl_tagger(args, iterators)
 
     # ========================
     # Run language model thing
@@ -117,10 +89,7 @@ if __name__ == '__main__':
     # Normal stuff
     # ========================
     else:
-        (train_loader, dev_loader, test_loader), sizes, vocab = Loader.get_iterators(args, PARSE_BATCH_SIZE)[0]
-        if args.parse and args.code_switch:
-            runnable = CSParser(sizes, args, vocab, embeddings=vocab, embed_dim=PARSE_EMBED_DIM, lstm_dim=PARSE_LSTM_DIM, lstm_layers=PARSE_LSTM_LAYERS,
-                                reduce_dim_arc=PARSE_REDUCE_DIM_ARC, reduce_dim_label=PARSE_REDUCE_DIM_LABEL, learning_rate=PARSE_LEARNING_RATE)
+        (train_loader, dev_loader, test_loader), sizes, vocab = Loader.get_iterators(args, PARSE_BATCH_SIZE)
 
         # ============
         # Wall of code

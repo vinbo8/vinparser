@@ -3,13 +3,11 @@ import torch
 import torch.utils.data
 import torch.nn.functional as F
 from torch.autograd import Variable
-from Conllu import ConllParser
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from torch.autograd import Variable
 import sys
 
 DEBUG_SIZE = -1
-
 
 def write_tags_to_conllu(fname, tags, write_at):
     with open(fname, "r") as f:
@@ -66,46 +64,6 @@ def write_to_conllu(fname, out_dict, deprels, write_at):
                 cols[6] = str(out_dict[int(id)])
                 cols[7] = str(deprels[int(id)])
                 sys.stdout.write("\t".join(cols))
-
-
-def build_data(fname, batch_size, train_conll=None):
-    # build data
-    with open(fname, 'r') as f:
-        conll = ConllParser(f) if not train_conll else ConllParser(f, train_conll)
-
-    # sentences
-    print("Preparing %s.." % fname)
-    # rels turns into heads later
-    words, forms, chars, tags, deprels, rels = conll.get_tensors()
-    assert forms.shape == torch.Size([len(conll), conll.longest_sent])
-    assert tags.shape == torch.Size([len(conll), conll.longest_sent])
-    assert deprels.shape == torch.Size([len(conll), conll.longest_sent])
-
-    # heads
-    heads = -torch.ones(forms.shape[0], conll.longest_sent)
-    heads.scatter_(1, rels[:, :, 1], rels[:, :, 0].type(torch.FloatTensor))
-    heads[:, 0] = 0
-    heads = heads.type(torch.LongTensor)
-
-    assert heads.shape == torch.Size([len(conll), conll.longest_sent])
-
-    # sizes
-    sizes_int = torch.zeros(len(conll)).view(-1, 1).type(torch.LongTensor)
-    sizes = torch.zeros(len(conll), conll.longest_sent)
-    for n, form in enumerate(forms):
-        sizes_int[n] = form[form != 0].shape[0]
-
-    for n, size in enumerate(sizes_int):
-        sizes[n, 1:size[0]] = 1
-
-    assert sizes.shape == torch.Size([len(conll), conll.longest_sent])
-
-    # build loader & model
-    data = list(zip(forms, tags, chars, heads, deprels, sizes))[:DEBUG_SIZE]
-    loader = torch.utils.data.DataLoader(data, batch_size=batch_size, shuffle=True, drop_last=True)
-
-    return conll, loader
-
 
 def process_batch(batch, cuda=False):
     forms, tags, chars, heads, deprels, sizes = [torch.stack(list(i)) for i in zip(*sorted(zip(*batch),
