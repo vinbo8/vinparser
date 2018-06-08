@@ -273,6 +273,7 @@ class Parser(torch.nn.Module):
 
         for i, batch in enumerate(train_loader):
             y_heads, y_deprels = batch.head, batch.deprel
+            elements_per_batch = len(y_heads)
             y_pred_heads, y_pred_deprels = self(batch)
 
             # reshape for cross-entropy
@@ -295,7 +296,7 @@ class Parser(torch.nn.Module):
             train_loss.backward()
             self.optimiser.step()
 
-            print("Epoch: {}\t{}/{}\tloss: {}".format(epoch, (i + 1) * len(y_heads), len(train_loader.dataset), train_loss.data[0]))
+            print("Epoch: {}\t{}/{}\tloss: {}".format(epoch, (i + 1) * elements_per_batch, len(train_loader.dataset), train_loss.data[0]))
 
 
     def evaluate_(self, test_loader, print_conll=False):
