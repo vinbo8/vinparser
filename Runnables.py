@@ -177,6 +177,7 @@ class Tagger(torch.nn.Module):
         print("Accuracy = {}/{} = {}".format(correct, total, (correct / total)))
         if self.chain: return tag_tensors
 
+
 class Parser(torch.nn.Module):
     def __init__(self, sizes, args, vocab, embeddings=None, embed_dim=100, lstm_dim=400, lstm_layers=3,
                  reduce_dim_arc=100, reduce_dim_label=100, learning_rate=1e-3):
@@ -184,6 +185,7 @@ class Parser(torch.nn.Module):
 
         self.use_cuda = args.use_cuda
         self.use_chars = args.use_chars
+        self.use_embed = args.embed
         self.save = args.save
         self.vocab = vocab
         # for writer
@@ -192,10 +194,10 @@ class Parser(torch.nn.Module):
         if self.use_chars:
             self.embeddings_chars = CharEmbedding(sizes['chars'], embed_dim, lstm_dim, lstm_layers)
 
+        self.embeddings_rand = torch.nn.Embedding(sizes['vocab'], embed_dim)
         self.embeddings_forms = torch.nn.Embedding(sizes['vocab'], embed_dim)
         if args.embed:
             self.embeddings_forms.weight.data.copy_(vocab[0].vectors)
-        self.compress = torch.nn.Linear(300,100)                                                      
 
         self.embeddings_tags = torch.nn.Embedding(sizes['postags'], 100)
         self.lstm = torch.nn.LSTM(200, lstm_dim, lstm_layers,
@@ -206,7 +208,6 @@ class Parser(torch.nn.Module):
         self.mlp_deprel_dep = torch.nn.Linear(2 * lstm_dim, reduce_dim_label)
         self.relu = torch.nn.ReLU()
         self.dropout = torch.nn.Dropout(p=0.33)
-        # self.biaffine = Biaffine(reduce_dim_arc + 1, reduce_dim_arc, BATCH_SIZE)
         self.biaffine = ShorterBiaffine(reduce_dim_arc)
         self.label_biaffine = LongerBiaffine(reduce_dim_label, reduce_dim_label, sizes['deprels'])
         self.criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
@@ -217,13 +218,13 @@ class Parser(torch.nn.Module):
             self.label_biaffine.cuda()
 
     def forward(self, forms, tags, pack, chars, char_pack):
-        form_embeds = self.dropout(self.embeddings_forms(forms))
-        form_embeds = self.relu(self.compress(form_embeds))
-        tag_embeds = self.dropout(self.embeddings_tags(tags))
-        composed_embeds = form_embeds
-
+        composed_embeds = self.dropout(self.embeddings_rand(forms))
+        if self.use_embed:
+            composed_embeds += self.dropout(self.embeddings_forms(forms))
         if self.use_chars:
             composed_embeds += self.dropout(self.embeddings_chars(chars, char_pack))
+
+        tag_embeds = self.dropout(self.embeddings_tags(tags))
 
         embeds = torch.cat([composed_embeds, tag_embeds], dim=2)
 
@@ -346,10 +347,6 @@ class Parser(torch.nn.Module):
                 heads_softmaxes = self(x_forms, x_tags, pack, chars, length_per_word_per_sent)[0][0]
                 heads_softmaxes = F.softmax(heads_softmaxes, dim=1)
                 json = cle.mst(heads_softmaxes.data.numpy())
-
-
-#            json = cle.mst(i, pad) for i, pad in zip(self(x_forms, x_tags, pack, chars,
-#                                                           length_per_word_per_sent)[0], pack)
 
                 Helpers.write_to_conllu(self.test_file, json, deprels, i)
 
