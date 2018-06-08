@@ -6,9 +6,9 @@ from torchtext import data, datasets, vocab
 import csv
 import re
 from torchtext import datasets
+import time
 
 csv.field_size_limit(sys.maxsize)
-
 
 ROOT_LINE = "0\t__ROOT\t_\t__ROOT\t_\t_\t0\t__ROOT\t_\t_"
 
@@ -52,6 +52,7 @@ def dep_to_int(tensor, vocab, _):
 '''
 
 
+# MASSIVE TODO: write iterator getter for single treebank files for running loaded models
 def get_iterators(args, batch_size):
     device = -(not args.use_cuda)
     tokeniser = lambda x: x.split(',')
@@ -89,12 +90,14 @@ def get_iterators(args, batch_size):
     dev_csv = conll_to_csv(args, args.dev, len(field_tuples))
     test_csv = conll_to_csv(args, args.test, len(field_tuples))
 
+    seconds_since_epoch = time.mktime(time.localtime())
     for file, text in zip(["train", "dev", "test"], [train_csv, dev_csv, test_csv]):
-        with open(os.path.join(".tmp", "{}.csv".format(file)), "w") as f:
+        with open(os.path.join(".tmp", "{}_{}.csv".format(file, seconds_since_epoch)), "w") as f:
             f.write(text)
 
-    train, dev, test = data.TabularDataset.splits(path=".tmp", train='train.csv',
-                                                    validation='dev.csv', test='test.csv',
+    train, dev, test = data.TabularDataset.splits(path=".tmp", train='train_{}.csv'.format(seconds_since_epoch),
+                                                    validation='dev_{}.csv'.format(seconds_since_epoch), 
+                                                    test='test_{}.csv'.format(seconds_since_epoch),
                                                     format="csv", fields=field_tuples)
 
     field_names = [i[1] for i in field_tuples]

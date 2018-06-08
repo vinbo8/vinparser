@@ -198,7 +198,7 @@ class Parser(torch.nn.Module):
         self.embeddings_forms = torch.nn.Embedding(sizes['forms'], embed_dim)
         if args.embed:
             self.embeddings_forms.weight.data.copy_(vocab['forms'].vectors)
-            self.embeddings_forms.weight.requires_grad = False
+            # self.embeddings_forms.weight.requires_grad = False
 
         self.embeddings_tags = torch.nn.Embedding(sizes['postags'], 100)
         self.embeddings_langids = torch.nn.Embedding(sizes['misc'], 100)

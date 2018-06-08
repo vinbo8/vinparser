@@ -153,3 +153,8 @@ if __name__ == '__main__':
         # test
         print("Eval")
         runnable.evaluate_(test_loader, print_conll=True)
+
+        if args.save:
+            print("Saving..")
+            with open(args.load, "rb") as f:
+                torch.save(runnable, f)
