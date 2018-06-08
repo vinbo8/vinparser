@@ -129,8 +129,6 @@ def get_iterators(args, batch_size):
 
     return (current_iterator, sizes, vocabs)
 
-
-
 def get_treebank_and_txt(args, batch_size):
     device = -(not args.use_cuda)
 
