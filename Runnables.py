@@ -201,10 +201,10 @@ class Parser(torch.nn.Module):
             self.embeddings_forms.weight.requires_grad = False
 
         self.embeddings_tags = torch.nn.Embedding(sizes['postags'], 100)
-        self.embeddings_langid = torch.nn.Embedding(sizes['misc'], 100)
+        self.embeddings_langids = torch.nn.Embedding(sizes['misc'], 100)
 
         # size should be embed_size + whatever the other embeddings have
-        self.lstm = torch.nn.LSTM(400, lstm_dim, lstm_layers,
+        self.lstm = torch.nn.LSTM(500, lstm_dim, lstm_layers,
                                   batch_first=True, bidirectional=True, dropout=0.33)
         self.mlp_head = torch.nn.Linear(2 * lstm_dim, reduce_dim_arc)
         self.mlp_dep = torch.nn.Linear(2 * lstm_dim, reduce_dim_arc)
@@ -222,7 +222,7 @@ class Parser(torch.nn.Module):
             self.biaffine.cuda()
             self.label_biaffine.cuda()
 
-    def forward(self, forms, tags, pack, chars, char_pack):
+    def forward(self, forms, tags, langids, pack, chars, char_pack):
         composed_embeds = self.dropout(self.embeddings_rand(forms))
         if self.use_embed:
             composed_embeds += self.dropout(self.embeddings_forms(forms))
@@ -230,8 +230,9 @@ class Parser(torch.nn.Module):
             composed_embeds += self.dropout(self.embeddings_chars(chars, char_pack))
 
         tag_embeds = self.dropout(self.embeddings_tags(tags))
+        langid_embeds = self.dropout(self.embeddings_langids(langids))
 
-        embeds = torch.cat([composed_embeds, tag_embeds], dim=2)
+        embeds = torch.cat([composed_embeds, tag_embeds, langid_embeds], dim=2)
 
         # pack/unpack for LSTM
         embeds = torch.nn.utils.rnn.pack_padded_sequence(embeds, pack.tolist(), batch_first=True)
@@ -267,7 +268,7 @@ class Parser(torch.nn.Module):
 
         for i, batch in enumerate(train_loader):
             chars, length_per_word_per_sent = None, None
-            (x_forms, pack), x_tags, y_heads, y_deprels = batch.form, batch.upos, batch.head, batch.deprel
+            (x_forms, pack), x_tags, langids, y_heads, y_deprels = batch.form, batch.upos, batch.misc, batch.head, batch.deprel
 
             # TODO: add something similar for semtags
             if self.use_chars:
@@ -308,7 +309,7 @@ class Parser(torch.nn.Module):
         self.eval()
         for i, batch in enumerate(test_loader):
             chars, length_per_word_per_sent = None, None
-            (x_forms, pack), x_tags, y_heads, y_deprels = batch.form, batch.upos, batch.head, batch.deprel
+            (x_forms, pack), x_tags, langids, y_heads, y_deprels = batch.form, batch.upos, batch.misc, batch.head, batch.deprel
 
             # TODO: add something similar for semtags
             if self.use_chars:
