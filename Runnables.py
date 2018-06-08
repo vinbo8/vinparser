@@ -351,7 +351,7 @@ class Parser(torch.nn.Module):
                 deprel_vocab = self.vocab['deprels']
                 deprels = [deprel_vocab.itos[i.data[0]] for i in y_pred_deprel.view(-1, 1)]
 
-                heads_softmaxes = self(x_forms, x_tags, pack, chars, length_per_word_per_sent)[0][0]
+                heads_softmaxes = self(x_forms, x_tags, langids, pack, chars, length_per_word_per_sent)[0][0]
                 heads_softmaxes = F.softmax(heads_softmaxes, dim=1)
                 json = cle.mst(heads_softmaxes.data.numpy())
 
