@@ -244,12 +244,11 @@ class Parser(torch.nn.Module):
         selected_heads = torch.stack([torch.index_select(reduced_deprel_head[n], 0, predicted_labels[n])
                                         for n, _ in enumerate(predicted_labels)])
         y_pred_label = self.label_biaffine(selected_heads, reduced_deprel_dep)
-        return y_pred_head, (predicted_labels, y_pred_label, pack)
-        # y_pred_label = Helpers.extract_best_label_logits(predicted_labels, y_pred_label, pack)
-        # if self.use_cuda:
-        #     y_pred_label = y_pred_label.cuda()
+        y_pred_label = Helpers.extract_best_label_logits(predicted_labels, y_pred_label, pack)
+        if self.use_cuda:
+            y_pred_label = y_pred_label.cuda()
 
-        # return y_pred_head, y_pred_label
+        return y_pred_head, y_pred_label
 
     '''
     1. the bare minimum that needs to be loaded is forms, upos, head, deprel (could change later); load those
@@ -269,9 +268,6 @@ class Parser(torch.nn.Module):
                 (chars, _, length_per_word_per_sent) = batch.char
 
             y_pred_head, y_pred_deprel = self(x_forms, x_tags, pack, chars, length_per_word_per_sent)
-            y_pred_deprel = Helpers.extract_best_label_logits(*y_pred_deprel)
-            if self.use_cuda:
-                y_pred_deprel = y_pred_deprel.cuda()
 
             # reshape for cross-entropy
             batch_size, longest_sentence_in_batch = y_heads.size()
