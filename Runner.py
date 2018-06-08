@@ -156,5 +156,5 @@ if __name__ == '__main__':
 
         if args.save:
             print("Saving..")
-            with open(args.load, "rb") as f:
+            with open(args.load, "wb") as f:
                 torch.save(runnable, f)
