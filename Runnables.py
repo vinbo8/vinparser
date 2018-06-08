@@ -336,6 +336,9 @@ class Parser(torch.nn.Module):
 
                 heads_softmaxes = self(batch)[0][0]
                 heads_softmaxes = F.softmax(heads_softmaxes, dim=1)
+                if self.use_cuda:
+                    heads_softmaxes = heads_softmaxes.cpu()
+
                 json = cle.mst(heads_softmaxes.data.numpy())
 
                 Helpers.write_to_conllu(self.test_file, json, deprels, i)
