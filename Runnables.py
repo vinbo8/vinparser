@@ -204,7 +204,7 @@ class Parser(torch.nn.Module):
         self.embeddings_langids = torch.nn.Embedding(sizes['misc'], 100)
 
         # size should be embed_size + whatever the other embeddings have
-        self.lstm = torch.nn.LSTM(400, lstm_dim, lstm_layers,
+        self.lstm = torch.nn.LSTM(500, lstm_dim, lstm_layers,
                                   batch_first=True, bidirectional=True, dropout=0.33)
         self.mlp_head = torch.nn.Linear(2 * lstm_dim, reduce_dim_arc)
         self.mlp_dep = torch.nn.Linear(2 * lstm_dim, reduce_dim_arc)
@@ -230,10 +230,10 @@ class Parser(torch.nn.Module):
             composed_embeds += self.dropout(self.embeddings_chars(chars, char_pack))
 
         tag_embeds = self.dropout(self.embeddings_tags(tags))
-        # langid_embeds = self.dropout(self.embeddings_langids(langids))
+        langid_embeds = self.dropout(self.embeddings_langids(langids))
 
-        # embeds = torch.cat([composed_embeds, tag_embeds, langid_embeds], dim=2)
-        embeds = torch.cat([composed_embeds, tag_embeds], dim=2)
+        embeds = torch.cat([composed_embeds, tag_embeds, langid_embeds], dim=2)
+        # embeds = torch.cat([composed_embeds, tag_embeds], dim=2)
 
         # pack/unpack for LSTM
         embeds = torch.nn.utils.rnn.pack_padded_sequence(embeds, pack.tolist(), batch_first=True)
