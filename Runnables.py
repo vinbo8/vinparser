@@ -236,8 +236,8 @@ class Parser(torch.nn.Module):
         tag_embeds = self.dropout(self.embeddings_tags(tags))
         langid_embeds = self.dropout(self.embeddings_langids(langids))
 
-        # embeds = torch.cat([composed_embeds, tag_embeds, langid_embeds], dim=2)
-        embeds = torch.cat([composed_embeds, tag_embeds], dim=2)
+        embeds = torch.cat([composed_embeds, tag_embeds, langid_embeds], dim=2)
+        # embeds = torch.cat([composed_embeds, tag_embeds], dim=2)
 
         # pack/unpack for LSTM
         embeds = torch.nn.utils.rnn.pack_padded_sequence(embeds, form_pack.tolist(), batch_first=True)
