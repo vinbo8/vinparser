@@ -189,7 +189,7 @@ class Parser(torch.nn.Module):
         self.save = args.save
         self.vocab = vocab
         # for writer
-        self.test_file = args.test[0]
+        self.test_file = args.test
 
         if self.use_chars:
             self.embeddings_chars = CharEmbedding(sizes['chars'], embed_dim, lstm_dim, lstm_layers)
@@ -222,11 +222,15 @@ class Parser(torch.nn.Module):
             self.biaffine.cuda()
             self.label_biaffine.cuda()
 
-    def forward(self, forms, tags, langids, pack, chars, char_pack):
+    def forward(self, batch):
+        chars, char_pack = None, None
+        (forms, form_pack), tags, langids = batch.form, batch.upos, batch.misc
+
         composed_embeds = self.dropout(self.embeddings_rand(forms))
         if self.use_embed:
             composed_embeds += self.dropout(self.embeddings_forms(forms))
         if self.use_chars:
+            (chars, _, char_pack) = batch.char
             composed_embeds += self.dropout(self.embeddings_chars(chars, char_pack))
 
         tag_embeds = self.dropout(self.embeddings_tags(tags))
@@ -236,7 +240,7 @@ class Parser(torch.nn.Module):
         # embeds = torch.cat([composed_embeds, tag_embeds], dim=2)
 
         # pack/unpack for LSTM
-        embeds = torch.nn.utils.rnn.pack_padded_sequence(embeds, pack.tolist(), batch_first=True)
+        embeds = torch.nn.utils.rnn.pack_padded_sequence(embeds, form_pack.tolist(), batch_first=True)
         output, _ = self.lstm(embeds)
         output, _ = torch.nn.utils.rnn.pad_packed_sequence(output, batch_first=True)
 
@@ -252,7 +256,7 @@ class Parser(torch.nn.Module):
         selected_heads = torch.stack([torch.index_select(reduced_deprel_head[n], 0, predicted_labels[n])
                                         for n, _ in enumerate(predicted_labels)])
         y_pred_label = self.label_biaffine(selected_heads, reduced_deprel_dep)
-        y_pred_label = Helpers.extract_best_label_logits(predicted_labels, y_pred_label, pack)
+        y_pred_label = Helpers.extract_best_label_logits(predicted_labels, y_pred_label, form_pack)
         if self.use_cuda:
             y_pred_label = y_pred_label.cuda()
 
@@ -268,71 +272,49 @@ class Parser(torch.nn.Module):
         train_loader.init_epoch()
 
         for i, batch in enumerate(train_loader):
-            chars, length_per_word_per_sent = None, None
-            (x_forms, pack), x_tags, langids, y_heads, y_deprels = batch.form, batch.upos, batch.misc, batch.head, batch.deprel
-
-            # TODO: add something similar for semtags
-            if self.use_chars:
-                (chars, _, length_per_word_per_sent) = batch.char
-
-            y_pred_head, y_pred_deprel = self(x_forms, x_tags, langids, pack, chars, length_per_word_per_sent)
+            y_heads, y_deprels = batch.head, batch.deprel
+            y_pred_heads, y_pred_deprels = self(batch)
 
             # reshape for cross-entropy
             batch_size, longest_sentence_in_batch = y_heads.size()
 
             # predictions: (B x S x S) => (B * S x S)
             # heads: (B x S) => (B * S)
-            y_pred_head = y_pred_head.view(batch_size * longest_sentence_in_batch, -1)
+            y_pred_heads = y_pred_heads.view(batch_size * longest_sentence_in_batch, -1)
             y_heads = y_heads.contiguous().view(batch_size * longest_sentence_in_batch)
 
             # predictions: (B x S x D) => (B * S x D)
             # heads: (B x S) => (B * S)
-            y_pred_deprel = y_pred_deprel.view(batch_size * longest_sentence_in_batch, -1)
+            y_pred_deprels = y_pred_deprels.view(batch_size * longest_sentence_in_batch, -1)
             y_deprels = y_deprels.contiguous().view(batch_size * longest_sentence_in_batch)
 
             # sum losses
-            train_loss = self.criterion(y_pred_head, y_heads) + self.criterion(y_pred_deprel, y_deprels)
+            train_loss = self.criterion(y_pred_heads, y_heads) + self.criterion(y_pred_deprels, y_deprels)
 
             self.zero_grad()
             train_loss.backward()
             self.optimiser.step()
 
-            print("Epoch: {}\t{}/{}\tloss: {}".format(epoch, (i + 1) * len(x_forms), len(train_loader.dataset), train_loss.data[0]))
+            print("Epoch: {}\t{}/{}\tloss: {}".format(epoch, (i + 1) * len(y_heads), len(train_loader.dataset), train_loss.data[0]))
 
-        # if self.save:
-        #     if not os.path.exists(self.save):
-        #         os.makedirs(self.save)
-        #     with open(os.path.join(self.save, 'parser.pt'), "wb") as f:
-        #         torch.save(self.state_dict(), f)
 
     def evaluate_(self, test_loader, print_conll=False):
         las_correct, uas_correct, total = 0, 0, 0
         self.eval()
         for i, batch in enumerate(test_loader):
-            chars, length_per_word_per_sent = None, None
-            (x_forms, pack), x_tags, langids, y_heads, y_deprels = batch.form, batch.upos, batch.misc, batch.head, batch.deprel
+            form_pack, y_heads, y_deprels = batch.form[1], batch.head, batch.deprel
 
-            # TODO: add something similar for semtags
-            if self.use_chars:
-                (chars, _, length_per_word_per_sent) = batch.char
+            y_pred_heads, y_pred_deprels = [i.max(2)[1] for i in self(batch)]
 
-            mask = torch.zeros(pack.size()[0], max(pack)).type(torch.LongTensor)
-            for n, size in enumerate(pack):
-                mask[n, 0:size] = 1
-
-            # get labels
-            # TODO: ensure well-formed tree
-            y_pred_head, y_pred_deprel = [i.max(2)[1] for i in
-                                          self(x_forms, x_tags, langids, pack, chars, length_per_word_per_sent)]
-
+            mask = torch.zeros(form_pack.size()[0], max(form_pack)).type(torch.LongTensor)
+            for n, size in enumerate(form_pack): mask[n, 0:size] = 1
             mask = mask.type(torch.ByteTensor)
-            if self.use_cuda:
-                mask = mask.cuda()
-
+            mask = mask.cuda() if self.use_cuda else mask
             mask = Variable(mask)
             mask[0, 0] = 0
-            heads_correct = ((y_heads == y_pred_head) * mask)
-            deprels_correct = ((y_deprels == y_pred_deprel) * mask)
+
+            heads_correct = ((y_heads == y_pred_heads) * mask)
+            deprels_correct = ((y_deprels == y_pred_deprels) * mask)
 
             # excepts should never trigger; leave them in just in case
             try:
@@ -349,9 +331,9 @@ class Parser(torch.nn.Module):
 
             if print_conll:
                 deprel_vocab = self.vocab['deprels']
-                deprels = [deprel_vocab.itos[i.data[0]] for i in y_pred_deprel.view(-1, 1)]
+                deprels = [deprel_vocab.itos[i.data[0]] for i in y_pred_deprels.view(-1, 1)]
 
-                heads_softmaxes = self(x_forms, x_tags, langids, pack, chars, length_per_word_per_sent)[0][0]
+                heads_softmaxes = self(batch)[0][0]
                 heads_softmaxes = F.softmax(heads_softmaxes, dim=1)
                 json = cle.mst(heads_softmaxes.data.numpy())
 

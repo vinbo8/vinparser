@@ -146,7 +146,7 @@ if __name__ == '__main__':
 
         else:
             print("Training")
-            for epoch in range(TAG_EPOCHS):
+            for epoch in range(PARSE_EPOCHS):
                 runnable.train_(epoch, train_loader)
                 runnable.evaluate_(dev_loader)
 
