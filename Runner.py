@@ -110,7 +110,7 @@ if __name__ == '__main__':
             tag_tensors = runnable.evaluate_(test_loader, print_conll=True)
             test_loader.data().upos = (i for i in tag_tensors)
 
-            runnable = Parser(sizes, args, vocab, embeddings=vocab, embed_dim=PARSE_EMBED_DIM, lstm_dim=PARSE_LSTM_DIM, lstm_layers=PARSE_LSTM_LAYERS,
+            runnable = Parser(args, sizes, vocab, embed_dim=PARSE_EMBED_DIM, lstm_dim=PARSE_LSTM_DIM, lstm_layers=PARSE_LSTM_LAYERS,
                               reduce_dim_arc=PARSE_REDUCE_DIM_ARC, reduce_dim_label=PARSE_REDUCE_DIM_LABEL, learning_rate=PARSE_LEARNING_RATE)
             
             if args.use_cuda: runnable.cuda()
@@ -126,7 +126,7 @@ if __name__ == '__main__':
             sys.exit() 
 
         elif args.parse:
-            runnable = Parser(sizes, args, vocab, embeddings=vocab, embed_dim=PARSE_EMBED_DIM, lstm_dim=PARSE_LSTM_DIM, lstm_layers=PARSE_LSTM_LAYERS,
+            runnable = Parser(args, sizes, vocab, embed_dim=PARSE_EMBED_DIM, lstm_dim=PARSE_LSTM_DIM, lstm_layers=PARSE_LSTM_LAYERS,
                               reduce_dim_arc=PARSE_REDUCE_DIM_ARC, reduce_dim_label=PARSE_REDUCE_DIM_LABEL, learning_rate=PARSE_LEARNING_RATE)
         elif args.tag:
             runnable = Tagger(sizes, args, vocab, embeddings=None, embed_dim=TAG_EMBED_DIM, lstm_dim=TAG_LSTM_DIM, lstm_layers=TAG_LSTM_LAYERS,

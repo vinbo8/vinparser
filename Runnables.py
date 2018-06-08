@@ -179,7 +179,7 @@ class Tagger(torch.nn.Module):
 
 
 class Parser(torch.nn.Module):
-    def __init__(self, sizes, args, vocab, embeddings=None, embed_dim=100, lstm_dim=400, lstm_layers=3,
+    def __init__(self, args, sizes, vocab, embed_dim=100, lstm_dim=400, lstm_layers=3,
                  reduce_dim_arc=100, reduce_dim_label=100, learning_rate=1e-3):
         super().__init__()
 
@@ -194,13 +194,16 @@ class Parser(torch.nn.Module):
         if self.use_chars:
             self.embeddings_chars = CharEmbedding(sizes['chars'], embed_dim, lstm_dim, lstm_layers)
 
-        self.embeddings_rand = torch.nn.Embedding(sizes['vocab'], embed_dim)
-        self.embeddings_forms = torch.nn.Embedding(sizes['vocab'], embed_dim)
+        self.embeddings_rand = torch.nn.Embedding(sizes['forms'], embed_dim)
+        self.embeddings_forms = torch.nn.Embedding(sizes['forms'], embed_dim)
         if args.embed:
-            self.embeddings_forms.weight.data.copy_(vocab[0].vectors)
+            self.embeddings_forms.weight.data.copy_(vocab['forms'].vectors)
 
         self.embeddings_tags = torch.nn.Embedding(sizes['postags'], 100)
-        self.lstm = torch.nn.LSTM(200, lstm_dim, lstm_layers,
+        self.embeddings_langid = torch.nn.Embedding(sizes['misc'], 100)
+
+        # size should be embed_size + whatever the other embeddings have
+        self.lstm = torch.nn.LSTM(400, lstm_dim, lstm_layers,
                                   batch_first=True, bidirectional=True, dropout=0.33)
         self.mlp_head = torch.nn.Linear(2 * lstm_dim, reduce_dim_arc)
         self.mlp_dep = torch.nn.Linear(2 * lstm_dim, reduce_dim_arc)
@@ -341,7 +344,7 @@ class Parser(torch.nn.Module):
             total += mask.nonzero().size(0)
 
             if print_conll:
-                deprel_vocab = self.vocab[1]
+                deprel_vocab = self.vocab['deprels']
                 deprels = [deprel_vocab.itos[i.data[0]] for i in y_pred_deprel.view(-1, 1)]
 
                 heads_softmaxes = self(x_forms, x_tags, pack, chars, length_per_word_per_sent)[0][0]

@@ -116,15 +116,15 @@ def get_iterators(args, batch_size):
 
     current_iterator = [train_iterator, dev_iterator, test_iterator]
 
-    sizes = {'vocab': len(FORM.vocab), 'postags': len(UPOS.vocab), 'deprels': len(DEPREL.vocab), 'feats': len(FEATS.vocab)}
+    vocabs = {'forms': FORM.vocab, 'postags': UPOS.vocab, 'deprels': DEPREL.vocab, 
+             'feats': FEATS.vocab, 'misc': MISC.vocab}
+    sizes = {k: len(v) for (k, v) in vocabs.items()}
 
     if args.use_chars:
+        vocabs['chars'] = CHAR.vocab
         sizes['chars'] = len(CHAR.vocab)
 
-    if args.semtag:
-        sizes['semtags'] = len(SEM.vocab)
-
-    return (current_iterator, sizes, [FORM.vocab, DEPREL.vocab, UPOS.vocab, FEATS.vocab])
+    return (current_iterator, sizes, vocabs)
 
 
 
