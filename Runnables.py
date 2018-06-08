@@ -275,7 +275,7 @@ class Parser(torch.nn.Module):
             if self.use_chars:
                 (chars, _, length_per_word_per_sent) = batch.char
 
-            y_pred_head, y_pred_deprel = self(x_forms, x_tags, pack, chars, length_per_word_per_sent)
+            y_pred_head, y_pred_deprel = self(x_forms, x_tags, langids, pack, chars, length_per_word_per_sent)
 
             # reshape for cross-entropy
             batch_size, longest_sentence_in_batch = y_heads.size()
@@ -323,7 +323,7 @@ class Parser(torch.nn.Module):
             # get labels
             # TODO: ensure well-formed tree
             y_pred_head, y_pred_deprel = [i.max(2)[1] for i in
-                                          self(x_forms, x_tags, pack, chars, length_per_word_per_sent)]
+                                          self(x_forms, x_tags, langids, pack, chars, length_per_word_per_sent)]
 
             mask = mask.type(torch.ByteTensor)
             if self.use_cuda:
