@@ -198,6 +198,7 @@ class Parser(torch.nn.Module):
         self.embeddings_forms = torch.nn.Embedding(sizes['forms'], embed_dim)
         if args.embed:
             self.embeddings_forms.weight.data.copy_(vocab['forms'].vectors)
+            self.embeddings_forms.weight.requires_grad = False
 
         self.embeddings_tags = torch.nn.Embedding(sizes['postags'], 100)
         self.embeddings_langid = torch.nn.Embedding(sizes['misc'], 100)
@@ -214,7 +215,8 @@ class Parser(torch.nn.Module):
         self.biaffine = ShorterBiaffine(reduce_dim_arc)
         self.label_biaffine = LongerBiaffine(reduce_dim_label, reduce_dim_label, sizes['deprels'])
         self.criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
-        self.optimiser = torch.optim.Adam(self.parameters(), lr=learning_rate, betas=(0.9, 0.9))
+        params = filter(lambda p: p.requires_grad, self.parameters())
+        self.optimiser = torch.optim.Adam(params, lr=learning_rate, betas=(0.9, 0.9))
 
         if self.use_cuda:
             self.biaffine.cuda()
