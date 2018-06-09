@@ -12,6 +12,7 @@ if __name__ == '__main__':
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument('--langid', action='store_true')
     arg_parser.add_argument('--use_misc', action='store_true')
+    arg_parser.add_argument('--fix_embeds', action='store_true')
     arg_parser.add_argument('--tag', action='store_true')
     arg_parser.add_argument('--parse', action='store_true')
     arg_parser.add_argument('--morph', action='store_true')
