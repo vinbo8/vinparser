@@ -37,7 +37,7 @@ def write_tags_to_conllu(fname, tags, write_at):
 
 
 def write_to_conllu(fname, outfile, out_dict, deprels, write_at):
-    with open(fname, "r") as f, open(outfile, "w") as out_f:
+    with open(fname, "r") as f, open(outfile, "a") as out_f:
         current_sent = 0
         for line in f:
             if line[0] == '#':
