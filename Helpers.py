@@ -36,18 +36,18 @@ def write_tags_to_conllu(fname, tags, write_at):
                 sys.stdout.write("\t".join(cols))
 
 
-def write_to_conllu(fname, out_dict, deprels, write_at):
-    with open(fname, "r") as f:
+def write_to_conllu(fname, outfile, out_dict, deprels, write_at):
+    with open(fname, "r") as f, open(outfile, "w") as out_f:
         current_sent = 0
         for line in f:
             if line[0] == '#':
                 if current_sent == write_at:
-                    sys.stdout.write(line)
+                    out_f.write(line)
                 continue
 
             if not line.rstrip():
                 if current_sent == write_at:
-                    sys.stdout.write(line)
+                    out_f.write(line)
                     break
                 current_sent += 1
                 continue
@@ -57,13 +57,13 @@ def write_to_conllu(fname, out_dict, deprels, write_at):
                 id = cols[0]
                 # print line and skip
                 if "-" in id or "." in id:
-                    sys.stdout.write(line)
+                    out_f.write(line)
                     continue
                 # ===
 
                 cols[6] = str(out_dict[int(id)])
                 cols[7] = str(deprels[int(id)])
-                sys.stdout.write("\t".join(cols))
+                out_f.write("\t".join(cols))
 
 def process_batch(batch, cuda=False):
     forms, tags, chars, heads, deprels, sizes = [torch.stack(list(i)) for i in zip(*sorted(zip(*batch),

@@ -11,6 +11,7 @@ if __name__ == '__main__':
 
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument('--langid', action='store_true')
+    arg_parser.add_argument('--use_misc', action='store_true')
     arg_parser.add_argument('--tag', action='store_true')
     arg_parser.add_argument('--parse', action='store_true')
     arg_parser.add_argument('--morph', action='store_true')
@@ -20,6 +21,7 @@ if __name__ == '__main__':
     arg_parser.add_argument('--train', action='store')
     arg_parser.add_argument('--dev', action='store')
     arg_parser.add_argument('--test', action='store')
+    arg_parser.add_argument('--outfile', action='store')
     arg_parser.add_argument('--embed', action='store')
     arg_parser.add_argument('--use_chars', action='store_true')
     arg_parser.add_argument('--use_cuda', action='store_true')
@@ -50,6 +52,12 @@ if __name__ == '__main__':
 
     PARSE_EPOCHS = int(config['parser']['EPOCHS'])
     TAG_EPOCHS = int(config['tagger']['EPOCHS'])
+
+    # set seeds
+    torch.manual_seed(1337)
+    if args.use_cuda:
+        torch.cuda.manual_seed(1337)
+        torch.cuda.manual_seed_all(1337)
 
     # ==========================
     # Actual loading begins here
@@ -156,5 +164,5 @@ if __name__ == '__main__':
 
         if args.save:
             print("Saving..")
-            with open(args.load, "wb") as f:
+            with open(args.save, "wb") as f:
                 torch.save(runnable, f)

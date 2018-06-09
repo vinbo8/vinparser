@@ -183,20 +183,15 @@ class Parser(torch.nn.Module):
                  reduce_dim_arc=100, reduce_dim_label=100, learning_rate=1e-3):
         super().__init__()
 
-        self.use_cuda = args.use_cuda
-        self.use_chars = args.use_chars
-        self.use_embed = args.embed
-        self.save = args.save
+        self.args = args
         self.vocab = vocab
-        # for writer
-        self.test_file = args.test
 
-        if self.use_chars:
+        if self.args.use_chars:
             self.embeddings_chars = CharEmbedding(sizes['chars'], embed_dim, lstm_dim, lstm_layers)
 
         self.embeddings_rand = torch.nn.Embedding(sizes['forms'], embed_dim)
         self.embeddings_forms = torch.nn.Embedding(sizes['forms'], embed_dim)
-        if args.embed:
+        if self.args.embed:
             self.embeddings_forms.weight.data.copy_(vocab['forms'].vectors)
             # self.embeddings_forms.weight.requires_grad = False
 
@@ -204,7 +199,8 @@ class Parser(torch.nn.Module):
         self.embeddings_langids = torch.nn.Embedding(sizes['misc'], 100)
 
         # size should be embed_size + whatever the other embeddings have
-        self.lstm = torch.nn.LSTM(400, lstm_dim, lstm_layers,
+        lstm_in_dim = 500 if self.args.use_misc else 400
+        self.lstm = torch.nn.LSTM(lstm_in_dim, lstm_dim, lstm_layers,
                                   batch_first=True, bidirectional=True, dropout=0.33)
         self.mlp_head = torch.nn.Linear(2 * lstm_dim, reduce_dim_arc)
         self.mlp_dep = torch.nn.Linear(2 * lstm_dim, reduce_dim_arc)
@@ -214,11 +210,12 @@ class Parser(torch.nn.Module):
         self.dropout = torch.nn.Dropout(p=0.33)
         self.biaffine = ShorterBiaffine(reduce_dim_arc)
         self.label_biaffine = LongerBiaffine(reduce_dim_label, reduce_dim_label, sizes['deprels'])
+
         self.criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
         params = filter(lambda p: p.requires_grad, self.parameters())
         self.optimiser = torch.optim.Adam(params, lr=learning_rate, betas=(0.9, 0.9))
 
-        if self.use_cuda:
+        if self.args.use_cuda:
             self.biaffine.cuda()
             self.label_biaffine.cuda()
 
@@ -227,17 +224,19 @@ class Parser(torch.nn.Module):
         (forms, form_pack), tags, langids = batch.form, batch.upos, batch.misc
 
         composed_embeds = self.dropout(self.embeddings_rand(forms))
-        if self.use_embed:
+        if self.args.embed:
             composed_embeds += self.dropout(self.embeddings_forms(forms))
-        if self.use_chars:
+        if self.args.use_chars:
             (chars, _, char_pack) = batch.char
             composed_embeds += self.dropout(self.embeddings_chars(chars, char_pack))
 
         tag_embeds = self.dropout(self.embeddings_tags(tags))
         langid_embeds = self.dropout(self.embeddings_langids(langids))
 
-        # embeds = torch.cat([composed_embeds, tag_embeds, langid_embeds], dim=2)
         embeds = torch.cat([composed_embeds, tag_embeds], dim=2)
+        if self.args.use_misc:
+            embeds = torch.cat([embeds, langid_embeds], dim=2)
+        # embeds = torch.cat([composed_embeds, tag_embeds, langid_embeds], dim=2)
 
         # pack/unpack for LSTM
         embeds = torch.nn.utils.rnn.pack_padded_sequence(embeds, form_pack.tolist(), batch_first=True)
@@ -257,7 +256,7 @@ class Parser(torch.nn.Module):
                                         for n, _ in enumerate(predicted_labels)])
         y_pred_label = self.label_biaffine(selected_heads, reduced_deprel_dep)
         y_pred_label = Helpers.extract_best_label_logits(predicted_labels, y_pred_label, form_pack)
-        if self.use_cuda:
+        if self.args.use_cuda:
             y_pred_label = y_pred_label.cuda()
 
         return y_pred_head, y_pred_label
@@ -310,7 +309,7 @@ class Parser(torch.nn.Module):
             mask = torch.zeros(form_pack.size()[0], max(form_pack)).type(torch.LongTensor)
             for n, size in enumerate(form_pack): mask[n, 0:size] = 1
             mask = mask.type(torch.ByteTensor)
-            mask = mask.cuda() if self.use_cuda else mask
+            mask = mask.cuda() if self.args.use_cuda else mask
             mask = Variable(mask)
             mask[0, 0] = 0
 
@@ -336,12 +335,12 @@ class Parser(torch.nn.Module):
 
                 heads_softmaxes = self(batch)[0][0]
                 heads_softmaxes = F.softmax(heads_softmaxes, dim=1)
-                if self.use_cuda:
+                if self.args.use_cuda:
                     heads_softmaxes = heads_softmaxes.cpu()
 
                 json = cle.mst(heads_softmaxes.data.numpy())
 
-                Helpers.write_to_conllu(self.test_file, json, deprels, i)
+                Helpers.write_to_conllu(self.args.test, self.args.outfile, json, deprels, i)
 
         print("UAS = {}/{} = {}\nLAS = {}/{} = {}".format(uas_correct, total, uas_correct / total,
                                                           las_correct, total, las_correct / total))
