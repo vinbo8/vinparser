@@ -752,3 +752,94 @@ class LangID(torch.nn.Module):
             total += pred.size()[0]
 
         print("Accuracy: {}".format(correct / total))
+
+
+class LangSwitch(torch.nn.Module):
+    def __init__(self, sizes, args, vocab, chain=False, embeddings=None, embed_dim=100, lstm_dim=100, lstm_layers=3,
+                 mlp_dim=100, learning_rate=1e-5):
+        super().__init__()
+
+        self.sizes, self.args, self.vocab = sizes, args, vocab
+        self.embeds = torch.nn.Embedding(sizes['forms'], embed_dim)
+        self.tag_embeds = torch.nn.Embedding(sizes['postags'], embed_dim)
+        self.vocab = vocab
+        self.chain = chain
+        if self.args.embed:
+            self.embeds.weight.data.copy_(vocab[0].vectors)
+        self.lstm = torch.nn.LSTM(100, lstm_dim, lstm_layers, batch_first=True, bidirectional=True, dropout=0.5)
+        self.relu = torch.nn.ReLU()
+        self.mlp = torch.nn.Linear(200, mlp_dim)
+        self.out = torch.nn.Linear(mlp_dim, sizes['misc'])
+        self.criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
+        self.optimiser = torch.optim.Adam(self.parameters(), lr=learning_rate, betas=(0.9, 0.9))
+        self.dropout = torch.nn.Dropout(p=0.5)
+
+    def forward(self, batch):
+
+        (forms, pack), tags = batch.form, batch.upos
+        
+        form_embeds = self.dropout(self.embeds(forms))
+        tag_embeds = self.dropout(self.tag_embeds(tags))
+        embeds = torch.cat([form_embeds, tag_embeds], dim=2)
+
+        # packed = torch.nn.utils.rnn.pack_padded_sequence(form_embeds, pack.tolist(), batch_first=True)
+        # lstm_out, _ = self.lstm(packed)
+        # lstm_out, _ = torch.nn.utils.rnn.pad_packed_sequence(lstm_out, batch_first=True)
+
+        mlp_out = self.dropout(self.relu(self.mlp(embeds)))
+
+        y_pred = self.out(mlp_out)
+        if self.args.use_cuda:
+            y_pred = y_pred.cuda()
+
+        return y_pred
+
+
+    def train_(self, epoch, train_loader):
+        self.train()
+        train_loader.init_epoch()
+
+        for i, batch in enumerate(train_loader):
+            y_misc = batch.misc
+            elements_per_batch = len(y_misc)
+            y_pred_misc = self(batch)
+
+            # reshape for cross-entropy
+            batch_size, longest_sentence_in_batch = y_misc.size()
+
+            # predictions: (B x S x S) => (B * S x S)
+            # heads: (B x S) => (B * S)
+            y_pred_misc = y_pred_misc.view(batch_size * longest_sentence_in_batch, -1)
+            y_misc = y_misc.contiguous().view(batch_size * longest_sentence_in_batch)
+
+            # sum losses
+            train_loss = self.criterion(y_pred_misc, y_misc) 
+
+            self.zero_grad()
+            train_loss.backward()
+            self.optimiser.step()
+
+            print("Epoch: {}\t{}/{}\tloss: {}".format(epoch, (i + 1) * elements_per_batch, len(train_loader.dataset), train_loss.data[0]))
+
+    def evaluate_(self, test_loader, print_conll=False):
+            correct, total = 0, 0
+            self.eval()
+
+            for i, batch in enumerate(test_loader):
+                form_pack, y_misc = batch.form[1], batch.misc
+
+                # get tags
+                y_pred = self(batch).max(2)[1]
+
+                mask = torch.zeros(form_pack.size()[0], max(form_pack)).type(torch.LongTensor)
+                for n, size in enumerate(form_pack): mask[n, 0:size] = 1
+
+                mask = Variable(mask.type(torch.ByteTensor))
+                if self.args.use_cuda:
+                    mask = mask.cuda()
+
+                correct += ((y_misc == y_pred) * mask).nonzero().size(0)
+
+                total += mask.nonzero().size(0)
+
+            print("Accuracy = {}/{} = {}".format(correct, total, (correct / total)))

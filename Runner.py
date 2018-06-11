@@ -3,13 +3,14 @@ import torch
 import argparse
 import configparser
 import Loader
-from Runnables import Tagger, Parser, CSParser, LangID, CLTagger, Analyser
+from Runnables import Tagger, Parser, CSParser, LangID, CLTagger, Analyser, LangSwitch
 
 
 if __name__ == '__main__':
     TAG_PARAMS, PARSE_PARAMS = {}, {}
 
     arg_parser = argparse.ArgumentParser()
+    arg_parser.add_argument('--debug_new', action='store_true')
     arg_parser.add_argument('--langid', action='store_true')
     arg_parser.add_argument('--use_misc', action='store_true')
     arg_parser.add_argument('--fix_embeds', action='store_true')
@@ -143,6 +144,9 @@ if __name__ == '__main__':
 
         elif args.morph:
             runnable = Analyser(sizes, args, vocab)
+
+        elif args.debug_new:
+            runnable = LangSwitch(sizes, args, vocab)
 
         if args.use_cuda:
             runnable.cuda()

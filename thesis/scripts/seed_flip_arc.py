@@ -52,7 +52,7 @@ for line in sys.stdin:
         if "." in cols[0] or "-" in cols[0]:
             offset += 1
         if cols[7] == 'case':
-            flip = random.randint(0, 3) == 0
+            flip = random.randint(0, 0) == 0
             if flip:
                 # subtract one to get index in blokk
                 form, head = cols[1], (int(cols[6]) - 1)
