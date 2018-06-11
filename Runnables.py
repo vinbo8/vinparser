@@ -755,7 +755,7 @@ class LangID(torch.nn.Module):
 
 
 class LangSwitch(torch.nn.Module):
-    def __init__(self, sizes, args, vocab, chain=False, embeddings=None, embed_dim=100, lstm_dim=100, lstm_layers=3,
+    def __init__(self, sizes, args, vocab, chain=False, embeddings=None, embed_dim=300, lstm_dim=100, lstm_layers=3,
                  mlp_dim=100, learning_rate=1e-5):
         super().__init__()
 
@@ -766,7 +766,7 @@ class LangSwitch(torch.nn.Module):
         self.chain = chain
         if self.args.embed:
             self.embeds.weight.data.copy_(vocab[0].vectors)
-        self.lstm = torch.nn.LSTM(200, lstm_dim, lstm_layers, batch_first=True, bidirectional=True, dropout=0.5)
+        self.lstm = torch.nn.LSTM(600, lstm_dim, lstm_layers, batch_first=True, bidirectional=True, dropout=0.5)
         self.relu = torch.nn.ReLU()
         self.mlp = torch.nn.Linear(2 * lstm_dim, mlp_dim)
         self.out = torch.nn.Linear(mlp_dim, sizes['misc'])
