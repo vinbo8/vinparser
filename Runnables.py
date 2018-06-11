@@ -755,20 +755,21 @@ class LangID(torch.nn.Module):
 
 
 class LangSwitch(torch.nn.Module):
-    def __init__(self, sizes, args, vocab, chain=False, embeddings=None, embed_dim=300, lstm_dim=100, lstm_layers=3,
+    def __init__(self, sizes, args, vocab, chain=False, embeddings=None, embed_dim=100, lstm_dim=100, lstm_layers=3,
                  mlp_dim=100, learning_rate=1e-5):
         super().__init__()
 
         self.sizes, self.args, self.vocab = sizes, args, vocab
-        self.embeds = torch.nn.Embedding(sizes['forms'], embed_dim)
+        self.form_embeds = torch.nn.Embedding(sizes['forms'], embed_dim)
         self.tag_embeds = torch.nn.Embedding(sizes['postags'], embed_dim)
+        self.deprel_embeds = torch.nn.Embedding(sizes['deprels'], embed_dim)
         self.vocab = vocab
         self.chain = chain
         if self.args.embed:
             self.embeds.weight.data.copy_(vocab[0].vectors)
         self.lstm = torch.nn.LSTM(600, lstm_dim, lstm_layers, batch_first=True, bidirectional=True, dropout=0.5)
         self.relu = torch.nn.ReLU()
-        self.mlp = torch.nn.Linear(600, mlp_dim)
+        self.mlp = torch.nn.Linear(3 * embed_dim, mlp_dim)
         self.out = torch.nn.Linear(mlp_dim, sizes['misc'])
         self.criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
         self.optimiser = torch.optim.Adam(self.parameters(), lr=learning_rate, betas=(0.9, 0.9))
@@ -776,11 +777,12 @@ class LangSwitch(torch.nn.Module):
 
     def forward(self, batch):
 
-        (forms, pack), tags = batch.form, batch.upos
+        (forms, pack), tags, deprels = batch.form, batch.upos, batch.deprel
         
-        form_embeds = self.dropout(self.embeds(forms))
+        form_embeds = self.dropout(self.form_embeds(forms))
         tag_embeds = self.dropout(self.tag_embeds(tags))
-        embeds = torch.cat([form_embeds, tag_embeds], dim=2)
+        deprel_embeds = self.dropout(self.deprel_embeds(deprels))
+        embeds = torch.cat([form_embeds, tag_embeds, deprel_embeds], dim=2)
 
         # packed = torch.nn.utils.rnn.pack_padded_sequence(embeds, pack.tolist(), batch_first=True)
         # lstm_out, _ = self.lstm(packed)
