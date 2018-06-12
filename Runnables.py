@@ -803,7 +803,12 @@ class LangSwitch(torch.nn.Module):
 
         for i, batch in enumerate(train_loader):
             y_misc = batch.misc
-            elements_per_batch = len(y_misc)
+            batch_size = y_misc.size()[0]
+
+            pad_misc_tensor = Variable(torch.LongTensor(batch_size, 1))
+            pad_misc_tensor[:] = self.vocab['misc'].stoi['<pad>']
+            shifted_y_misc = torch.cat([y_misc[:, 1:], pad_misc_tensor], dim=1) 
+
             y_pred_misc = self(batch)
 
             # reshape for cross-entropy
@@ -812,36 +817,41 @@ class LangSwitch(torch.nn.Module):
             # predictions: (B x S x S) => (B * S x S)
             # heads: (B x S) => (B * S)
             y_pred_misc = y_pred_misc.view(batch_size * longest_sentence_in_batch, -1)
-            y_misc = y_misc.contiguous().view(batch_size * longest_sentence_in_batch)
+            shifted_y_misc = shifted_y_misc.contiguous().view(batch_size * longest_sentence_in_batch)
 
             # sum losses
-            train_loss = self.criterion(y_pred_misc, y_misc) 
+            train_loss = self.criterion(y_pred_misc, shifted_y_misc) 
 
             self.zero_grad()
             train_loss.backward()
             self.optimiser.step()
 
-            print("Epoch: {}\t{}/{}\tloss: {}".format(epoch, (i + 1) * elements_per_batch, len(train_loader.dataset), train_loss.data[0]))
+            print("Epoch: {}\t{}/{}\tloss: {}".format(epoch, (i + 1) * batch_size, len(train_loader.dataset), train_loss.data[0]))
 
     def evaluate_(self, test_loader, print_conll=False):
-            correct, total = 0, 0
-            self.eval()
+        correct, total = 0, 0
+        self.eval()
 
-            for i, batch in enumerate(test_loader):
-                form_pack, y_misc = batch.form[1], batch.misc
+        for i, batch in enumerate(test_loader):
+            form_pack, y_misc = batch.form[1], batch.misc
+            batch_size = y_misc.size()[0]
 
-                # get tags
-                y_pred = self(batch).max(2)[1]
+            pad_misc_tensor = Variable(torch.LongTensor(batch_size, 1))
+            pad_misc_tensor[:] = self.vocab['misc'].stoi['<pad>']
+            shifted_y_misc = torch.cat([y_misc[:, 1:], pad_misc_tensor], dim=1) 
 
-                mask = torch.zeros(form_pack.size()[0], max(form_pack)).type(torch.LongTensor)
-                for n, size in enumerate(form_pack): mask[n, 0:size] = 1
+            # get tags
+            y_pred = self(batch).max(2)[1]
 
-                mask = Variable(mask.type(torch.ByteTensor))
-                if self.args.use_cuda:
-                    mask = mask.cuda()
+            mask = torch.zeros(form_pack.size()[0], max(form_pack)).type(torch.LongTensor)
+            for n, size in enumerate(form_pack): mask[n, 0:size] = 1
 
-                correct += ((y_misc == y_pred) * mask).nonzero().size(0)
+            mask = Variable(mask.type(torch.ByteTensor))
+            if self.args.use_cuda:
+                mask = mask.cuda()
 
-                total += mask.nonzero().size(0)
+            correct += ((shifted_y_misc == y_pred) * mask).nonzero().size(0)
 
-            print("Accuracy = {}/{} = {}".format(correct, total, (correct / total)))
+            total += mask.nonzero().size(0)
+
+        print("Accuracy = {}/{} = {}".format(correct, total, (correct / total)))
