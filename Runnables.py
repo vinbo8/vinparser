@@ -770,7 +770,7 @@ class LangSwitch(torch.nn.Module):
             self.embeds.weight.data.copy_(vocab[0].vectors)
         self.lstm = torch.nn.LSTM(600, lstm_dim, lstm_layers, batch_first=True, bidirectional=True, dropout=0.5)
         self.relu = torch.nn.ReLU()
-        self.mlp = torch.nn.Linear(3 * embed_dim, mlp_dim)
+        self.mlp = torch.nn.Linear(2 * embed_dim, mlp_dim)
         self.out = torch.nn.Linear(mlp_dim, sizes['misc'])
         self.criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
         self.optimiser = torch.optim.Adam(self.parameters(), lr=learning_rate, betas=(0.9, 0.9))
@@ -785,7 +785,7 @@ class LangSwitch(torch.nn.Module):
         deprel_embeds = self.dropout(self.deprel_embeds(deprels))
         previous_langid = self.dropout(self.previous_langid_embeds(misc))
 
-        embeds = torch.cat([tag_embeds, deprel_embeds, previous_langid], dim=2)
+        embeds = torch.cat([tag_embeds, deprel_embeds], dim=2)
 
         # packed = torch.nn.utils.rnn.pack_padded_sequence(embeds, pack.tolist(), batch_first=True)
         # lstm_out, _ = self.lstm(packed)
@@ -808,8 +808,10 @@ class LangSwitch(torch.nn.Module):
             y_misc = batch.misc
             batch_size = y_misc.size()[0]
 
-            pad_misc_tensor = Variable(torch.LongTensor(batch_size, 1))
+            pad_misc_tensor = Variable(torch.rand(batch_size, 1))
+            pad_misc_tensor = pad_misc_tensor.type(y_misc.type())
             pad_misc_tensor[:] = self.vocab['misc'].stoi['<pad>']
+
             shifted_y_misc = torch.cat([y_misc[:, 1:], pad_misc_tensor], dim=1) 
 
             y_pred_misc = self(batch)
@@ -839,8 +841,10 @@ class LangSwitch(torch.nn.Module):
             form_pack, y_misc = batch.form[1], batch.misc
             batch_size = y_misc.size()[0]
 
-            pad_misc_tensor = Variable(torch.LongTensor(batch_size, 1))
+            pad_misc_tensor = Variable(torch.rand(batch_size, 1))
+            pad_misc_tensor = pad_misc_tensor.type(y_misc.type())
             pad_misc_tensor[:] = self.vocab['misc'].stoi['<pad>']
+
             shifted_y_misc = torch.cat([y_misc[:, 1:], pad_misc_tensor], dim=1) 
 
             # get tags
