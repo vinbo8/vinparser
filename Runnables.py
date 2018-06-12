@@ -770,8 +770,10 @@ class LangSwitch(torch.nn.Module):
             self.embeds.weight.data.copy_(vocab[0].vectors)
         self.lstm = torch.nn.LSTM(1 * embed_dim, lstm_dim, lstm_layers, batch_first=True, bidirectional=True, dropout=0.5)
         self.relu = torch.nn.ReLU()
-        self.mlp = torch.nn.Linear(lstm_dim + 2 * embed_dim, mlp_dim)
+        self.mlp = torch.nn.Linear(2 * embed_dim + 2 * lstm_dim, mlp_dim)
         self.out = torch.nn.Linear(mlp_dim, sizes['misc'])
+        self.conv_2 = torch.nn.Conv1d(1, 25, 2)
+
         self.criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
         self.optimiser = torch.optim.Adam(self.parameters(), lr=learning_rate, betas=(0.9, 0.9))
         self.dropout = torch.nn.Dropout(p=0.5)
