@@ -785,7 +785,7 @@ class LangSwitch(torch.nn.Module):
         deprel_embeds = self.dropout(self.deprel_embeds(deprels))
         previous_langid = self.dropout(self.previous_langid_embeds(misc))
 
-        embeds = torch.cat([tag_embeds, deprel_embeds], dim=2)
+        embeds = torch.cat([form_embeds, tag_embeds], dim=2)
 
         # packed = torch.nn.utils.rnn.pack_padded_sequence(embeds, pack.tolist(), batch_first=True)
         # lstm_out, _ = self.lstm(packed)
@@ -808,10 +808,11 @@ class LangSwitch(torch.nn.Module):
             y_misc = batch.misc
             batch_size = y_misc.size()[0]
 
-            pad_misc_tensor = Variable(torch.rand(batch_size, 1))
-            pad_misc_tensor = pad_misc_tensor.type(y_misc.type())
-            pad_misc_tensor[:] = self.vocab['misc'].stoi['<pad>']
+            pad_misc_tensor = Variable(torch.LongTensor(batch_size, 1))
+            if self.args.use_cuda:
+                pad_misc_tensor = pad_misc_tensor.cuda()
 
+            pad_misc_tensor[:] = self.vocab['misc'].stoi['<pad>']
             shifted_y_misc = torch.cat([y_misc[:, 1:], pad_misc_tensor], dim=1) 
 
             y_pred_misc = self(batch)
@@ -841,10 +842,11 @@ class LangSwitch(torch.nn.Module):
             form_pack, y_misc = batch.form[1], batch.misc
             batch_size = y_misc.size()[0]
 
-            pad_misc_tensor = Variable(torch.rand(batch_size, 1))
-            pad_misc_tensor = pad_misc_tensor.type(y_misc.type())
-            pad_misc_tensor[:] = self.vocab['misc'].stoi['<pad>']
+            pad_misc_tensor = Variable(torch.LongTensor(batch_size, 1))
+            if self.args.use_cuda:
+                pad_misc_tensor = pad_misc_tensor.cuda()
 
+            pad_misc_tensor[:] = self.vocab['misc'].stoi['<pad>']
             shifted_y_misc = torch.cat([y_misc[:, 1:], pad_misc_tensor], dim=1) 
 
             # get tags
