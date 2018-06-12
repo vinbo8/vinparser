@@ -763,7 +763,7 @@ class LangSwitch(torch.nn.Module):
         self.form_embeds = torch.nn.Embedding(sizes['forms'], embed_dim)
         self.tag_embeds = torch.nn.Embedding(sizes['postags'], embed_dim)
         self.deprel_embeds = torch.nn.Embedding(sizes['deprels'], embed_dim)
-        self.previous_langid_embeds = torch.nn.Embedding(sizesi['misc'], embed_dim)
+        self.previous_langid_embeds = torch.nn.Embedding(sizes['misc'], embed_dim)
         self.vocab = vocab
         self.chain = chain
         if self.args.embed:
