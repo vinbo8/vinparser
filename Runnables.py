@@ -798,10 +798,10 @@ class LangSwitch(torch.nn.Module):
         adaptive_pool_size = longest_sent // 3
         embeds = embeds.view(batch_size, 1, longest_sent, embed_dim)
 
-        conv_2 = F.adaptive_max_pool2d(self.conv_2(embeds), (longest_sent, 1)).squeeze(dim=3).transpose(1, 2)
-        conv_3 = F.adaptive_max_pool2d(self.conv_3(embeds), (longest_sent, 1)).squeeze(dim=3).transpose(1, 2)
-        conv_4 = F.adaptive_max_pool2d(self.conv_4(embeds), (longest_sent, 1)).squeeze(dim=3).transpose(1, 2)
-        conv_5 = F.adaptive_max_pool2d(self.conv_5(embeds), (longest_sent, 1)).squeeze(dim=3).transpose(1, 2)
+        conv_2 = F.adaptive_max_pool2d(F.relu(self.conv_2(embeds)), (longest_sent, 1)).squeeze(dim=3).transpose(1, 2)
+        conv_3 = F.adaptive_max_pool2d(F.relu(self.conv_3(embeds)), (longest_sent, 1)).squeeze(dim=3).transpose(1, 2)
+        conv_4 = F.adaptive_max_pool2d(F.relu(self.conv_4(embeds)), (longest_sent, 1)).squeeze(dim=3).transpose(1, 2)
+        conv_5 = F.adaptive_max_pool2d(F.relu(self.conv_5(embeds)), (longest_sent, 1)).squeeze(dim=3).transpose(1, 2)
 
         # embeds = torch.cat([form_embeds, tag_embeds, previous_langid], dim=2)
         # packed = torch.nn.utils.rnn.pack_padded_sequence(previous_langid, pack.tolist(), batch_first=True)
