@@ -880,7 +880,10 @@ class LangSwitch(torch.nn.Module):
             if self.args.use_cuda:
                 mask = mask.cuda()
 
-            correct += ((shifted_y_misc == y_pred) * mask).nonzero().size(0)
+            try:
+                correct += ((shifted_y_misc == y_pred) * mask).nonzero().size(0)
+            except:
+                pass
 
             total += mask.nonzero().size(0)
 
