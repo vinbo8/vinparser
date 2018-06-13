@@ -770,13 +770,13 @@ class LangSwitch(torch.nn.Module):
             self.embeds.weight.data.copy_(vocab[0].vectors)
         self.lstm = torch.nn.LSTM(1 * embed_dim, lstm_dim, lstm_layers, batch_first=True, bidirectional=True, dropout=0.5)
         self.relu = torch.nn.ReLU()
-        self.mlp = torch.nn.Linear(400, mlp_dim)
+        self.mlp = torch.nn.Linear(100, mlp_dim)
         self.out = torch.nn.Linear(mlp_dim, sizes['misc'])
 
-        self.conv_2 = torch.nn.Conv2d(1, 100, (2, 1))
-        self.conv_3 = torch.nn.Conv2d(1, 100, (3, 1))
-        self.conv_4 = torch.nn.Conv2d(1, 100, (4, 1))
-        self.conv_5 = torch.nn.Conv2d(1, 100, (5, 1))
+        self.conv_2 = torch.nn.Conv2d(1, 25, (2, 1))
+        self.conv_3 = torch.nn.Conv2d(1, 25, (3, 1))
+        self.conv_4 = torch.nn.Conv2d(1, 25, (4, 1))
+        self.conv_5 = torch.nn.Conv2d(1, 25, (5, 1))
 
 
         self.criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
@@ -792,7 +792,7 @@ class LangSwitch(torch.nn.Module):
         deprel_embeds = self.dropout(self.deprel_embeds(deprels))
         previous_langid = self.dropout(self.previous_langid_embeds(misc))
 
-        embeds = torch.cat([form_embeds, previous_langid], dim=2)
+        embeds = torch.cat([form_embeds, tag_embeds, previous_langid], dim=2)
 
         batch_size, longest_sent, embed_dim = embeds.size()
         adaptive_pool_size = longest_sent // 3
