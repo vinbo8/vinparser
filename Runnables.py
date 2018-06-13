@@ -778,6 +778,10 @@ class LangSwitch(torch.nn.Module):
         self.conv_4 = torch.nn.Conv2d(1, 25, (4, 1))
         self.conv_5 = torch.nn.Conv2d(1, 25, (5, 1))
 
+        self.conv_2_2 = torch.nn.Conv2d(25, 128, (2, 1))
+        self.conv_3_2 = torch.nn.Conv2d(25, 128, (3, 1))
+        self.conv_4_2 = torch.nn.Conv2d(25, 128, (4, 1))
+        self.conv_5_2 = torch.nn.Conv2d(25, 128, (5, 1))
 
         self.criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
         self.optimiser = torch.optim.Adam(self.parameters(), lr=learning_rate, betas=(0.9, 0.9))
@@ -798,11 +802,15 @@ class LangSwitch(torch.nn.Module):
         adaptive_pool_size = longest_sent // 3
         embeds = embeds.view(batch_size, 1, longest_sent, embed_dim)
 
-        conv_2 = F.adaptive_max_pool2d(F.relu(self.conv_2(embeds)), (longest_sent, 1)).squeeze(dim=3).transpose(1, 2)
-        conv_3 = F.adaptive_max_pool2d(F.relu(self.conv_3(embeds)), (longest_sent, 1)).squeeze(dim=3).transpose(1, 2)
-        conv_4 = F.adaptive_max_pool2d(F.relu(self.conv_4(embeds)), (longest_sent, 1)).squeeze(dim=3).transpose(1, 2)
-        conv_5 = F.adaptive_max_pool2d(F.relu(self.conv_5(embeds)), (longest_sent, 1)).squeeze(dim=3).transpose(1, 2)
+        conv_2 = F.adaptive_max_pool2d(F.relu(self.conv_2(embeds)), (longest_sent, embed_dim)).squeeze(dim=3)
+        conv_3 = F.adaptive_max_pool2d(F.relu(self.conv_3(embeds)), (longest_sent, embed_dim)).squeeze(dim=3)
+        conv_4 = F.adaptive_max_pool2d(F.relu(self.conv_4(embeds)), (longest_sent, embed_dim)).squeeze(dim=3)
+        conv_5 = F.adaptive_max_pool2d(F.relu(self.conv_5(embeds)), (longest_sent, embed_dim)).squeeze(dim=3)
 
+        conv_2 = F.adaptive_max_pool2d(F.relu(self.conv_2_2(conv_2)), (longest_sent, 1)).squeeze(dim=3).transpose(1, 2)
+        conv_3 = F.adaptive_max_pool2d(F.relu(self.conv_3_2(conv_3)), (longest_sent, 1)).squeeze(dim=3).transpose(1, 2)
+        conv_4 = F.adaptive_max_pool2d(F.relu(self.conv_4_2(conv_4)), (longest_sent, 1)).squeeze(dim=3).transpose(1, 2)
+        conv_5 = F.adaptive_max_pool2d(F.relu(self.conv_5_2(conv_5)), (longest_sent, 1)).squeeze(dim=3).transpose(1, 2)
         # embeds = torch.cat([form_embeds, tag_embeds, previous_langid], dim=2)
         # packed = torch.nn.utils.rnn.pack_padded_sequence(previous_langid, pack.tolist(), batch_first=True)
         # lstm_out, _ = self.lstm(packed)
