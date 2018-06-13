@@ -770,13 +770,18 @@ class LangSwitch(torch.nn.Module):
             self.embeds.weight.data.copy_(vocab[0].vectors)
         self.lstm = torch.nn.LSTM(1 * embed_dim, lstm_dim, lstm_layers, batch_first=True, bidirectional=True, dropout=0.5)
         self.relu = torch.nn.ReLU()
-        self.mlp = torch.nn.Linear(2 * embed_dim + 2 * lstm_dim, mlp_dim)
+        self.mlp = torch.nn.Linear(100, mlp_dim)
         self.out = torch.nn.Linear(mlp_dim, sizes['misc'])
-        self.conv_2 = torch.nn.Conv1d(1, 25, 2)
+
+        self.conv_2 = torch.nn.Conv2d(1, 25, (2, 1))
+        self.conv_3 = torch.nn.Conv2d(1, 25, (3, 1))
+        self.conv_4 = torch.nn.Conv2d(1, 25, (4, 1))
+        self.conv_5 = torch.nn.Conv2d(1, 25, (5, 1))
+
 
         self.criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
         self.optimiser = torch.optim.Adam(self.parameters(), lr=learning_rate, betas=(0.9, 0.9))
-        self.dropout = torch.nn.Dropout(p=0.5)
+        self.dropout = torch.nn.Dropout(p=0.2)
 
     def forward(self, batch):
 
@@ -787,13 +792,26 @@ class LangSwitch(torch.nn.Module):
         deprel_embeds = self.dropout(self.deprel_embeds(deprels))
         previous_langid = self.dropout(self.previous_langid_embeds(misc))
 
+        embeds = torch.cat([form_embeds, previous_langid], dim=2)
+
+        batch_size, longest_sent, embed_dim = embeds.size()
+        adaptive_pool_size = longest_sent // 3
+        embeds = embeds.view(batch_size, 1, longest_sent, embed_dim)
+
+        try:
+            conv_2 = F.adaptive_max_pool2d(self.conv_2(embeds), (longest_sent, 1)).squeeze(dim=3).transpose(1, 2)
+        except:
+            print("wtf")
+        conv_3 = F.adaptive_max_pool2d(self.conv_3(embeds), (longest_sent, 1)).squeeze(dim=3).transpose(1, 2)
+        conv_4 = F.adaptive_max_pool2d(self.conv_4(embeds), (longest_sent, 1)).squeeze(dim=3).transpose(1, 2)
+        conv_5 = F.adaptive_max_pool2d(self.conv_5(embeds), (longest_sent, 1)).squeeze(dim=3).transpose(1, 2)
+
         # embeds = torch.cat([form_embeds, tag_embeds, previous_langid], dim=2)
+        # packed = torch.nn.utils.rnn.pack_padded_sequence(previous_langid, pack.tolist(), batch_first=True)
+        # lstm_out, _ = self.lstm(packed)
+        # lstm_out, _ = torch.nn.utils.rnn.pad_packed_sequence(lstm_out, batch_first=True)
 
-        packed = torch.nn.utils.rnn.pack_padded_sequence(previous_langid, pack.tolist(), batch_first=True)
-        lstm_out, _ = self.lstm(packed)
-        lstm_out, _ = torch.nn.utils.rnn.pad_packed_sequence(lstm_out, batch_first=True)
-
-        for_mlp = torch.cat([form_embeds, tag_embeds, lstm_out], dim=2)
+        for_mlp = torch.cat([conv_2, conv_3, conv_4, conv_5], dim=2)
         mlp_out = self.dropout(self.relu(self.mlp(for_mlp)))
 
         y_pred = self.out(mlp_out)
