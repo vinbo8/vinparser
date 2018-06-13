@@ -770,7 +770,7 @@ class LangSwitch(torch.nn.Module):
             self.embeds.weight.data.copy_(vocab[0].vectors)
         self.lstm = torch.nn.LSTM(1 * embed_dim, lstm_dim, lstm_layers, batch_first=True, bidirectional=True, dropout=0.5)
         self.relu = torch.nn.ReLU()
-        self.mlp = torch.nn.Linear(100, mlp_dim)
+        self.mlp = torch.nn.Linear(512, mlp_dim)
         self.out = torch.nn.Linear(mlp_dim, sizes['misc'])
 
         self.conv_2 = torch.nn.Conv2d(1, 25, (2, 1))
