@@ -770,13 +770,13 @@ class LangSwitch(torch.nn.Module):
             self.embeds.weight.data.copy_(vocab[0].vectors)
         self.lstm = torch.nn.LSTM(1 * embed_dim, lstm_dim, lstm_layers, batch_first=True, bidirectional=True, dropout=0.5)
         self.relu = torch.nn.ReLU()
-        self.mlp = torch.nn.Linear(100, mlp_dim)
+        self.mlp = torch.nn.Linear(400, mlp_dim)
         self.out = torch.nn.Linear(mlp_dim, sizes['misc'])
 
-        self.conv_2 = torch.nn.Conv2d(1, 25, (2, 1))
-        self.conv_3 = torch.nn.Conv2d(1, 25, (3, 1))
-        self.conv_4 = torch.nn.Conv2d(1, 25, (4, 1))
-        self.conv_5 = torch.nn.Conv2d(1, 25, (5, 1))
+        self.conv_2 = torch.nn.Conv2d(1, 100, (2, 1))
+        self.conv_3 = torch.nn.Conv2d(1, 100, (3, 1))
+        self.conv_4 = torch.nn.Conv2d(1, 100, (4, 1))
+        self.conv_5 = torch.nn.Conv2d(1, 100, (5, 1))
 
 
         self.criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
@@ -798,10 +798,7 @@ class LangSwitch(torch.nn.Module):
         adaptive_pool_size = longest_sent // 3
         embeds = embeds.view(batch_size, 1, longest_sent, embed_dim)
 
-        try:
-            conv_2 = F.adaptive_max_pool2d(self.conv_2(embeds), (longest_sent, 1)).squeeze(dim=3).transpose(1, 2)
-        except:
-            print("wtf")
+        conv_2 = F.adaptive_max_pool2d(self.conv_2(embeds), (longest_sent, 1)).squeeze(dim=3).transpose(1, 2)
         conv_3 = F.adaptive_max_pool2d(self.conv_3(embeds), (longest_sent, 1)).squeeze(dim=3).transpose(1, 2)
         conv_4 = F.adaptive_max_pool2d(self.conv_4(embeds), (longest_sent, 1)).squeeze(dim=3).transpose(1, 2)
         conv_5 = F.adaptive_max_pool2d(self.conv_5(embeds), (longest_sent, 1)).squeeze(dim=3).transpose(1, 2)
