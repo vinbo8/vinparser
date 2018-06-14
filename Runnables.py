@@ -306,7 +306,7 @@ class Parser(torch.nn.Module):
             y_langids = y_langids.contiguous().view(batch_size * longest_sentence_in_batch)
 
             # sum losses
-            train_loss = self.criterion(y_pred_heads, y_heads) + self.criterion(y_pred_deprels, y_deprels) - self.criterion(y_pred_langids, y_langids)
+            train_loss = self.criterion(y_pred_heads, y_heads) + self.criterion(y_pred_deprels, y_deprels) + self.criterion(y_pred_langids, y_langids)
 
             self.zero_grad()
             train_loss.backward()
