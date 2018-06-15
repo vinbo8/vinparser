@@ -111,8 +111,11 @@ def get_iterators(args, batch_size):
     train_iterator = data.Iterator(train, batch_size=batch_size, sort_key=lambda x: len(x.form), train=True,
                                     sort_within_batch=True, device=device, repeat=False)
 
-    dev_iterator = data.Iterator(dev, batch_size=1, train=False, sort_within_batch=True, sort_key=lambda x: len(x.form),
-                                    sort=False, device=device, repeat=False)
+    dev_iterator = data.Iterator(dev, batch_size=batch_size, sort_key=lambda x: len(x.form), train=True,
+                                    sort_within_batch=True, device=device, repeat=False)
+
+    # dev_iterator = data.Iterator(dev, batch_size=batch_size, train=False, sort_within_batch=True, sort_key=lambda x: len(x.form),
+                                    # sort=False, device=device, repeat=False)
 
     test_iterator = data.Iterator(test, batch_size=1, train=False, sort_within_batch=True, sort_key=lambda x: len(x.form),
                                     sort=False, device=device, repeat=False)

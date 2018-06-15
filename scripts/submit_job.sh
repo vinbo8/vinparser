@@ -3,8 +3,8 @@ root="/home/ravishankar/personal_work_troja/vinparser"
 cd $root
 git checkout eval_codeswitch
 git pull
-echo "$root/venv/bin/python -u $root/Runner.py --debug_new --use_cuda \
---train $root/thesis/data/en-hi/en-hi-langid.conllu \
+echo "$root/venv/bin/python -u $root/Runner.py --parse --use_cuda \
+--train $root/thesis/data/en-hi/en-hi-case_scramble_flipped.conllu \
 --dev $root/thesis/data/en-hi/en-hi-dev.conllu \
 --test $root/thesis/data/en-hi/en-hi-test.conllu \
 --config $root/config.ini" > parse.sh

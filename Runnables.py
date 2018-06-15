@@ -206,10 +206,13 @@ class Parser(torch.nn.Module):
         self.mlp_head = torch.nn.Linear(2 * lstm_dim, reduce_dim_arc)
         self.mlp_dep = torch.nn.Linear(2 * lstm_dim, reduce_dim_arc)
         self.mlp_deprel_head = torch.nn.Linear(2 * lstm_dim, reduce_dim_label)
+        # aha 
+        self.mlp_deprel_weights = torch.nn.Linear(reduce_dim_label, reduce_dim_label, bias=False)
         self.mlp_deprel_dep = torch.nn.Linear(2 * lstm_dim, reduce_dim_label)
         self.relu = torch.nn.ReLU()
         self.dropout = torch.nn.Dropout(p=0.33)
         self.biaffine = ShorterBiaffine(reduce_dim_arc)
+        self.weight_biaffine = ShorterBiaffine(reduce_dim_arc)
         self.label_biaffine = LongerBiaffine(reduce_dim_label, reduce_dim_label, sizes['deprels'])
 
         # ======
@@ -219,6 +222,7 @@ class Parser(torch.nn.Module):
         # ======
 
         self.criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
+        self.weight_criterion = torch.nn.MSELoss()
         params = filter(lambda p: p.requires_grad, self.parameters())
         self.optimiser = torch.optim.Adam(params, lr=learning_rate, betas=(0.9, 0.9))
 
@@ -226,7 +230,7 @@ class Parser(torch.nn.Module):
             self.biaffine.cuda()
             self.label_biaffine.cuda()
 
-    def forward(self, batch):
+    def forward(self, batch, dev=False):
         chars, char_pack = None, None
         (forms, form_pack), tags, langids = batch.form, batch.upos, batch.misc
 
@@ -254,11 +258,23 @@ class Parser(torch.nn.Module):
         reduced_head_head = self.dropout(self.relu(self.mlp_head(output)))
         reduced_head_dep = self.dropout(self.relu(self.mlp_dep(output)))
         y_pred_head = self.biaffine(reduced_head_head, reduced_head_dep)
+        y_pred_weights = self.biaffine(reduced_head_head, reduced_head_head)
 
         # predict deprels using heads
         reduced_deprel_head = self.dropout(self.relu(self.mlp_deprel_head(output)))
         reduced_deprel_dep = self.dropout(self.relu(self.mlp_deprel_dep(output)))
         predicted_labels = y_pred_head.max(2)[1]
+        batch_size, longest_word_in_batch, _ = y_pred_weights.size()
+        true_weights = Variable(torch.zeros(batch_size, longest_word_in_batch, longest_word_in_batch))
+        enum = torch.LongTensor([i for i in range(longest_word_in_batch)])
+        if self.args.use_cuda: 
+            enum = enum.cuda()
+            true_weights = true_weights.cuda()
+
+        for batch in range(batch_size):
+            for n, i in enumerate(predicted_labels[batch].data):
+                true_weights[batch, n, i] = 1
+        
         selected_heads = torch.stack([torch.index_select(reduced_deprel_head[n], 0, predicted_labels[n])
                                         for n, _ in enumerate(predicted_labels)])
         y_pred_label = self.label_biaffine(selected_heads, reduced_deprel_dep)
@@ -272,7 +288,7 @@ class Parser(torch.nn.Module):
         if self.args.use_cuda:
             y_pred_langid = y_pred_langid.cuda()
 
-        return y_pred_head, y_pred_label, y_pred_langid
+        return y_pred_head, y_pred_label, (y_pred_weights, true_weights)
 
     '''
     1. the bare minimum that needs to be loaded is forms, upos, head, deprel (could change later); load those
@@ -286,7 +302,7 @@ class Parser(torch.nn.Module):
         for i, batch in enumerate(train_loader):
             y_heads, y_deprels, y_langids = batch.head, batch.deprel, batch.misc
             elements_per_batch = len(y_heads)
-            y_pred_heads, y_pred_deprels, y_pred_langids = self(batch)
+            y_pred_heads, y_pred_deprels, _ = self(batch)
 
             # reshape for cross-entropy
             batch_size, longest_sentence_in_batch = y_heads.size()
@@ -302,11 +318,11 @@ class Parser(torch.nn.Module):
             y_deprels = y_deprels.contiguous().view(batch_size * longest_sentence_in_batch)
 
             # langid
-            y_pred_langids = y_pred_langids.view(batch_size * longest_sentence_in_batch, -1)
-            y_langids = y_langids.contiguous().view(batch_size * longest_sentence_in_batch)
+            # y_pred_langids = y_pred_langids.view(batch_size * longest_sentence_in_batch, -1)
+            # y_langids = y_langids.contiguous().view(batch_size * longest_sentence_in_batch)
 
             # sum losses
-            train_loss = self.criterion(y_pred_heads, y_heads) + self.criterion(y_pred_deprels, y_deprels) + self.criterion(y_pred_langids, y_langids)
+            train_loss = self.criterion(y_pred_heads, y_heads) + self.criterion(y_pred_deprels, y_deprels) # + self.criterion(y_pred_langids, y_langids)
 
             self.zero_grad()
             train_loss.backward()
@@ -315,13 +331,33 @@ class Parser(torch.nn.Module):
             print("Epoch: {}\t{}/{}\tloss: {}".format(epoch, (i + 1) * elements_per_batch, len(train_loader.dataset), train_loss.data[0]))
 
 
+    def hargle_(self, epoch, dev_loader):
+        self.train()
+        dev_loader.init_epoch()
+
+        for i, batch in enumerate(dev_loader):
+            _, _, (y_pred_weights, y_weights) = self(batch)
+
+            # reshape for cross-entropy
+            batch_size, longest_sentence_in_batch, _ = y_weights.size()
+            dev_loss = self.weight_criterion(y_pred_weights, y_weights)
+
+            self.zero_grad()
+            dev_loss.backward()
+            self.optimiser.step()
+
+            print("Epoch: {}\t{}/{}\tloss: {}".format(epoch, (i + 1) * batch_size, len(dev_loader.dataset), dev_loss.data[0]))
+
+
     def evaluate_(self, test_loader, print_conll=False):
         las_correct, uas_correct, total = 0, 0, 0
-        self.eval()
+        # self.eval()
         for i, batch in enumerate(test_loader):
             form_pack, y_heads, y_deprels = batch.form[1], batch.head, batch.deprel
-
-            y_pred_heads, y_pred_deprels, _ = [i.max(2)[1] for i in self(batch)]
+            
+            y_pred_heads, y_pred_deprels, _ = self(batch, dev=True)
+            y_pred_heads = y_pred_heads.max(2)[1]
+            y_pred_deprels = y_pred_deprels.max(2)[1]
 
             mask = torch.zeros(form_pack.size()[0], max(form_pack)).type(torch.LongTensor)
             for n, size in enumerate(form_pack): mask[n, 0:size] = 1
