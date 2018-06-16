@@ -225,7 +225,9 @@ class Parser(torch.nn.Module):
         self.criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
         self.weight_criterion = torch.nn.MSELoss()
         params = filter(lambda p: p.requires_grad, self.parameters())
+        selective_params = [p[1] for p in filter(lambda p: p[0] == 'biaffine_for_weights.weight', self.named_parameters())]
         self.optimiser = torch.optim.Adam(params, lr=learning_rate, betas=(0.9, 0.9))
+        self.selective_optimiser = torch.optim.Adam(selective_params, lr=learning_rate, betas=(0.9, 0.9))
 
         if self.args.use_cuda:
             self.biaffine.cuda()
@@ -261,8 +263,8 @@ class Parser(torch.nn.Module):
         reduced_head_dep = self.dropout(self.relu(self.mlp_dep(output)))
         y_pred_head = self.biaffine(reduced_head_head, reduced_head_dep)
         y_pred_weights = self.biaffine_for_weights(reduced_head_head, reduced_head_head)
-        if not self.training:
-            y_pred_head *= y_pred_weights
+        # if not self.training:
+        #     y_pred_head *= y_pred_weights
 
         # predict deprels using heads
         reduced_deprel_head = self.dropout(self.relu(self.mlp_deprel_head(output)))
@@ -348,7 +350,7 @@ class Parser(torch.nn.Module):
 
             self.zero_grad()
             dev_loss.backward()
-            self.optimiser.step()
+            self.selective_optimiser.step()
 
             print("Epoch: {}\t{}/{}\tloss: {}".format(epoch, (i + 1) * batch_size, len(dev_loader.dataset), dev_loss.data[0]))
 
