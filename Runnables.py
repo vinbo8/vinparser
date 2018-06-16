@@ -308,8 +308,9 @@ class Parser(torch.nn.Module):
         for i, batch in enumerate(train_loader):
             y_heads, y_deprels, y_langids = batch.head, batch.deprel, batch.misc
             elements_per_batch = len(y_heads)
-            y_pred_heads, y_pred_deprels, _ = self(batch)
+            y_pred_heads, y_pred_deprels, (y_pred_weights, _) = self(batch)
 
+            all_ones = torch.ones(y_pred_weights.size())
             # reshape for cross-entropy
             batch_size, longest_sentence_in_batch = y_heads.size()
 
@@ -329,10 +330,13 @@ class Parser(torch.nn.Module):
 
             # sum losses
             train_loss = self.criterion(y_pred_heads, y_heads) + self.criterion(y_pred_deprels, y_deprels) # + self.criterion(y_pred_langids, y_langids)
+            dev_loss = self.weight_criterion(y_pred_weights, all_ones)
 
             self.zero_grad()
             train_loss.backward()
+            dev_loss.backward()
             self.optimiser.step()
+            self.selective_optimiser.step()
 
             print("Epoch: {}\t{}/{}\tloss: {}".format(epoch, (i + 1) * elements_per_batch, len(train_loader.dataset), train_loss.data[0]))
 
