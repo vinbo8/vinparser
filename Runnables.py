@@ -212,6 +212,7 @@ class Parser(torch.nn.Module):
         self.relu = torch.nn.ReLU()
         self.dropout = torch.nn.Dropout(p=0.33)
         self.biaffine = ShorterBiaffine(reduce_dim_arc)
+        self.biaffine_for_weights = ShorterBiaffine(reduce_dim_arc)
         self.weight_biaffine = ShorterBiaffine(reduce_dim_arc)
         self.label_biaffine = LongerBiaffine(reduce_dim_label, reduce_dim_label, sizes['deprels'])
 
@@ -228,6 +229,7 @@ class Parser(torch.nn.Module):
 
         if self.args.use_cuda:
             self.biaffine.cuda()
+            self.biaffine_for_weights.cuda()
             self.label_biaffine.cuda()
 
     def forward(self, batch, dev=False):
@@ -258,7 +260,7 @@ class Parser(torch.nn.Module):
         reduced_head_head = self.dropout(self.relu(self.mlp_head(output)))
         reduced_head_dep = self.dropout(self.relu(self.mlp_dep(output)))
         y_pred_head = self.biaffine(reduced_head_head, reduced_head_dep)
-        y_pred_weights = self.biaffine(reduced_head_head, reduced_head_head)
+        y_pred_weights = self.biaffine_for_weights(reduced_head_head, reduced_head_head)
         if not self.training:
             y_pred_head *= y_pred_weights
 
