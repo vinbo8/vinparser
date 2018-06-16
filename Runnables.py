@@ -311,6 +311,8 @@ class Parser(torch.nn.Module):
             y_pred_heads, y_pred_deprels, (y_pred_weights, y_weights) = self(batch)
 
             all_ones = Variable(torch.ones(y_pred_weights.size()))
+            if self.args.use_cuda:
+                all_ones = all_ones.cuda()
             # reshape for cross-entropy
             batch_size, longest_sentence_in_batch = y_heads.size()
 
