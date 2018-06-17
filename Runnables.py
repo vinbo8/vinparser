@@ -74,7 +74,7 @@ class Analyser(torch.nn.Module):
 
         for i, batch in enumerate(train_loader):
             (x_forms, pack), x_tags = batch.form, batch.upos
-            new_batch_tensor = Helpers.extract_batch_bucket_vector(batch, self.morph_vocab, self.bucket_vocab_itos, self.bucket_vocab_stoi)
+            new_batch_tensor = Helpers.extract_batch_bucket_vector(batch, self.morph_vocab, self.bucket_vocab_itos, self.bucket_vocab_stoi).type(torch.FloatTensor)
             if self.args.use_cuda:
                 new_batch_tensor = new_batch_tensor.cuda()
             predicted_tensor = self.forward(x_forms, x_tags, pack)
@@ -82,7 +82,7 @@ class Analyser(torch.nn.Module):
             batch_size, longest_sentence_in_batch = x_forms.size()
             predicted_tensor = predicted_tensor.contiguous().view(batch_size * longest_sentence_in_batch, -1)
             new_batch_tensor = new_batch_tensor.view(batch_size * longest_sentence_in_batch, -1)
-            train_loss = self.criterion(predicted_tensor, new_batch_tensor.type(torch.FloatTensor))
+            train_loss = self.criterion(predicted_tensor, new_batch_tensor)
 
             self.zero_grad()
             train_loss.backward()
