@@ -225,7 +225,7 @@ def extract_batch_bucket_class(batch, morph_vocab, bucket_itos, bucket_stoi):
     return torch.stack(new_batch_tensor)
 
 def extract_batch_bucket_vector(batch, morph_vocab, bucket_itos, bucket_stoi):
-    default_feat_vector = torch.LongTensor([False for i in bucket_itos])
+    default_feat_vector = torch.LongTensor([0 for i in bucket_itos])
     batch_morph = batch.feats
     new_batch_tensor = []
     # get vectors
@@ -238,7 +238,7 @@ def extract_batch_bucket_vector(batch, morph_vocab, bucket_itos, bucket_stoi):
 
             elif word == '<pad>':
                 current_feat_vector = default_feat_vector.clone()
-                current_feat_vector[bucket_stoi['<pad>']] = True
+                current_feat_vector[bucket_stoi['<pad>']] = 1
                 sentence_tensor.append(Variable(current_feat_vector))
 
             else:
@@ -247,11 +247,11 @@ def extract_batch_bucket_vector(batch, morph_vocab, bucket_itos, bucket_stoi):
                 for feat in feats:
                     key = feat.split("=")[0]
                     try:
-                        current_feat_vector[bucket_stoi[key]] = True
+                        current_feat_vector[bucket_stoi[key]] = 1
                     # check whether this is necessary - maybe just don't bother with unknown features in test
                     # seeing as you can't really predict a value for an unknown key anyway
                     except KeyError:
-                        current_feat_vector[bucket_stoi['<unk>']] = True
+                        current_feat_vector[bucket_stoi['<unk>']] = 1
 
                 sentence_tensor.append(Variable(current_feat_vector))
         new_batch_tensor.append(torch.stack(sentence_tensor))
