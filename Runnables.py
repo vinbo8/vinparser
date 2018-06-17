@@ -98,9 +98,12 @@ class Analyser(torch.nn.Module):
             (x_forms, pack), x_tags = batch.form, batch.upos
             
             new_batch_tensor = Helpers.extract_batch_bucket_vector(batch, self.morph_vocab, self.bucket_vocab_itos, self.bucket_vocab_stoi).type(torch.ByteTensor)
-            predicted_tensor = self(x_forms, x_tags, pack)
+            predicted_tensor = F.sigmoid(self(x_forms, x_tags, pack))
             # > 0.5 = 1; < 0.5 = 0
-            predicted_tensor = (predicted_tensor==torch.max(predicted_tensor))
+            predicted_tensor[predicted_tensor >= 0.5] = 1
+            predicted_tensor[predicted_tensor < 0.5] = 0
+            predicted_tensor = predicted_tensor.type(torch.ByteTensor)
+            # predicted_tensor = (predicted_tensor==torch.max(predicted_tensor))
 
             for n in range(max(pack)):
                 try:
