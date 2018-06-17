@@ -109,6 +109,8 @@ class Analyser(torch.nn.Module):
             predicted_tensor[predicted_tensor >= 0.5] = 1
             predicted_tensor[predicted_tensor < 0.5] = 0
             predicted_tensor = predicted_tensor.type(torch.ByteTensor)
+            if self.args.use_cuda:
+                predicted_tensor = predicted_tensor.cuda()
             # predicted_tensor = (predicted_tensor==torch.max(predicted_tensor))
 
             for n in range(max(pack)):
