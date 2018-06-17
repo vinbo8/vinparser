@@ -14,7 +14,7 @@ class Analyser(torch.nn.Module):
     def __init__(self, sizes, args, vocab, chain=False, embeddings=None, embed_dim=100, lstm_dim=100, lstm_layers=3,
                  mlp_dim=100, learning_rate=1e-5):
         super().__init__()
-        self.cuda = args.use_cuda
+        self.args = args
         self.vocab = vocab
         self.morph_vocab = vocab[3]
 
@@ -62,7 +62,7 @@ class Analyser(torch.nn.Module):
         #lstm_out, _ = torch.nn.utils.rnn.pad_packed_sequence(lstm_out, batch_first=True)
         mlp_out = F.dropout(F.relu(self.mlp(embeds)), p=0.33, training=self.training)
         out_pred = self.out(mlp_out)
-        if self.cuda:
+        if self.args.use_cuda:
             out_pred = out_pred.cuda()
 
         return out_pred
@@ -75,6 +75,8 @@ class Analyser(torch.nn.Module):
         for i, batch in enumerate(train_loader):
             (x_forms, pack), x_tags = batch.form, batch.upos
             new_batch_tensor = Helpers.extract_batch_bucket_vector(batch, self.morph_vocab, self.bucket_vocab_itos, self.bucket_vocab_stoi)
+            if self.args.use_cuda:
+                new_batch_tensor = new_batch_tensor.cuda()
             predicted_tensor = self.forward(x_forms, x_tags, pack)
 
             batch_size, longest_sentence_in_batch = x_forms.size()
@@ -99,6 +101,10 @@ class Analyser(torch.nn.Module):
             
             new_batch_tensor = Helpers.extract_batch_bucket_vector(batch, self.morph_vocab, self.bucket_vocab_itos, self.bucket_vocab_stoi).type(torch.ByteTensor)
             predicted_tensor = F.sigmoid(self(x_forms, x_tags, pack))
+            if self.args.use_cuda:
+                new_batch_tensor = new_batch_tensor.cuda()
+                predicted_tensor = predicted_tensor.cuda()
+                
             # > 0.5 = 1; < 0.5 = 0
             predicted_tensor[predicted_tensor >= 0.5] = 1
             predicted_tensor[predicted_tensor < 0.5] = 0
