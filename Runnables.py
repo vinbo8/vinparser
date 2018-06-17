@@ -61,7 +61,7 @@ class Analyser(torch.nn.Module):
         # TODO: try adding pad_value to match the loss pad value
         #lstm_out, _ = torch.nn.utils.rnn.pad_packed_sequence(lstm_out, batch_first=True)
         mlp_out = F.dropout(F.relu(self.mlp(embeds)), p=0.33, training=self.training)
-        out_pred = F.sigmoid(self.out(mlp_out))
+        out_pred = self.out(mlp_out)
         if self.args.use_cuda:
             out_pred = out_pred.cuda()
 
@@ -117,7 +117,7 @@ class Analyser(torch.nn.Module):
                 except RuntimeError:
                     pass
 
-                total += n
+                total += 1
 
             # mask = torch.zeros(pack.size()[0], max(pack)).type(torch.LongTensor)
             # for n, size in enumerate(pack):
