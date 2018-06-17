@@ -61,7 +61,7 @@ class Analyser(torch.nn.Module):
         # TODO: try adding pad_value to match the loss pad value
         #lstm_out, _ = torch.nn.utils.rnn.pad_packed_sequence(lstm_out, batch_first=True)
         mlp_out = F.dropout(F.relu(self.mlp(embeds)), p=0.33, training=self.training)
-        out_pred = self.out(mlp_out)
+        out_pred = F.sigmoid(self.out(mlp_out))
         if self.args.use_cuda:
             out_pred = out_pred.cuda()
 
@@ -100,7 +100,7 @@ class Analyser(torch.nn.Module):
             (x_forms, pack), x_tags = batch.form, batch.upos
             
             new_batch_tensor = Helpers.extract_batch_bucket_vector(batch, self.morph_vocab, self.bucket_vocab_itos, self.bucket_vocab_stoi).type(torch.ByteTensor)
-            predicted_tensor = F.sigmoid(self(x_forms, x_tags, pack))
+            predicted_tensor = self(x_forms, x_tags, pack)
             if self.args.use_cuda:
                 new_batch_tensor = new_batch_tensor.cuda()
                 predicted_tensor = predicted_tensor.cuda()
