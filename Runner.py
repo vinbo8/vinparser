@@ -10,6 +10,7 @@ if __name__ == '__main__':
     TAG_PARAMS, PARSE_PARAMS = {}, {}
 
     arg_parser = argparse.ArgumentParser()
+    arg_parser.add_argument('--tokenise', action='store_true')
     arg_parser.add_argument('--tag', action='store_true')
     arg_parser.add_argument('--parse', action='store_true')
     arg_parser.add_argument('--morph', action='store_true')
@@ -91,7 +92,7 @@ if __name__ == '__main__':
         run_cl_tagger(args, iterators)
 
     else:
-        (train_loader, dev_loader, test_loader), sizes, vocab = Loader.get_iterators(args, PARSE_BATCH_SIZE)
+        (train_loader, dev_loader, test_loader), sizes, vocab = Loader.seg_iterators(args, PARSE_BATCH_SIZE)
 
         # ============
         # Wall of code
@@ -125,7 +126,10 @@ if __name__ == '__main__':
             # test
             print("Evaluating parser")
             runnable.evaluate_(test_loader, print_conll=True)
-            sys.exit() 
+            sys.exit()
+
+        elif args.tokenise:
+            Loader.seg_iterators(args, 50)
 
         elif args.parse:
             runnable = Parser(sizes, args, vocab, embeddings=vocab, embed_dim=PARSE_EMBED_DIM, lstm_dim=PARSE_LSTM_DIM, lstm_layers=PARSE_LSTM_LAYERS,

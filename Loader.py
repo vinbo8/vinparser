@@ -10,6 +10,24 @@ csv.field_size_limit(sys.maxsize)
 ROOT_LINE = "0\t__ROOT\t_\t__ROOT\t_\t_\t0\t__ROOT\t_\t_"
 
 
+def conll_to_seg_csv(args, fname, columns=10, train=True):
+    col_range = range(columns)
+    rows = []
+    with codecs.open(fname, 'r', 'utf-8') as f:
+        for n, line in enumerate(f):
+            if line[0] == '#':
+                continue
+            elif not line.rstrip():
+                rows[-1][1] = 1
+            else:
+                cols = [i.replace('"', '<qt>').replace(',', '<cm>') for i in line.rstrip("\n").split("\t")]
+                if '.' in cols[0] or '-' in cols[0]: continue
+                rows.append([cols[1], 0])
+                # rows.append('"{}",{}'.format(cols[1], 0))
+    rows = ['"{}","{}"'.format(word, num) for word, num in rows]
+    return "\n".join(rows)
+
+
 def conll_to_csv(args, fname, columns=10):
     col_range = range(columns)
 
@@ -41,6 +59,49 @@ def dep_to_int(tensor, vocab, _):
     fn = np.vectorize(lambda x: int(vocab.itos[x]))
     return fn(tensor)
 
+# just load raw text, write tokenised conllu for next loader
+def seg_iterators(args, batch_size):
+    batch = []
+    device = -(not args.use_cuda)
+
+    WORD = data.Field(batch_first=True, init_token='<w>')
+    SWITCH = data.Field(batch_first=True, init_token='0')
+
+    field_tuples = [('word', WORD), ('switch', SWITCH)]
+    
+    train_csv = conll_to_seg_csv(args, args.train, len(field_tuples))
+    dev_csv = conll_to_seg_csv(args, args.dev, len(field_tuples))
+    test_csv = conll_to_seg_csv(args, args.test, len(field_tuples))
+
+    for file, text in zip(["train", "dev", "test"], [train_csv, dev_csv, test_csv]):
+        with open(os.path.join(".tmp", "{}.csv".format(file)), "w") as f:
+            f.write(text)
+
+    train, dev, test = data.TabularDataset.splits(path=".tmp", train='train.csv',
+                                                    validation='dev.csv', test='test.csv',
+                                                    format="csv", fields=field_tuples)
+
+    field_names = [i[1] for i in field_tuples]
+    for field in field_names:
+        field.build_vocab(train)
+
+    train_iterator = data.Iterator(train, batch_size=batch_size, train=True,
+                                    sort_within_batch=False, device=device, repeat=False)
+
+    dev_iterator = data.Iterator(dev, batch_size=1, train=False, sort_within_batch=True, sort_key=lambda x: len(x.form),
+                                    sort=False, device=device, repeat=False)
+
+    test_iterator = data.Iterator(test, batch_size=1, train=False, sort_within_batch=True, sort_key=lambda x: len(x.form),
+                                    sort=False, device=device, repeat=False)
+
+    current_iterator = [train_iterator, dev_iterator, test_iterator]
+
+    sizes = {'vocab': len(WORD.vocab), 'states': len(SWITCH.vocab)}
+
+    # if args.use_chars:
+    #     sizes['chars'] = len(CHAR.vocab)
+
+    return (current_iterator, sizes, [WORD.vocab, SWITCH.vocab])
 
 '''
 1. declare all fields you could every possibly use - this includes CHAR and SEM
@@ -48,8 +109,6 @@ def dep_to_int(tensor, vocab, _):
 3. the size of field_tuples = number of columns in the conllu file; pass it to conll_to_csv
 4. add the vocab to the vocab dict at the end if you are using them 
 '''
-
-
 def get_iterators(args, batch_size):
     device = -(not args.use_cuda)
     tokeniser = lambda x: x.split(',')
@@ -152,79 +211,3 @@ def two_to_csv(fname):
             #cols = [i.replace(',', '<cm>') for i in line.rstrip("\n").split("\t")]
             blokk = list(map(lambda x, y: x + ',' + y, blokk, cols))
     return "\n".join(rows)
-
-
-def two_col_data(args, batch_size):
-    device = -(not args.cuda)
-    tokeniser = lambda x: x.split(',')
-    embeds = args.embed
-
-    if type(args.train) is list:
-        train_csv = two_to_csv(args.train[1])
-        dev_csv = two_to_csv(args.dev[1])
-        test_csv = two_to_csv(args.test[1])
-    else:
-        train_csv = two_to_csv(args.train)
-        dev_csv = two_to_csv(args.dev)
-        test_csv = two_to_csv(args.test)
-
-    for file, text in zip(["train_aux", "dev_aux", "test_aux"], [train_csv, dev_csv, test_csv]):
-        with open(os.path.join(".tmp", file + ".csv"), "w") as f:
-            f.write(text)
-
-    FORM = data.Field(tokenize = tokeniser, batch_first=True, include_lengths=True)
-    CHAR = data.Field(tokenize=list, batch_first=True, init_token='<w>')
-    NEST = data.NestedField(CHAR, tokenize=tokeniser, include_lengths=True)
-    SEM = data.Field(tokenize = tokeniser, batch_first=True)
-
-    train, dev, test = data.TabularDataset.splits(path = '.tmp', train = 'train_aux.csv', validation = 'dev_aux.csv', test = 'test_aux.csv',
-                                                      format = 'csv', fields=[('form', FORM), ('sem', SEM), ('char', NEST)])
-    fields = [FORM, SEM, NEST]
-    for i in fields:
-        if i == FORM and embeds is not '':
-            vecs = vocab.Vectors(name=embeds)
-            i.build_vocab(train, vectors=vecs)
-        else:
-            i.build_vocab(train)
-    # [i.build_vocab(train) for i in fields]
-
-    (train_iter, dev_iter, test_iter) = data.Iterator.splits((train, dev, test), batch_sizes=(batch_size, batch_size, batch_size), device=device,
-                                                             sort_key=lambda x: len(x.form), sort_within_batch=True,
-                                                             repeat=False)
-
-    sizes = {'vocab': len(FORM.vocab), 'semtags' : len(SEM.vocab), 'chars': len(CHAR.vocab)}
-    loader_dict = {"train": train_iter,
-                       "dev": dev_iter,
-                       "test": test_iter,
-                       "sizes": sizes,
-                       "vocab": FORM.vocab
-                       }
-    return  loader_dict
-
-    sizes = {'vocab': len(FORM.vocab), 'postags': len(UPOS.vocab), 'deprels': len(DEPREL.vocab), 'chars': len(CHAR.vocab)}
-
-    return (train_iter, dev_iter, test_iter), sizes
-
-def get_iterators_cl(args, batch_size):
-
-    assert len(args.train) == len(args.dev) == len(args.test), \
-        "Train/Dev/Test must be provided for all languages."
-
-    NUMLANGS = len(args.train)
-    
-    if args.embed is not None:
-        assert len(args.embed) == NUMLANGS, \
-            "Embeds must be provided for all languages."
-
-    out = []
-    for i in range(NUMLANGS):
-        loaders, sizes, vocab = get_iterators((args.train[i], args.dev[i], args.test[i]), args.embed[i], batch_size, args.cuda)
-        loader_dict = {"train": loaders[0],
-                       "dev": loaders[1],
-                       "test": loaders[2],
-                       "sizes": sizes,
-                       "vocab": vocab
-                       }
-        out.append(loader_dict)
-    
-    return out
