@@ -228,6 +228,9 @@ def extract_batch_bucket_vector(batch, morph_vocab, bucket_itos, bucket_stoi):
     default_feat_vector = torch.LongTensor([0 for i in bucket_itos])
     batch_morph = batch.feats
     new_batch_tensor = []
+    acceptable = [
+        "PronType", "NumType", "Poss", "Reflex", "Foreign", "Abbr", "Gender", "Animacy", "Number", "Case", "Definite", "Degree", "VerbForm", "Mood", "Tense", "Aspect", "Voice", "Evident", "Polarity", "Person", "Polite"
+    ]
     # get vectors
     for sent_no, sentence in enumerate(batch_morph):
         sentence_tensor = [] 
@@ -247,11 +250,13 @@ def extract_batch_bucket_vector(batch, morph_vocab, bucket_itos, bucket_stoi):
                 for feat in feats:
                     key = feat.split("=")[0]
                     try:
-                        current_feat_vector[bucket_stoi[key]] = 1
+                        if key in acceptable:
+                            current_feat_vector[bucket_stoi[key]] = 1
                     # check whether this is necessary - maybe just don't bother with unknown features in test
                     # seeing as you can't really predict a value for an unknown key anyway
                     except KeyError:
-                        current_feat_vector[bucket_stoi['<unk>']] = 1
+                        # current_feat_vector[bucket_stoi['<unk>']] = 1
+                        pass
 
                 sentence_tensor.append(Variable(current_feat_vector))
         new_batch_tensor.append(torch.stack(sentence_tensor))

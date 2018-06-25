@@ -30,10 +30,14 @@ class Analyser(torch.nn.Module):
         self.bucket_vocab_stoi = {i: n for (n, i) in enumerate(self.bucket_vocab_itos)}
 
         # ignore this for now
+        acceptable = [
+            "<pad>", "PronType", "NumType", "Poss", "Reflex", "Foreign", "Abbr", "Gender", "Animacy", "Number", "Case", "Definite", "Degree", "VerbForm", "Mood", "Tense", "Aspect", "Voice", "Evident", "Polarity", "Person", "Polite"
+        ]
         self.feat_vocab = []
         for i in self.morph_vocab.itos:
             if "=" not in i:
-                self.feat_vocab.append(i)
+                if i in acceptable:
+                    self.feat_vocab.append(i)
             else:
                 self.feat_vocab.extend([j.split("=")[0] for j in i.split("|")])
         # TODO: could use a Vocab object but don't care right now
@@ -46,7 +50,7 @@ class Analyser(torch.nn.Module):
         self.embeds_tags = torch.nn.Embedding(sizes['postags'], embed_dim)
         #self.lstm = torch.nn.LSTM(2 * embed_dim, lstm_dim, lstm_layers, batch_first=True, bidirectional=True, dropout=0.5)
         self.mlp = torch.nn.Linear(2*embed_dim, mlp_dim)
-        self.out = torch.nn.Linear(mlp_dim, len(self.bucket_vocab))
+        self.out = torch.nn.Linear(mlp_dim, len(self.feat_vocab))
 
         self.optimiser = torch.optim.Adam(self.parameters(), lr=learning_rate, betas=(0.9, 0.9))
         #self.criterion = torch.nn.BCEWithLogitsLoss()
@@ -74,7 +78,7 @@ class Analyser(torch.nn.Module):
 
         for i, batch in enumerate(train_loader):
             (x_forms, pack), x_tags = batch.form, batch.upos
-            new_batch_tensor = Helpers.extract_batch_bucket_vector(batch, self.morph_vocab, self.bucket_vocab_itos, self.bucket_vocab_stoi).type(torch.FloatTensor)
+            new_batch_tensor = Helpers.extract_batch_bucket_vector(batch, self.morph_vocab, self.feat_vocab_itos, self.feat_vocab_stoi).type(torch.FloatTensor)
             if self.args.use_cuda:
                 new_batch_tensor = new_batch_tensor.cuda()
             predicted_tensor = self.forward(x_forms, x_tags, pack)
@@ -99,7 +103,7 @@ class Analyser(torch.nn.Module):
         for i, batch in enumerate(test_loader):
             (x_forms, pack), x_tags = batch.form, batch.upos
             
-            new_batch_tensor = Helpers.extract_batch_bucket_vector(batch, self.morph_vocab, self.bucket_vocab_itos, self.bucket_vocab_stoi).type(torch.ByteTensor)
+            new_batch_tensor = Helpers.extract_batch_bucket_vector(batch, self.morph_vocab, self.feat_vocab_itos, self.feat_vocab_stoi).type(torch.ByteTensor)
             predicted_tensor = self(x_forms, x_tags, pack)
             if self.args.use_cuda:
                 new_batch_tensor = new_batch_tensor.cuda()
