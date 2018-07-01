@@ -33,24 +33,34 @@ class Analyser(torch.nn.Module):
         acceptable = [
             "<pad>", "PronType", "NumType", "Poss", "Reflex", "Foreign", "Abbr", "Gender", "Animacy", "Number", "Case", "Definite", "Degree", "VerbForm", "Mood", "Tense", "Aspect", "Voice", "Evident", "Polarity", "Person", "Polite"
         ]
+        self.mappings_vocab = {}
         self.feat_vocab = []
         for i in self.morph_vocab.itos:
             if "=" not in i:
-                if i in acceptable:
-                    self.feat_vocab.append(i)
+                self.feat_vocab.append(i)
             else:
-                self.feat_vocab.extend([j.split("=")[0] for j in i.split("|")])
+                keys = filter(lambda x: x in acceptable, [j.split("=")[0] for j in i.split("|")])
+                mappings = {j.split("=")[0]: j.split("=")[1] for j in i.split("|")}
+                for key in keys:
+                    try:
+                        self.mappings_vocab[key].add(mappings[key])
+                    except:
+                        self.mappings_vocab[key] = set()
+
+                self.feat_vocab.extend(keys)
         # TODO: could use a Vocab object but don't care right now
         self.feat_vocab = set(self.feat_vocab)
         self.feat_vocab_itos = list(self.feat_vocab)
         self.feat_vocab_stoi = {i: n for (n, i) in enumerate(self.feat_vocab_itos)}
+        # now the values
+        largest_bucket = max([len(i[1] for i in self.mappings_vocab.items())])
 
         # components
         self.embeds = torch.nn.Embedding(sizes['vocab'], embed_dim)
         self.embeds_tags = torch.nn.Embedding(sizes['postags'], embed_dim)
         #self.lstm = torch.nn.LSTM(2 * embed_dim, lstm_dim, lstm_layers, batch_first=True, bidirectional=True, dropout=0.5)
         self.mlp = torch.nn.Linear(2*embed_dim, mlp_dim)
-        self.out = torch.nn.Linear(mlp_dim, len(self.feat_vocab))
+        self.out = torch.nn.Linear(mlp_dim, len(self.feat_vocab) * (largest_bucket + 1))
 
         self.optimiser = torch.optim.Adam(self.parameters(), lr=learning_rate, betas=(0.9, 0.9))
         #self.criterion = torch.nn.BCEWithLogitsLoss()
