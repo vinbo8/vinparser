@@ -363,7 +363,7 @@ class Parser(torch.nn.Module):
 
     def evaluate_(self, test_loader, print_conll=False):
         las_correct, uas_correct, total = 0, 0, 0
-        # self.eval()
+        self.eval()
         for i, batch in enumerate(test_loader):
             form_pack, y_heads, y_deprels = batch.form[1], batch.head, batch.deprel
             
