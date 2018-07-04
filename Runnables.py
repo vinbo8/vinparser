@@ -335,10 +335,10 @@ class Parser(torch.nn.Module):
             dev_loss = self.criterion(y_pred_weights.view(batch_size * longest_sentence_in_batch, -1), all_ones.view(batch_size * longest_sentence_in_batch))
 
             self.zero_grad()
-            train_loss.backward(retain_graph=True)
-            dev_loss.backward()
+            train_loss.backward()
+            # dev_loss.backward()
             self.optimiser.step()
-            self.selective_optimiser.step()
+            # self.selective_optimiser.step()
 
             print("Epoch: {}\t{}/{}\tloss: {}".format(epoch, (i + 1) * elements_per_batch, len(train_loader.dataset), train_loss.data[0]))
 

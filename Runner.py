@@ -161,7 +161,7 @@ if __name__ == '__main__':
             print("Training")
             for epoch in range(PARSE_EPOCHS):
                 runnable.train_(epoch, train_loader)
-                runnable.hargle_(epoch, dev_loader)
+                runnable.evaluate_(epoch, dev_loader)
 
         # test
         print("Eval")
