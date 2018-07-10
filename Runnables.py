@@ -361,7 +361,7 @@ class Parser(torch.nn.Module):
             print("Epoch: {}\t{}/{}\tloss: {}".format(epoch, (i + 1) * batch_size, len(dev_loader.dataset), dev_loss.data[0]))
 
 
-    def evaluate_(self, test_loader, print_conll=False):
+    def evaluate_(self, epoch, test_loader, print_conll=False):
         las_correct, uas_correct, total = 0, 0, 0
         self.eval()
         for i, batch in enumerate(test_loader):
