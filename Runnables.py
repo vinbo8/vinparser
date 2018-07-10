@@ -342,25 +342,6 @@ class Parser(torch.nn.Module):
 
             print("Epoch: {}\t{}/{}\tloss: {}".format(epoch, (i + 1) * elements_per_batch, len(train_loader.dataset), train_loss.data[0]))
 
-
-    def hargle_(self, epoch, dev_loader):
-        self.train()
-        dev_loader.init_epoch()
-
-        for i, batch in enumerate(dev_loader):
-            _, _, (y_pred_weights, y_weights) = self(batch)
-
-            # reshape for cross-entropy
-            batch_size, longest_sentence_in_batch, _ = y_weights.size()
-            dev_loss = self.weight_criterion(y_pred_weights, y_weights)
-
-            self.zero_grad()
-            dev_loss.backward()
-            self.selective_optimiser.step()
-
-            print("Epoch: {}\t{}/{}\tloss: {}".format(epoch, (i + 1) * batch_size, len(dev_loader.dataset), dev_loss.data[0]))
-
-
     def evaluate_(self, epoch, test_loader, print_conll=False):
         las_correct, uas_correct, total = 0, 0, 0
         self.eval()
@@ -409,6 +390,24 @@ class Parser(torch.nn.Module):
 
         print("UAS = {}/{} = {}\nLAS = {}/{} = {}".format(uas_correct, total, uas_correct / total,
                                                           las_correct, total, las_correct / total))
+
+    def hargle_(self, epoch, dev_loader):
+        self.train()
+        dev_loader.init_epoch()
+
+        for i, batch in enumerate(dev_loader):
+            _, _, (y_pred_weights, y_weights) = self(batch)
+
+            # reshape for cross-entropy
+            batch_size, longest_sentence_in_batch, _ = y_weights.size()
+            dev_loss = self.weight_criterion(y_pred_weights, y_weights)
+
+            self.zero_grad()
+            dev_loss.backward()
+            self.selective_optimiser.step()
+
+            print("Epoch: {}\t{}/{}\tloss: {}".format(epoch, (i + 1) * batch_size, len(dev_loader.dataset), dev_loss.data[0]))
+
 
 
 class CLTagger(torch.nn.Module):
