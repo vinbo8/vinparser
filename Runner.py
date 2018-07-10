@@ -165,7 +165,7 @@ if __name__ == '__main__':
 
         # test
         print("Eval")
-        runnable.evaluate_(test_loader, print_conll=True)
+        runnable.evaluate_(test_loader, print_conll=False)
 
         if args.save:
             print("Saving..")
