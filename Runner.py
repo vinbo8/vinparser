@@ -125,15 +125,15 @@ if __name__ == '__main__':
             
             if args.use_cuda: runnable.cuda()
 
-            print("Training parser")
-            for epoch in range(PARSE_EPOCHS):
-                runnable.train_(epoch, train_loader)
-                runnable.evaluate_(dev_loader)
+            # print("Training parser")
+            # for epoch in range(PARSE_EPOCHS):
+            #     runnable.train_(epoch, train_loader)
+            #     runnable.evaluate_(dev_loader)
 
-            # test
-            print("Evaluating parser")
-            runnable.evaluate_(test_loader, print_conll=True)
-            sys.exit() 
+            # # test
+            # print("Evaluating parser")
+            # runnable.evaluate_(test_loader, print_conll=True)
+            # sys.exit() 
 
         elif args.parse:
             runnable = Parser(args, sizes, vocab, embed_dim=PARSE_EMBED_DIM, lstm_dim=PARSE_LSTM_DIM, lstm_layers=PARSE_LSTM_LAYERS,
@@ -161,11 +161,11 @@ if __name__ == '__main__':
             print("Training")
             for epoch in range(PARSE_EPOCHS):
                 runnable.train_(epoch, train_loader)
-                runnable.evaluate_(epoch, dev_loader)
+                runnable.evaluate_(dev_loader)
 
         # test
         print("Eval")
-        runnable.evaluate_(test_loader, print_conll=False)
+        runnable.evaluate_(test_loader, print_conll=True)
 
         if args.save:
             print("Saving..")

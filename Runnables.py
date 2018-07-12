@@ -271,15 +271,15 @@ class Parser(torch.nn.Module):
         reduced_deprel_dep = self.dropout(self.relu(self.mlp_deprel_dep(output)))
         predicted_labels = y_pred_head.max(2)[1]
         batch_size, longest_word_in_batch, _ = y_pred_weights.size()
-        true_weights = Variable(torch.zeros(batch_size, longest_word_in_batch, longest_word_in_batch))
-        enum = torch.LongTensor([i for i in range(longest_word_in_batch)])
-        if self.args.use_cuda: 
-            enum = enum.cuda()
-            true_weights = true_weights.cuda()
+        # true_weights = Variable(torch.zeros(batch_size, longest_word_in_batch, longest_word_in_batch))
+        # enum = torch.LongTensor([i for i in range(longest_word_in_batch)])
+        # if self.args.use_cuda: 
+        #     enum = enum.cuda()
+        #     true_weights = true_weights.cuda()
 
-        for batch in range(batch_size):
-            for n, i in enumerate(predicted_labels[batch].data):
-                true_weights[batch, n, i] = 1
+        # for batch in range(batch_size):
+        #     for n, i in enumerate(predicted_labels[batch].data):
+        #         true_weights[batch, n, i] = 1
         
         selected_heads = torch.stack([torch.index_select(reduced_deprel_head[n], 0, predicted_labels[n])
                                         for n, _ in enumerate(predicted_labels)])
@@ -294,7 +294,7 @@ class Parser(torch.nn.Module):
         if self.args.use_cuda:
             y_pred_langid = y_pred_langid.cuda()
 
-        return y_pred_head, y_pred_label, (y_pred_weights, true_weights)
+        return y_pred_head, y_pred_label, (None, None) # (y_pred_weights, true_weights)
 
     '''
     1. the bare minimum that needs to be loaded is forms, upos, head, deprel (could change later); load those
@@ -342,7 +342,7 @@ class Parser(torch.nn.Module):
 
             print("Epoch: {}\t{}/{}\tloss: {}".format(epoch, (i + 1) * elements_per_batch, len(train_loader.dataset), train_loss.data[0]))
 
-    def evaluate_(self, epoch, test_loader, print_conll=False):
+    def evaluate_(self, test_loader, print_conll=False):
         las_correct, uas_correct, total = 0, 0, 0
         self.eval()
         for i, batch in enumerate(test_loader):
