@@ -291,7 +291,7 @@ class Parser(torch.nn.Module):
         #     for n, i in enumerate(predicted_labels[batch].data):
         #         true_weights[batch, n, i] = 1
 
-        predicted_labels = torch.stack(predicted_labels) 
+        predicted_labels = Variable(torch.stack(predicted_labels))
         selected_heads = torch.stack([torch.index_select(reduced_deprel_head[n], 0, predicted_labels[n])
                                         for n, _ in enumerate(predicted_labels)])
         y_pred_label = self.label_biaffine(selected_heads, reduced_deprel_dep)
