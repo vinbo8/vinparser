@@ -269,8 +269,18 @@ class Parser(torch.nn.Module):
         # predict deprels using heads
         reduced_deprel_head = self.dropout(self.relu(self.mlp_deprel_head(output)))
         reduced_deprel_dep = self.dropout(self.relu(self.mlp_deprel_dep(output)))
-        predicted_labels = y_pred_head.max(2)[1]
-        batch_size, longest_word_in_batch, _ = y_pred_weights.size()
+        predicted_labels = []
+        # predicted_labels = y_pred_head.max(2)[1]
+
+        for batch in y_pred_head: 
+            heads_softmaxes = F.softmax(batch, dim=1)
+            if self.args.use_cuda:
+                heads_softmaxes = heads_softmaxes.cpu()
+
+            predicted_labels.append(torch.from_numpy(cle.mst(heads_softmaxes.data.numpy())))
+
+
+        # batch_size, longest_word_in_batch, _ = y_pred_weights.size()
         # true_weights = Variable(torch.zeros(batch_size, longest_word_in_batch, longest_word_in_batch))
         # enum = torch.LongTensor([i for i in range(longest_word_in_batch)])
         # if self.args.use_cuda: 
@@ -280,7 +290,8 @@ class Parser(torch.nn.Module):
         # for batch in range(batch_size):
         #     for n, i in enumerate(predicted_labels[batch].data):
         #         true_weights[batch, n, i] = 1
-        
+
+        predicted_labels = torch.stack(predicted_labels) 
         selected_heads = torch.stack([torch.index_select(reduced_deprel_head[n], 0, predicted_labels[n])
                                         for n, _ in enumerate(predicted_labels)])
         y_pred_label = self.label_biaffine(selected_heads, reduced_deprel_dep)
