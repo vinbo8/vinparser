@@ -310,9 +310,9 @@ class Parser(torch.nn.Module):
             elements_per_batch = len(y_heads)
             y_pred_heads, y_pred_deprels, (y_pred_weights, y_weights) = self(batch)
 
-            all_ones = Variable(torch.ones(y_pred_weights.size()[0:2]).type(torch.LongTensor))
-            if self.args.use_cuda:
-                all_ones = all_ones.cuda()
+            # all_ones = Variable(torch.ones(y_pred_weights.size()[0:2]).type(torch.LongTensor))
+            # if self.args.use_cuda:
+                # all_ones = all_ones.cuda()
             # reshape for cross-entropy
             batch_size, longest_sentence_in_batch = y_heads.size()
 
@@ -332,7 +332,7 @@ class Parser(torch.nn.Module):
 
             # sum losses
             train_loss = self.criterion(y_pred_heads, y_heads) + self.criterion(y_pred_deprels, y_deprels) # + self.criterion(y_pred_langids, y_langids)
-            dev_loss = self.criterion(y_pred_weights.view(batch_size * longest_sentence_in_batch, -1), all_ones.view(batch_size * longest_sentence_in_batch))
+            # dev_loss = self.criterion(y_pred_weights.view(batch_size * longest_sentence_in_batch, -1), all_ones.view(batch_size * longest_sentence_in_batch))
 
             self.zero_grad()
             train_loss.backward()
