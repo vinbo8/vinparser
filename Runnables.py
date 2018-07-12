@@ -292,6 +292,9 @@ class Parser(torch.nn.Module):
         #         true_weights[batch, n, i] = 1
 
         predicted_labels = Variable(torch.stack(predicted_labels))
+        if self.args.use_cuda:
+            predicted_labels = predicted_labels.cuda()
+
         selected_heads = torch.stack([torch.index_select(reduced_deprel_head[n], 0, predicted_labels[n])
                                         for n, _ in enumerate(predicted_labels)])
         y_pred_label = self.label_biaffine(selected_heads, reduced_deprel_dep)
