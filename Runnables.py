@@ -277,7 +277,7 @@ class Parser(torch.nn.Module):
             if self.args.use_cuda:
                 heads_softmaxes = heads_softmaxes.cpu()
 
-            predicted_labels.append(cle.mst(heads_softmaxes.data.numpy()))
+            predicted_labels.append(torch.from_numpy(cle.mst(heads_softmaxes.data.numpy())))
 
 
         # batch_size, longest_word_in_batch, _ = y_pred_weights.size()
