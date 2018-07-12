@@ -380,7 +380,7 @@ class Parser(torch.nn.Module):
                 deprels = [deprel_vocab.itos[i.data[0]] for i in y_pred_deprels.view(-1, 1)]
 
                 heads_softmaxes = self(batch)[0][0]
-                heads_softmaxes = F.softmax(heads_softmaxes, dim=0)
+                heads_softmaxes = F.softmax(heads_softmaxes, dim=1)
                 if self.args.use_cuda:
                     heads_softmaxes = heads_softmaxes.cpu()
 
