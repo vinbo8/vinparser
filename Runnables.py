@@ -21,7 +21,7 @@ class Parser(torch.nn.Module):
             self.embeddings_chars = CharEmbedding(sizes['chars'], embed_dim, lstm_dim, lstm_layers)
 
         self.embeddings_rand = torch.nn.Embedding(sizes['forms'], embed_dim)
-        self.embeddings_forms = torch.nn.Embedding(sizes['forms'], embed_dim)
+        self.embeddings_forms = torch.nn.Embedding(sizes['forms'], 300)
         if self.args.embed:
             self.embeddings_forms.weight.data.copy_(vocab['forms'].vectors)
             if self.args.fix_embeds:
