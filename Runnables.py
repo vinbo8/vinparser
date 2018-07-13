@@ -136,10 +136,10 @@ class Parser(torch.nn.Module):
             y_pred_label = y_pred_label.cuda()
 
         # lang pred bollix
-        langid = self.dropout(F.relu(self.lang_pred_hidden(embeds)))
-        y_pred_langid = self.lang_pred_out(langid)
-        if self.args.use_cuda:
-            y_pred_langid = y_pred_langid.cuda()
+        # langid = self.dropout(F.relu(self.lang_pred_hidden(embeds)))
+        # y_pred_langid = self.lang_pred_out(langid)
+        # if self.args.use_cuda:
+            # y_pred_langid = y_pred_langid.cuda()
 
         return y_pred_head, y_pred_label, (None, None) # (y_pred_weights, true_weights)
 
