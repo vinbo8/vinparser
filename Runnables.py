@@ -31,7 +31,7 @@ class Parser(torch.nn.Module):
         self.embeddings_langids = torch.nn.Embedding(sizes['misc'], 100)
 
         # size should be embed_size + whatever the other embeddings have
-        lstm_in_dim = 500 if self.args.use_misc else 700
+        lstm_in_dim = 500 if self.args.use_misc else 400
         self.lstm = torch.nn.LSTM(lstm_in_dim, lstm_dim, lstm_layers,
                                   batch_first=True, bidirectional=True, dropout=0.33)
         self.mlp_head = torch.nn.Linear(2 * lstm_dim, reduce_dim_arc)
@@ -71,8 +71,7 @@ class Parser(torch.nn.Module):
 
         composed_embeds = self.dropout(self.embeddings_rand(forms))
         if self.args.embed:
-            composed_embeds = torch.cat([composed_embeds, self.dropout(self.embeddings_forms(forms))])
-            # composed_embeds += self.dropout(self.embeddings_forms(forms))
+            composed_embeds += self.dropout(self.embeddings_forms(forms))
         if self.args.use_chars:
             (chars, _, char_pack) = batch.char
             composed_embeds += self.dropout(self.embeddings_chars(chars, char_pack))
