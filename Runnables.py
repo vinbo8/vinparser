@@ -435,7 +435,7 @@ class LangSwitch(torch.nn.Module):
             y_misc = y_misc.contiguous().view(batch_size * longest_sentence_in_batch)
 
             # sum losses
-            train_loss = self.criterion(y_pred_misc, shifted_y_misc) + self.criterion(y_pred_current, y_misc)
+            train_loss = self.criterion(y_pred_misc, shifted_y_misc)# + self.criterion(y_pred_current, y_misc)
 
             self.zero_grad()
             train_loss.backward()
