@@ -94,6 +94,7 @@ class Parser(torch.nn.Module):
         reduced_head_dep = self.dropout(self.relu(self.mlp_dep(output)))
         y_pred_head = self.biaffine(reduced_head_head, reduced_head_dep)
         y_pred_weights = self.biaffine_for_weights(reduced_head_head, reduced_head_head)
+
         # if not self.training:
         #     y_pred_head *= y_pred_weights
 
