@@ -27,11 +27,11 @@ class Parser(torch.nn.Module):
             if self.args.fix_embeds:
                 self.embeddings_forms.weight.requires_grad = False
 
-        self.embeddings_tags = torch.nn.Embedding(sizes['postags'], embed_dim)
+        self.embeddings_tags = torch.nn.Embedding(sizes['postags'], 100)
         self.embeddings_langids = torch.nn.Embedding(sizes['misc'], 100)
 
         # size should be embed_size + whatever the other embeddings have
-        lstm_in_dim = 500 if self.args.use_misc else 600
+        lstm_in_dim = 500 if self.args.use_misc else 400
         self.lstm = torch.nn.LSTM(lstm_in_dim, lstm_dim, lstm_layers,
                                   batch_first=True, bidirectional=True, dropout=0.33)
         self.mlp_head = torch.nn.Linear(2 * lstm_dim, reduce_dim_arc)
@@ -385,7 +385,7 @@ class LangSwitch(torch.nn.Module):
         lstm_out, _ = self.lstm(packed)
         lstm_out, _ = torch.nn.utils.rnn.pad_packed_sequence(lstm_out, batch_first=True)
 
-        packed_2 = torch.nn.utils.rnn.pack_padded_sequence(embeds, pack.tolist(), batch_first=True)
+        packed_2 = torch.nn.utils.rnn.pack_padded_sequence(embeds_2, pack.tolist(), batch_first=True)
         lstm_out_2, _ = self.lstm(packed_2)
         lstm_out_2, _ = torch.nn.utils.rnn.pad_packed_sequence(lstm_out_2, batch_first=True)
 
