@@ -324,7 +324,7 @@ class LangID(torch.nn.Module):
 
 class LangSwitch(torch.nn.Module):
     def __init__(self, args, sizes, vocab, chain=False, embeddings=None, embed_dim=100, lstm_dim=100, lstm_layers=3,
-                 mlp_dim=100, learning_rate=1e-5):
+                 mlp_dim=200, mlp_dim_2 = 100, learning_rate=1e-5):
         super().__init__()
 
         self.sizes, self.args, self.vocab = sizes, args, vocab
@@ -337,19 +337,15 @@ class LangSwitch(torch.nn.Module):
         if self.args.embed:
             self.embeds.weight.data.copy_(vocab[0].vectors)
         self.lstm = torch.nn.LSTM(2 * embed_dim, lstm_dim, lstm_layers, batch_first=True, bidirectional=True, dropout=0.5)
+        self.lstm_for_langid = torch.nn.LSTM(embed_dim, lstm_dim, lstm_layers, batch_first=True, bidirectional=False, dropout=0.5)
         self.relu = torch.nn.ReLU()
-        self.mlp = torch.nn.Linear(2 * lstm_dim + embed_dim, mlp_dim)
-        self.out = torch.nn.Linear(mlp_dim, sizes['misc'])
+        self.mlp = torch.nn.Linear(2 * lstm_dim, mlp_dim)
+        self.mlp_2 = torch.nn.Linear(mlp_dim, mlp_dim_2)
+        self.out = torch.nn.Linear(mlp_dim_2, sizes['misc'])
 
-        self.conv_2 = torch.nn.Conv2d(1, 25, (2, 1))
-        self.conv_3 = torch.nn.Conv2d(1, 25, (3, 1))
-        self.conv_4 = torch.nn.Conv2d(1, 25, (4, 1))
-        self.conv_5 = torch.nn.Conv2d(1, 25, (5, 1))
-
-        self.conv_2_2 = torch.nn.Conv2d(25, 128, (2, 1))
-        self.conv_3_2 = torch.nn.Conv2d(25, 128, (3, 1))
-        self.conv_4_2 = torch.nn.Conv2d(25, 128, (4, 1))
-        self.conv_5_2 = torch.nn.Conv2d(25, 128, (5, 1))
+        self.current_lstm = torch.nn.LSTM(2 * embed_dim, lstm_dim, lstm_layers, batch_first=True, bidirectional=True, dropout=0.5)
+        self.current_mlp = torch.nn.Linear(2 * lstm_dim, mlp_dim)
+        self.current_out = torch.nn.Linear(mlp_dim, sizes['misc'])
 
         self.criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
         self.optimiser = torch.optim.Adam(self.parameters(), lr=learning_rate, betas=(0.9, 0.9))
@@ -363,40 +359,28 @@ class LangSwitch(torch.nn.Module):
         tag_embeds = self.dropout(self.tag_embeds(tags))
         previous_langid = self.dropout(self.previous_langid_embeds(misc))
 
-        embeds = torch.cat([form_embeds, tag_embeds, previous_langid], dim=2)
-        embeds_2 = torch.cat([form_embeds, tag_embeds], dim=2)
+        embeds = torch.cat([form_embeds, tag_embeds], dim=2)
 
-        batch_size, longest_sent, embed_dim = embeds.size()
-        # adaptive_pool_size = longest_sent // 3
-        # embeds = embeds.view(batch_size, 1, longest_sent, embed_dim)
-
-        # conv_2 = F.adaptive_max_pool2d(F.relu(self.conv_2(embeds)), (longest_sent, embed_dim)).squeeze(dim=3)
-        # conv_3 = F.adaptive_max_pool2d(F.relu(self.conv_3(embeds)), (longest_sent, embed_dim)).squeeze(dim=3)
-        # conv_4 = F.adaptive_max_pool2d(F.relu(self.conv_4(embeds)), (longest_sent, embed_dim)).squeeze(dim=3)
-        # conv_5 = F.adaptive_max_pool2d(F.relu(self.conv_5(embeds)), (longest_sent, embed_dim)).squeeze(dim=3)
-
-        # conv_2 = F.adaptive_max_pool2d(F.relu(self.conv_2_2(conv_2)), (longest_sent, 1)).squeeze(dim=3).transpose(1, 2)
-        # conv_3 = F.adaptive_max_pool2d(F.relu(self.conv_3_2(conv_3)), (longest_sent, 1)).squeeze(dim=3).transpose(1, 2)
-        # conv_4 = F.adaptive_max_pool2d(F.relu(self.conv_4_2(conv_4)), (longest_sent, 1)).squeeze(dim=3).transpose(1, 2)
-        # conv_5 = F.adaptive_max_pool2d(F.relu(self.conv_5_2(conv_5)), (longest_sent, 1)).squeeze(dim=3).transpose(1, 2)
-        # embeds = torch.cat([form_embeds, tag_embeds, previous_langid], dim=2)
-        # packed = torch.nn.utils.rnn.pack_padded_sequence(embeds, pack.tolist(), batch_first=True)
-        # lstm_out, _ = self.lstm(packed)
-        # lstm_out, _ = torch.nn.utils.rnn.pad_packed_sequence(lstm_out, batch_first=True)
-
-        packed = torch.nn.utils.rnn.pack_padded_sequence(embeds_2, pack.tolist(), batch_first=True)
+        packed = torch.nn.utils.rnn.pack_padded_sequence(embeds, pack.tolist(), batch_first=True)
         lstm_out, _ = self.lstm(packed)
         lstm_out, _ = torch.nn.utils.rnn.pad_packed_sequence(lstm_out, batch_first=True)
 
-        hmm = torch.cat([lstm_out, previous_langid], dim=2)
-        # for_mlp = torch.cat([conv_2, conv_3, conv_4, conv_5], dim=2)
-        # mlp_out = self.dropout(self.relu(self.mlp(for_mlp)))
+        lstm_current_out, _ = self.current_lstm(packed)
+        lstm_current_out, _ = torch.nn.utils.rnn.pad_packed_sequence(lstm_current_out, batch_first=True)
 
-        y_pred = self.out(self.relu(self.mlp(hmm)))
+        # packed = torch.nn.utils.rnn.pack_padded_sequence(previous_langid, pack.tolist(), batch_first=True)
+        # lstm_langid, _ = self.lstm_for_langid(packed)
+        # lstm_langid, _ = torch.nn.utils.rnn.pad_packed_sequence(lstm_langid, batch_first=True)
+
+        future = torch.cat([lstm_out, previous_langid], dim=2)
+
+        y_pred = self.out(self.relu(self.mlp_2(self.relu(self.mlp(lstm_out)))))
+        y_pred_current = self.current_out(self.relu(self.current_mlp(lstm_current_out)))
+
         if self.args.use_cuda:
             y_pred = y_pred.cuda()
 
-        return y_pred
+        return y_pred, y_pred_current
 
 
     def train_(self, epoch, train_loader):
@@ -414,7 +398,7 @@ class LangSwitch(torch.nn.Module):
             pad_misc_tensor[:] = self.vocab['misc'].stoi['<pad>']
             shifted_y_misc = torch.cat([y_misc[:, 1:], pad_misc_tensor], dim=1) 
 
-            y_pred_misc = self(batch)
+            y_pred_misc, y_pred_current = self(batch)
 
             # reshape for cross-entropy
             batch_size, longest_sentence_in_batch = y_misc.size()
@@ -424,8 +408,10 @@ class LangSwitch(torch.nn.Module):
             y_pred_misc = y_pred_misc.view(batch_size * longest_sentence_in_batch, -1)
             shifted_y_misc = shifted_y_misc.contiguous().view(batch_size * longest_sentence_in_batch)
 
+            y_pred_current = y_pred_current.view(batch_size * longest_sentence_in_batch, -1)
+            y_misc = y_misc.contiguous().view(batch_size * longest_sentence_in_batch)
             # sum losses
-            train_loss = self.criterion(y_pred_misc, shifted_y_misc)
+            train_loss = self.criterion(y_pred_misc, shifted_y_misc) 
 
             self.zero_grad()
             train_loss.backward()
@@ -449,7 +435,7 @@ class LangSwitch(torch.nn.Module):
             shifted_y_misc = torch.cat([y_misc[:, 1:], pad_misc_tensor], dim=1) 
 
             # get tags
-            y_pred = self(batch).max(2)[1]
+            y_pred = self(batch)[0].max(2)[1]
 
             mask = torch.zeros(form_pack.size()[0], max(form_pack)).type(torch.LongTensor)
             for n, size in enumerate(form_pack): mask[n, 0:size] = 1
