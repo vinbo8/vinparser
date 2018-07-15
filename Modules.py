@@ -11,7 +11,7 @@ class DomainShiftFunction(torch.autograd.Function):
     def backward(self, grad_output):
         grad_input = grad_output.clone()
         print("Hargle")
-        return 0.8 * torch.eye(grad_input.size()[0]) * grad_input
+        return 0.1 * torch.eye(grad_input.size()[0]) * grad_input
 
 
 class DomainShifter(torch.nn.Module):
