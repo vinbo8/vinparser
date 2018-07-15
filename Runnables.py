@@ -84,7 +84,6 @@ class Parser(torch.nn.Module):
         embeds = torch.cat([composed_embeds, tag_embeds], dim=2)
         if self.args.use_misc:
             embeds = torch.cat([embeds, langid_embeds], dim=2)
-        # embeds = torch.cat([composed_embeds, tag_embeds, langid_embeds], dim=2)
 
         # pack/unpack for LSTM
         for_lstm = torch.nn.utils.rnn.pack_padded_sequence(embeds, form_pack.tolist(), batch_first=True)
@@ -95,10 +94,7 @@ class Parser(torch.nn.Module):
         reduced_head_head = self.dropout(self.relu(self.mlp_head(output)))
         reduced_head_dep = self.dropout(self.relu(self.mlp_dep(output)))
         y_pred_head = self.biaffine(reduced_head_head, reduced_head_dep)
-        y_pred_weights = self.biaffine_for_weights(reduced_head_head, reduced_head_head)
-
-        # if not self.training:
-        #     y_pred_head *= y_pred_weights
+        y_pred_head *= y_pred_weights
 
         # predict deprels using heads
         reduced_deprel_head = self.dropout(self.relu(self.mlp_deprel_head(output)))

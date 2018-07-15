@@ -1,7 +1,36 @@
 import math
 import torch
 from torch.autograd import Variable
+from torch.nn import Parameter
 import torch.nn.functional as F
+
+
+class AllOnesLinear(torch.nn.Module):
+
+    def __init__(self, in_features, out_features, bias=True):
+        super(AllOnesLinear, self).__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+        self.weight = Parameter(torch.Tensor(out_features, in_features))
+        if bias:
+            self.bias = Parameter(torch.Tensor(out_features))
+        else:
+            self.register_parameter('bias', None)
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        stdv = 1. / math.sqrt(self.weight.size(1))
+        self.weight.data.uniform_(1, 1)
+        if self.bias is not None:
+            self.bias.data.uniform_(1, 1)
+
+    def forward(self, input):
+        return F.linear(input, self.weight, self.bias)
+
+    def extra_repr(self):
+        return 'in_features={}, out_features={}, bias={}'.format(
+            self.in_features, self.out_features, self.bias is not None
+        )
 
 
 class LangModel(torch.nn.Module):
