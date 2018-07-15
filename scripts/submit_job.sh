@@ -8,7 +8,7 @@ git pull
 
 echo "$root/venv/bin/python -u $root/Runner.py --parse --use_cuda \
 --embed $root/thesis/embeds/en-hi-mapped.vec \
---train $root/thesis/data/en-hi/en-hi-train-domain.conllu \
+--train $root/thesis/data/en-hi/en-hi-test-domain.conllu \
 --dev $root/thesis/data/en-hi/en-hi-test-domain.conllu \
 --test $root/thesis/data/en-hi/en-hi-test-domain.conllu \
 --save $root/thesis/models/domain/$1.vin \

@@ -194,8 +194,9 @@ class Parser(torch.nn.Module):
         self.eval()
         for i, batch in enumerate(test_loader):
             form_pack, y_heads, y_deprels = batch.form[1], batch.head, batch.deprel
-            
-            y_pred_heads, y_pred_deprels, _ = self(batch)
+
+            domains = torch.ones(y_heads.size(0))
+            y_pred_heads, y_pred_deprels, _ = self(batch, domains)
             y_pred_heads = y_pred_heads.max(2)[1]
             y_pred_deprels = y_pred_deprels.max(2)[1]
 
