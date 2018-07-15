@@ -5,9 +5,8 @@ import numpy as np
 
 blokk = []
 deprels_to_count = []
-# m-index
-langs = set()
-tokens_per_lang = {}
+
+m_index = 0
 # i-index
 number_of_sentences = 0
 current_lang = None
@@ -25,12 +24,15 @@ for line in sys.stdin:
         continue
 
     if not line.rstrip():
+        # m-index
+        langs = set()
+        tokens_per_lang = {}
+        # ==
         number_of_sentences += 1
         current_lang = None
         current_sample = 0
         # do stuff here
         for row in blokk:
-
             # m-index
             lang = row[9]
             langs.add(lang)
@@ -68,6 +70,13 @@ for line in sys.stdin:
                     deprels_to_count.append(row[7])
 
         # ---
+        # sentence level
+        # m-index
+        k = len(langs)
+        total_tokens = sum(tokens_per_lang.values())
+        pj_sum = 0
+        for current_lang in tokens_per_lang:
+            pj_sum += (tokens_per_lang[current_lang] / total_tokens) ** 2
         # i-index
         total_i_index += switches / (len(blokk) - 1)
         current_lang = None ; switches = 0
