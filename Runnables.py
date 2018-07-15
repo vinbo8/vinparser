@@ -6,7 +6,7 @@ from scripts import cle
 from torch.autograd import Variable
 from collections import Counter
 import torch.nn.functional as F
-from Modules import CharEmbedding, ShorterBiaffine, LongerBiaffine, LangModel
+from Modules import CharEmbedding, ShorterBiaffine, LongerBiaffine, LangModel, DomainShifter
 
 
 class Parser(torch.nn.Module):
@@ -49,6 +49,13 @@ class Parser(torch.nn.Module):
         self.weight_biaffine = ShorterBiaffine(reduce_dim_arc)
         self.label_biaffine = LongerBiaffine(reduce_dim_label, reduce_dim_label, sizes['deprels'])
 
+        # domain predictor
+        # hard-code sizes for now
+        self.weighter = DomainShifter()
+        self.mlp_domain = torch.nn.Linear(2 * lstm_dim, 200)
+        self.domain_pred = torch.nn.Linear(200, 2)
+        # ======
+
         # ======
         # for the pred_lang loss
         self.lang_pred_hidden = torch.nn.Linear(400, 100)
@@ -58,16 +65,14 @@ class Parser(torch.nn.Module):
         self.criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
         self.weight_criterion = torch.nn.MSELoss()
         params = filter(lambda p: p.requires_grad, self.parameters())
-        selective_params = [p[1] for p in filter(lambda p: p[0] == 'biaffine_for_weights.weight', self.named_parameters())]
         self.optimiser = torch.optim.Adam(params, lr=learning_rate, betas=(0.9, 0.9))
-        self.selective_optimiser = torch.optim.Adam(selective_params, lr=learning_rate, betas=(0.9, 0.9))
 
         if self.args.use_cuda:
             self.biaffine.cuda()
             self.biaffine_for_weights.cuda()
             self.label_biaffine.cuda()
 
-    def forward(self, batch, dev=False):
+    def forward(self, batch, domain):
         chars, char_pack = None, None
         (forms, form_pack), tags, langids = batch.form, batch.upos, batch.misc
 
@@ -84,7 +89,6 @@ class Parser(torch.nn.Module):
         embeds = torch.cat([composed_embeds, tag_embeds], dim=2)
         if self.args.use_misc:
             embeds = torch.cat([embeds, langid_embeds], dim=2)
-        # embeds = torch.cat([composed_embeds, tag_embeds, langid_embeds], dim=2)
 
         # pack/unpack for LSTM
         for_lstm = torch.nn.utils.rnn.pack_padded_sequence(embeds, form_pack.tolist(), batch_first=True)
@@ -96,14 +100,13 @@ class Parser(torch.nn.Module):
         reduced_head_dep = self.dropout(self.relu(self.mlp_dep(output)))
         y_pred_head = self.biaffine(reduced_head_head, reduced_head_dep)
 
-        # if not self.training:
-        #     y_pred_head *= y_pred_weights
-
         # predict deprels using heads
         reduced_deprel_head = self.dropout(self.relu(self.mlp_deprel_head(output)))
         reduced_deprel_dep = self.dropout(self.relu(self.mlp_deprel_dep(output)))
-        predicted_labels = []
 
+        # hargle
+        # ====
+        predicted_labels = []
         if self.training:
             predicted_labels = y_pred_head.max(2)[1]
 
@@ -118,6 +121,7 @@ class Parser(torch.nn.Module):
             predicted_labels = Variable(torch.stack(predicted_labels))
             if self.args.use_cuda:
                 predicted_labels = predicted_labels.cuda()
+        # ===
 
         selected_heads = torch.stack([torch.index_select(reduced_deprel_head[n], 0, predicted_labels[n])
                                         for n, _ in enumerate(predicted_labels)])
@@ -126,13 +130,13 @@ class Parser(torch.nn.Module):
         if self.args.use_cuda:
             y_pred_label = y_pred_label.cuda()
 
-        # lang pred bollix
-        # langid = self.dropout(F.relu(self.lang_pred_hidden(embeds)))
-        # y_pred_langid = self.lang_pred_out(langid)
-        # if self.args.use_cuda:
-            # y_pred_langid = y_pred_langid.cuda()
+        # predict domain
+        final_lstm_state = output[:, -1]
+        mlp_domain = self.dropout(self.relu(self.mlp_domain(self.weighter(final_lstm_state))))
+        y_pred_domain = self.domain_pred(mlp_domain)
+        # ===
 
-        return y_pred_head, y_pred_label, (None, None) # (y_pred_weights, true_weights)
+        return y_pred_head, y_pred_label, y_pred_domain
 
     '''
     1. the bare minimum that needs to be loaded is forms, upos, head, deprel (could change later); load those
@@ -145,13 +149,21 @@ class Parser(torch.nn.Module):
 
         for i, batch in enumerate(train_loader):
             y_heads, y_deprels, y_langids = batch.head, batch.deprel, batch.misc
-            elements_per_batch = len(y_heads)
-            y_pred_heads, y_pred_deprels, (y_pred_weights, y_weights) = self(batch)
+            domains = batch.misc.data[:, 1]
+            y_domains = []
+            for domain in domains:
+                if self.vocab['misc'].itos[domain] == "Domain=mono":
+                    y_domains.append(0)
+                elif self.vocab['misc'].itos[domain] == "Domain=multi":
+                    y_domains.append(1)
 
-            # all_ones = Variable(torch.ones(y_pred_weights.size()[0:2]).type(torch.LongTensor))
-            # if self.args.use_cuda:
-                # all_ones = all_ones.cuda()
-            # reshape for cross-entropy
+            y_domains = Variable(torch.LongTensor(y_domains))
+            if self.args.use_cuda:
+                y_domains = y_domains.cuda()
+
+            elements_per_batch = len(y_heads)
+            y_pred_heads, y_pred_deprels, y_pred_domains = self(batch, y_domains)
+
             batch_size, longest_sentence_in_batch = y_heads.size()
 
             # * predictions: (B x S x S) => (B * S x S)
@@ -164,19 +176,16 @@ class Parser(torch.nn.Module):
             y_pred_deprels = y_pred_deprels.view(batch_size * longest_sentence_in_batch, -1)
             y_deprels = y_deprels.contiguous().view(batch_size * longest_sentence_in_batch)
 
-            # langid
-            # y_pred_langids = y_pred_langids.view(batch_size * longest_sentence_in_batch, -1)
-            # y_langids = y_langids.contiguous().view(batch_size * longest_sentence_in_batch)
+            # * domains
+            # y_pred_domains = y_pred_domains.view(batch_size * longest_sentence_in_batch, -1)
+            # y_domains = y_domains.contiguous().view(batch_size * longest_sentence_in_batch)
 
             # sum losses
-            train_loss = self.criterion(y_pred_heads, y_heads) + self.criterion(y_pred_deprels, y_deprels) # + self.criterion(y_pred_langids, y_langids)
-            # dev_loss = self.criterion(y_pred_weights.view(batch_size * longest_sentence_in_batch, -1), all_ones.view(batch_size * longest_sentence_in_batch))
+            train_loss = self.criterion(y_pred_heads, y_heads) + self.criterion(y_pred_deprels, y_deprels) - self.criterion(y_pred_domains, y_domains)
 
             self.zero_grad()
             train_loss.backward()
-            # dev_loss.backward()
             self.optimiser.step()
-            # self.selective_optimiser.step()
 
             print("Epoch: {}\t{}/{}\tloss: {}".format(epoch, (i + 1) * elements_per_batch, len(train_loader.dataset), train_loss.data[0]))
 

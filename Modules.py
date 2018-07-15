@@ -4,6 +4,21 @@ from torch.autograd import Variable
 import torch.nn.functional as F
 
 
+class DomainShiftFunction(torch.autograd.Function):
+    def forward(self, input):
+        return input
+
+    def backward(self, grad_output):
+        grad_input = grad_output.clone()
+        print("Hargle")
+        return 0.8 * grad_input
+
+
+class DomainShifter(torch.nn.Module):
+    def forward(self, input):
+        return DomainShiftFunction()(input)
+
+
 class LangModel(torch.nn.Module):
     # pass the whole parser to access param
     def __init__(self, sizes, args, embed_dim=300, context_size=2):
