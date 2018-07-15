@@ -95,7 +95,6 @@ class Parser(torch.nn.Module):
         reduced_head_head = self.dropout(self.relu(self.mlp_head(output)))
         reduced_head_dep = self.dropout(self.relu(self.mlp_dep(output)))
         y_pred_head = self.biaffine(reduced_head_head, reduced_head_dep)
-        y_pred_weights = self.biaffine_for_weights(reduced_head_head, reduced_head_head)
 
         # if not self.training:
         #     y_pred_head *= y_pred_weights
@@ -119,17 +118,6 @@ class Parser(torch.nn.Module):
             predicted_labels = Variable(torch.stack(predicted_labels))
             if self.args.use_cuda:
                 predicted_labels = predicted_labels.cuda()
-
-        # batch_size, longest_word_in_batch, _ = y_pred_weights.size()
-        # true_weights = Variable(torch.zeros(batch_size, longest_word_in_batch, longest_word_in_batch))
-        # enum = torch.LongTensor([i for i in range(longest_word_in_batch)])
-        # if self.args.use_cuda: 
-        #     enum = enum.cuda()
-        #     true_weights = true_weights.cuda()
-
-        # for batch in range(batch_size):
-        #     for n, i in enumerate(predicted_labels[batch].data):
-        #         true_weights[batch, n, i] = 1
 
         selected_heads = torch.stack([torch.index_select(reduced_deprel_head[n], 0, predicted_labels[n])
                                         for n, _ in enumerate(predicted_labels)])
