@@ -16,7 +16,7 @@ for line in sys.stdin:
         current_span = None
         for row in blokk:
             lang = row[9]
-            if lang == "Language=hi\n" or lang == "Language=en\n":
+            if lang == "DE\n" or lang == "TR\n":
                 current_span = lang
             
             else:
@@ -26,7 +26,7 @@ for line in sys.stdin:
                 else:
                     for seeker in blokk:
                         lang = seeker[9]
-                        if lang == "Language=hi\n" or lang == "Language=en\n":
+                        if lang == "DE\n" or lang == "TR\n":
                             row[9] = lang
                             break
 

@@ -336,10 +336,10 @@ class LangSwitch(torch.nn.Module):
         self.chain = chain
         if self.args.embed:
             self.embeds.weight.data.copy_(vocab[0].vectors)
-        self.lstm = torch.nn.LSTM(2 * embed_dim, lstm_dim, lstm_layers, batch_first=True, bidirectional=True, dropout=0.5)
+        self.lstm = torch.nn.LSTM(3 * embed_dim, lstm_dim, lstm_layers, batch_first=True, bidirectional=False, dropout=0.5)
         self.lstm_for_langid = torch.nn.LSTM(embed_dim, lstm_dim, lstm_layers, batch_first=True, bidirectional=False, dropout=0.5)
         self.relu = torch.nn.ReLU()
-        self.mlp = torch.nn.Linear(2 * lstm_dim, mlp_dim)
+        self.mlp = torch.nn.Linear(lstm_dim, mlp_dim)
         self.mlp_2 = torch.nn.Linear(mlp_dim, mlp_dim_2)
         self.out = torch.nn.Linear(mlp_dim_2, sizes['misc'])
 
@@ -352,35 +352,34 @@ class LangSwitch(torch.nn.Module):
         self.dropout = torch.nn.Dropout(p=0.2)
 
     def forward(self, batch):
-
         (forms, pack), tags, deprels, misc = batch.form, batch.upos, batch.deprel, batch.misc
         
         form_embeds = self.dropout(self.form_embeds(forms))
         tag_embeds = self.dropout(self.tag_embeds(tags))
         previous_langid = self.dropout(self.previous_langid_embeds(misc))
 
-        embeds = torch.cat([form_embeds, tag_embeds], dim=2)
+        embeds = torch.cat([form_embeds, tag_embeds, previous_langid], dim=2)
 
         packed = torch.nn.utils.rnn.pack_padded_sequence(embeds, pack.tolist(), batch_first=True)
         lstm_out, _ = self.lstm(packed)
         lstm_out, _ = torch.nn.utils.rnn.pad_packed_sequence(lstm_out, batch_first=True)
 
-        lstm_current_out, _ = self.current_lstm(packed)
-        lstm_current_out, _ = torch.nn.utils.rnn.pad_packed_sequence(lstm_current_out, batch_first=True)
+        # lstm_current_out, _ = self.current_lstm(packed)
+        # lstm_current_out, _ = torch.nn.utils.rnn.pad_packed_sequence(lstm_current_out, batch_first=True)
 
         # packed = torch.nn.utils.rnn.pack_padded_sequence(previous_langid, pack.tolist(), batch_first=True)
         # lstm_langid, _ = self.lstm_for_langid(packed)
         # lstm_langid, _ = torch.nn.utils.rnn.pad_packed_sequence(lstm_langid, batch_first=True)
 
-        future = torch.cat([lstm_out, previous_langid], dim=2)
+        # future = torch.cat([lstm_out, lstm_langid], dim=2)
 
         y_pred = self.out(self.relu(self.mlp_2(self.relu(self.mlp(lstm_out)))))
-        y_pred_current = self.current_out(self.relu(self.current_mlp(lstm_current_out)))
+        # y_pred_current = self.current_out(self.relu(self.current_mlp(lstm_current_out)))
 
         if self.args.use_cuda:
             y_pred = y_pred.cuda()
 
-        return y_pred, y_pred_current
+        return y_pred, None #y_pred_current
 
 
     def train_(self, epoch, train_loader):
@@ -408,8 +407,8 @@ class LangSwitch(torch.nn.Module):
             y_pred_misc = y_pred_misc.view(batch_size * longest_sentence_in_batch, -1)
             shifted_y_misc = shifted_y_misc.contiguous().view(batch_size * longest_sentence_in_batch)
 
-            y_pred_current = y_pred_current.view(batch_size * longest_sentence_in_batch, -1)
-            y_misc = y_misc.contiguous().view(batch_size * longest_sentence_in_batch)
+            # y_pred_current = y_pred_current.view(batch_size * longest_sentence_in_batch, -1)
+            # y_misc = y_misc.contiguous().view(batch_size * longest_sentence_in_batch)
             # sum losses
             train_loss = self.criterion(y_pred_misc, shifted_y_misc) 
 
