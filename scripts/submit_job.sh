@@ -5,7 +5,7 @@ git checkout eval_codeswitch
 git pull
 echo "$root/venv/bin/python -u $root/Runner.py --parse --use_cuda \
 --embed $root/thesis/embeds/en-hi-mapped.vec \
---train $root/thesis/data/en-hi/en-hi-append.conllu \
+--train $root/thesis/data/en-hi/en-hi-domain.conllu \
 --dev $root/thesis/data/en-hi/en-hi-dev.conllu \
 --test $root/thesis/data/en-hi/en-hi-test.conllu \
 --save $root/thesis/models/$1.vin \
