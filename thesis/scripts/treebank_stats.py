@@ -8,7 +8,16 @@ deprels_to_count = []
 
 stats = {'m': 0, 'i': 0, 'burst': 0, 'le': 0, 'se': 0, 'mem': 0, 'cl': 0}
 most_freq = {}
+most_freq_d1 = {}
+most_freq_d2 = {}
+l1, l2 = None, None
 total_sentences = 0
+
+def safe_increment(d, key):
+    try:
+        d[key] += 1
+    except KeyError:
+        d[key] = 1
 
 for line in sys.stdin:
     if line[0] == '#':
@@ -74,10 +83,16 @@ for line in sys.stdin:
                 parent_lang = blokk[head][9]
                 if parent_lang != lang:
                     cl_in_sent += 1
-                    try:
-                        most_freq[row[7]] += 1
-                    except:
-                        most_freq[row[7]] = 1
+                    safe_increment(most_freq, row[7])
+                    if not l1 and not l2:
+                        l1 = row[9] ; l2 = blokk[head][9]
+
+                    if lang == l1 and parent_lang == l2:
+                        safe_increment(most_freq_d1, row[7])
+
+                    elif lang == l2 and parent_lang == l1:
+                        safe_increment(most_freq_d2, row[7])
+                        
         # ---
 
         # m-index
@@ -132,3 +147,5 @@ for line in sys.stdin:
 processed = {k: v / total_sentences for (k, v) in stats.items()}
 print(processed)
 print(most_freq)
+print(most_freq_d1)
+print(most_freq_d2)
