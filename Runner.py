@@ -13,6 +13,7 @@ if __name__ == '__main__':
     arg_parser.add_argument('--debug_new', action='store_true')
     arg_parser.add_argument('--langid', action='store_true')
     arg_parser.add_argument('--use_misc', action='store_true')
+    arg_parser.add_argument('--use_single', action='store_true')
     arg_parser.add_argument('--fix_embeds', action='store_true')
     arg_parser.add_argument('--parse', action='store_true')
     arg_parser.add_argument('--config', default='./config.ini')
