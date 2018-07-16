@@ -23,12 +23,12 @@ for line in sys.stdin:
         cols = line.split("\t")
         deprel = cols[7]
         if deprel in ['case', 'mark', 'det']:
-            flip = random.randint(0, 0) == 0
+            flip = random.randint(0, 3) == 0
             if flip:
                 form = cols[1]
                 if form in tokens[1][deprel]:
                     cols[1] = random.choice(tokens[0][deprel])
                 else:
-                    continue
+                    pass
 
         sys.stdout.write("\t".join(cols))
