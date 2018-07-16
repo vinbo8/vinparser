@@ -147,5 +147,6 @@ for line in sys.stdin:
 processed = {k: v / total_sentences for (k, v) in stats.items()}
 print(processed)
 print(most_freq)
+print(l1, l2)
 print(most_freq_d1)
 print(most_freq_d2)

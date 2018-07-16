@@ -1,7 +1,8 @@
 import sys
 import random
 
-tokens = [[], []]
+tokens = [{'case': [], 'mark': [], 'det': []}, {'case': [], 'mark': [], 'det': []}]
+# sample from first (english), modify second (hindi)
 for i in [0, 1]: 
     with open(sys.argv[i + 1], "r") as f:
         for line in f:
@@ -10,9 +11,9 @@ for i in [0, 1]:
 
             cols = line.split("\t")
             form, deprel = cols[1], cols[7]
-            if deprel == 'case':
+            if deprel in ['case', 'mark', 'det']:
                 # TODO: compare this with sets
-                tokens[i].append(form)
+                tokens[i][deprel].append(form)
 
 for line in sys.stdin:
     if line[0] == '#' or not line.strip():
@@ -20,14 +21,13 @@ for line in sys.stdin:
 
     else:
         cols = line.split("\t")
-        if cols[7] == 'case':
-            flip = random.randint(0, 3) == 0
+        deprel = cols[7]
+        if deprel in ['case', 'mark', 'det']:
+            flip = random.randint(0, 0) == 0
             if flip:
                 form = cols[1]
-                if form in tokens[0]:
-                    cols[1] = random.choice(tokens[1])
-                elif form in tokens[1]:
-                    cols[1] = random.choice(tokens[0])
+                if form in tokens[1][deprel]:
+                    cols[1] = random.choice(tokens[0][deprel])
                 else:
                     continue
 
