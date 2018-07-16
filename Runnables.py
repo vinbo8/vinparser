@@ -33,7 +33,7 @@ class Parser(torch.nn.Module):
         self.embeddings_langids = torch.nn.Embedding(sizes['misc'], 100)
 
         # size should be embed_size + whatever the other embeddings have
-        lstm_in_dim = 500 if self.args.use_misc else 200
+        lstm_in_dim = 300
         self.lstm = torch.nn.LSTM(lstm_in_dim, lstm_dim, lstm_layers,
                                   batch_first=True, bidirectional=True, dropout=0.33)
         self.mlp_head = torch.nn.Linear(2 * lstm_dim, reduce_dim_arc)
@@ -51,7 +51,7 @@ class Parser(torch.nn.Module):
 
         # ======
         # for the pred_lang loss
-        self.lang_pred_hidden = torch.nn.Linear(400, 100)
+        self.lang_pred_hidden = torch.nn.Linear(300, 100)
         self.lang_pred_out = torch.nn.Linear(100, sizes['misc'])
         # ======
 
@@ -81,10 +81,7 @@ class Parser(torch.nn.Module):
         tag_embeds = self.dropout(self.embeddings_tags(tags))
         langid_embeds = self.dropout(self.embeddings_langids(langids))
 
-        embeds = torch.cat([composed_embeds, tag_embeds], dim=2)
-        if self.args.use_misc:
-            embeds = torch.cat([embeds, langid_embeds], dim=2)
-        # embeds = torch.cat([composed_embeds, tag_embeds, langid_embeds], dim=2)
+        embeds = torch.cat([composed_embeds, tag_embeds, langid_embeds], dim=2)
 
         # pack/unpack for LSTM
         for_lstm = torch.nn.utils.rnn.pack_padded_sequence(embeds, form_pack.tolist(), batch_first=True)
@@ -127,12 +124,12 @@ class Parser(torch.nn.Module):
             y_pred_label = y_pred_label.cuda()
 
         # lang pred bollix
-        # langid = self.dropout(F.relu(self.lang_pred_hidden(embeds)))
-        # y_pred_langid = self.lang_pred_out(langid)
-        # if self.args.use_cuda:
-            # y_pred_langid = y_pred_langid.cuda()
+        langid = self.dropout(F.relu(self.lang_pred_hidden(embeds)))
+        y_pred_langid = self.lang_pred_out(langid)
+        if self.args.use_cuda:
+            y_pred_langid = y_pred_langid.cuda()
 
-        return y_pred_head, y_pred_label, (None, None) # (y_pred_weights, true_weights)
+        return y_pred_head, y_pred_label, y_pred_langid
 
     '''
     1. the bare minimum that needs to be loaded is forms, upos, head, deprel (could change later); load those
@@ -146,11 +143,8 @@ class Parser(torch.nn.Module):
         for i, batch in enumerate(train_loader):
             y_heads, y_deprels, y_langids = batch.head, batch.deprel, batch.misc
             elements_per_batch = len(y_heads)
-            y_pred_heads, y_pred_deprels, (y_pred_weights, y_weights) = self(batch)
+            y_pred_heads, y_pred_deprels, y_pred_langids = self(batch)
 
-            # all_ones = Variable(torch.ones(y_pred_weights.size()[0:2]).type(torch.LongTensor))
-            # if self.args.use_cuda:
-                # all_ones = all_ones.cuda()
             # reshape for cross-entropy
             batch_size, longest_sentence_in_batch = y_heads.size()
 
@@ -165,18 +159,15 @@ class Parser(torch.nn.Module):
             y_deprels = y_deprels.contiguous().view(batch_size * longest_sentence_in_batch)
 
             # langid
-            # y_pred_langids = y_pred_langids.view(batch_size * longest_sentence_in_batch, -1)
-            # y_langids = y_langids.contiguous().view(batch_size * longest_sentence_in_batch)
+            y_pred_langids = y_pred_langids.view(batch_size * longest_sentence_in_batch, -1)
+            y_langids = y_langids.contiguous().view(batch_size * longest_sentence_in_batch)
 
             # sum losses
-            train_loss = self.criterion(y_pred_heads, y_heads) + self.criterion(y_pred_deprels, y_deprels) # + self.criterion(y_pred_langids, y_langids)
-            # dev_loss = self.criterion(y_pred_weights.view(batch_size * longest_sentence_in_batch, -1), all_ones.view(batch_size * longest_sentence_in_batch))
+            train_loss = self.criterion(y_pred_heads, y_heads) + self.criterion(y_pred_deprels, y_deprels)  + self.criterion(y_pred_langids, y_langids)
 
             self.zero_grad()
             train_loss.backward()
-            # dev_loss.backward()
             self.optimiser.step()
-            # self.selective_optimiser.step()
 
             print("Epoch: {}\t{}/{}\tloss: {}".format(epoch, (i + 1) * elements_per_batch, len(train_loader.dataset), train_loss.data[0]))
 
