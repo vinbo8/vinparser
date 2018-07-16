@@ -7,6 +7,7 @@ blokk = []
 deprels_to_count = []
 
 stats = {'m': 0, 'i': 0, 'burst': 0, 'le': 0, 'se': 0, 'mem': 0, 'cl': 0}
+most_freq = {}
 total_sentences = 0
 
 for line in sys.stdin:
@@ -73,7 +74,10 @@ for line in sys.stdin:
                 parent_lang = blokk[head][9]
                 if parent_lang != lang:
                     cl_in_sent += 1
-
+                    try:
+                        most_freq[row[7]] += 1
+                    except:
+                        most_freq[row[7]] = 1
         # ---
 
         # m-index
@@ -127,3 +131,4 @@ for line in sys.stdin:
 # process collected stats
 processed = {k: v / total_sentences for (k, v) in stats.items()}
 print(processed)
+print(most_freq)
