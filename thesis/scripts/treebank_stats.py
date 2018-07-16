@@ -6,7 +6,7 @@ import numpy as np
 blokk = []
 deprels_to_count = []
 
-stats = {'m': 0, 'i': 0, 'burst': 0, 'le': 0, 'se': 0, 'mem': 0}
+stats = {'m': 0, 'i': 0, 'burst': 0, 'le': 0, 'se': 0, 'mem': 0, 'cl': 0}
 total_sentences = 0
 
 for line in sys.stdin:
@@ -31,6 +31,9 @@ for line in sys.stdin:
         span_current_language = None
         current_span = 0
         spans = []
+
+        # claf
+        cl_in_sent = 0
 
         # do stuff here
         for row in blokk:
@@ -69,7 +72,7 @@ for line in sys.stdin:
             if head != -1:
                 parent_lang = blokk[head][9]
                 if parent_lang != lang:
-                    deprels_to_count.append(row[7])
+                    cl_in_sent += 1
 
         # ---
 
@@ -107,11 +110,15 @@ for line in sys.stdin:
         # span entropy
         span_ent = 0
         span_classes = set(spans)
-        for span in span_classes:
+        for span in spans:
             p = spans.count(span) / len(spans)
             span_ent -= p * math.log2(p)
 
         stats['se'] += span_ent
+
+        # claf
+        stats['cl'] += cl_in_sent / total_tokens
+
         continue
 
     cols = line.split("\t")
