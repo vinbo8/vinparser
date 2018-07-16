@@ -51,7 +51,7 @@ class Parser(torch.nn.Module):
 
         # ======
         # for the pred_lang loss
-        self.lang_pred_hidden = torch.nn.Linear(2 * lstm_dim, 200)
+        self.lang_pred_hidden = torch.nn.Linear(300, 200)
         self.lang_pred_hidden_2 = torch.nn.Linear(200, 100)
         self.lang_pred_out = torch.nn.Linear(100, sizes['misc'])
         # ======
@@ -125,7 +125,7 @@ class Parser(torch.nn.Module):
             y_pred_label = y_pred_label.cuda()
 
         # lang pred bollix
-        langid = self.dropout(F.relu(self.lang_pred_hidden_2(self.dropout(F.relu(self.lang_pred_hidden(output))))))
+        langid = self.dropout(F.relu(self.lang_pred_hidden_2(self.dropout(F.relu(self.lang_pred_hidden(embeds))))))
         y_pred_langid = self.lang_pred_out(langid)
         if self.args.use_cuda:
             y_pred_langid = y_pred_langid.cuda()
