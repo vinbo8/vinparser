@@ -146,7 +146,15 @@ for line in sys.stdin:
 # process collected stats
 processed = {k: v / total_sentences for (k, v) in stats.items()}
 print(processed)
-print(most_freq)
+# print(most_freq)
 print(l1, l2)
-print(most_freq_d1)
-print(most_freq_d2)
+
+most_freq = {k: (v / sum(most_freq.values())) for (k, v) in most_freq.items()}
+most_freq_d1 = {k: (v / sum(most_freq_d1.values())) for (k, v) in most_freq_d1.items()}
+most_freq_d2 = {k: (v / sum(most_freq_d2.values())) for (k, v) in most_freq_d2.items()}
+
+most_freq = Counter(most_freq_d2)
+for k, v in most_freq.most_common(10):
+    print("\\texttt{{{}}} & {:.2f} & ".format(k, v * 100))
+# print(Counter(most_freq_d1))
+# print(Counter(most_freq_d2))
