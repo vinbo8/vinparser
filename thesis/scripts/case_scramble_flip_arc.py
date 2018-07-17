@@ -2,7 +2,7 @@ import sys
 import random
 
 random.seed(1337)
-tokens = [[], []]
+tokens = [{'case': [], 'mark': [], 'det': []}, {'case': [], 'mark': [], 'det': []}]
 for i in [0, 1]: 
     with open(sys.argv[i + 1], "r") as f:
         for line in f:
@@ -11,9 +11,9 @@ for i in [0, 1]:
 
             cols = line.split("\t")
             form, deprel = cols[1], cols[7]
-            if deprel == 'case':
+            if deprel in ['case', 'mark', 'det']:
                 # TODO: compare this with sets
-                tokens[i].append(form)
+                tokens[i][deprel].append(form)
 
 blokk, edited_in_sentence, offset = [], [], 0
 for line in sys.stdin:
@@ -55,19 +55,18 @@ for line in sys.stdin:
         cols = line.split("\t")
         if "." in cols[0] or "-" in cols[0]:
             offset += 1
-        if cols[7] == 'case':
-            flip = random.randint(0, 3) == 0
+
+        deprel = cols[7]
+        if deprel in ['case', 'mark', 'det']:
+            flip = random.randint(0, 0) == 0
             if flip:
                 # subtract one to get index in blokk
                 form, head = cols[1], (int(cols[6]) - 1)
-                if form in tokens[0]:
-                    cols[1] = random.choice(tokens[1])
-                    edited_in_sentence.append(int(cols[0]) - 1 + offset)
-                elif form in tokens[1]:
-                    cols[1] = random.choice(tokens[0])
+                if form in tokens[1][deprel]:
+                    cols[1] = random.choice(tokens[0][deprel])
                     edited_in_sentence.append(int(cols[0]) - 1 + offset)
                 else:
-                    continue
+                    pass
 
         blokk.append(cols)
 #        sys.stdout.write("\t".join(cols))

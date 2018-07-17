@@ -1,6 +1,7 @@
 import sys
 import random
 
+random.seed(1337)
 tokens = [{'case': [], 'mark': [], 'det': []}, {'case': [], 'mark': [], 'det': []}]
 # sample from first (english), modify second (hindi)
 for i in [0, 1]: 
