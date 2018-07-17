@@ -51,7 +51,7 @@ class Parser(torch.nn.Module):
 
         # ======
         # for the pred_lang loss
-        self.lang_pred_hidden = torch.nn.Linear(2 * lstm_dim, 100)
+        self.lang_pred_hidden = torch.nn.Linear(2 * lstm_dim, 150)
         self.lang_pred_inner = torch.nn.Linear(150, 100)
         self.lang_pred_out = torch.nn.Linear(100, sizes['misc'])
         # ======
@@ -80,7 +80,6 @@ class Parser(torch.nn.Module):
             composed_embeds += self.dropout(self.embeddings_chars(chars, char_pack))
 
         tag_embeds = self.dropout(self.embeddings_tags(tags))
-        langid_embeds = self.dropout(self.embeddings_langids(langids))
 
         embeds = torch.cat([composed_embeds, tag_embeds], dim=2)
 
@@ -125,7 +124,7 @@ class Parser(torch.nn.Module):
             y_pred_label = y_pred_label.cuda()
 
         # mtl_lang_pred
-        langid = self.dropout(F.relu(self.lang_pred_hidden(output)))
+        langid = self.dropout(F.relu(self.lang_pred_hidden(embeds)))
         y_pred_langid = self.lang_pred_out(langid)
         if self.args.use_cuda:
             y_pred_langid = y_pred_langid.cuda()
