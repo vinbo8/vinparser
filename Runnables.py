@@ -51,7 +51,7 @@ class Parser(torch.nn.Module):
 
         # ======
         # for the pred_lang loss
-        self.lang_pred_hidden = torch.nn.Linear(2 * lstm_dim, 150)
+        self.lang_pred_hidden = torch.nn.Linear(lstm_in_dim, 150)
         self.lang_pred_inner = torch.nn.Linear(150, 100)
         self.lang_pred_out = torch.nn.Linear(100, sizes['misc'])
         # ======
