@@ -124,7 +124,7 @@ class Parser(torch.nn.Module):
             y_pred_label = y_pred_label.cuda()
 
         # mtl_lang_pred
-        langid = self.dropout(F.relu(self.lang_pred_hidden(embeds)))
+        langid = self.dropout(F.relu(self.lang_pred_inner(self.dropout(F.relu(self.lang_pred_hidden(embeds))))))
         y_pred_langid = self.lang_pred_out(langid)
         if self.args.use_cuda:
             y_pred_langid = y_pred_langid.cuda()
