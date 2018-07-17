@@ -49,12 +49,6 @@ class Parser(torch.nn.Module):
         self.weight_biaffine = ShorterBiaffine(reduce_dim_arc)
         self.label_biaffine = LongerBiaffine(reduce_dim_label, reduce_dim_label, sizes['deprels'])
 
-        # ======
-        # for the pred_lang loss
-        self.lang_pred_hidden = torch.nn.Linear(300, 100)
-        self.lang_pred_out = torch.nn.Linear(100, sizes['misc'])
-        # ======
-
         self.criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
         self.weight_criterion = torch.nn.MSELoss()
         params = filter(lambda p: p.requires_grad, self.parameters())
@@ -79,10 +73,10 @@ class Parser(torch.nn.Module):
             composed_embeds += self.dropout(self.embeddings_chars(chars, char_pack))
 
         tag_embeds = self.dropout(self.embeddings_tags(tags))
-        # langid_embeds = self.dropout(self.embeddings_langids(langids))
+        langid_embeds = self.dropout(self.embeddings_langids(langids))
 
         langids = langids.view(langids.size()[0], langids.size()[1], 1)    
-        embeds = torch.cat([composed_embeds, tag_embeds, langids], dim=2)
+        embeds = torch.cat([composed_embeds, tag_embeds, langid_embeds], dim=2)
 
         # pack/unpack for LSTM
         for_lstm = torch.nn.utils.rnn.pack_padded_sequence(embeds, form_pack.tolist(), batch_first=True)
@@ -93,9 +87,6 @@ class Parser(torch.nn.Module):
         reduced_head_head = self.dropout(self.relu(self.mlp_head(output)))
         reduced_head_dep = self.dropout(self.relu(self.mlp_dep(output)))
         y_pred_head = self.biaffine(reduced_head_head, reduced_head_dep)
-
-        # if not self.training:
-        #     y_pred_head *= y_pred_weights
 
         # predict deprels using heads
         reduced_deprel_head = self.dropout(self.relu(self.mlp_deprel_head(output)))
@@ -123,12 +114,6 @@ class Parser(torch.nn.Module):
         y_pred_label = Helpers.extract_best_label_logits(predicted_labels, y_pred_label, form_pack)
         if self.args.use_cuda:
             y_pred_label = y_pred_label.cuda()
-
-        # lang pred bollix
-        # langid = self.dropout(F.relu(self.lang_pred_hidden(embeds)))
-        # y_pred_langid = self.lang_pred_out(langid)
-        # if self.args.use_cuda:
-        #     y_pred_langid = y_pred_langid.cuda()
 
         return y_pred_head, y_pred_label, None
 
@@ -159,12 +144,8 @@ class Parser(torch.nn.Module):
             y_pred_deprels = y_pred_deprels.view(batch_size * longest_sentence_in_batch, -1)
             y_deprels = y_deprels.contiguous().view(batch_size * longest_sentence_in_batch)
 
-            # langid
-            # y_pred_langids = y_pred_langids.view(batch_size * longest_sentence_in_batch, -1)
-            # y_langids = y_langids.contiguous().view(batch_size * longest_sentence_in_batch)
-
             # sum losses
-            train_loss = self.criterion(y_pred_heads, y_heads) + self.criterion(y_pred_deprels, y_deprels)  # + self.criterion(y_pred_langids, y_langids)
+            train_loss = self.criterion(y_pred_heads, y_heads) + self.criterion(y_pred_deprels, y_deprels) 
 
             self.zero_grad()
             train_loss.backward()
