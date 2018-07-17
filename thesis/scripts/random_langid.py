@@ -1,7 +1,7 @@
 import sys
 import random
 
-random.seed(42)
+random.seed(1337)
 
 for line in sys.stdin:
     if line[0] == '#' or not line.strip():
@@ -9,5 +9,5 @@ for line in sys.stdin:
 
     else:
         cols = line.split("\t")
-        cols[9] = random.choice(["Language=hi\n", "Language=en\n"])
+        cols[9] = random.choice(["_\n", "rus\n"])
         sys.stdout.write("\t".join(cols))
