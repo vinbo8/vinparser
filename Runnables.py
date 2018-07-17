@@ -29,11 +29,10 @@ class Parser(torch.nn.Module):
 
         self.compress_embeds = torch.nn.Linear(300, 100)
 
-        self.embeddings_tags = torch.nn.Embedding(sizes['postags'], 100)
-        self.embeddings_langids = torch.nn.Embedding(sizes['misc'], 100)
+        self.embeddings_tags = torch.nn.Embedding(sizes['postags'], 300)
 
         # size should be embed_size + whatever the other embeddings have
-        lstm_in_dim = 500 if self.args.use_misc else 200
+        lstm_in_dim = 500 if self.args.use_misc else 600
         self.lstm = torch.nn.LSTM(lstm_in_dim, lstm_dim, lstm_layers,
                                   batch_first=True, bidirectional=True, dropout=0.33)
         self.mlp_head = torch.nn.Linear(2 * lstm_dim, reduce_dim_arc)
@@ -48,12 +47,6 @@ class Parser(torch.nn.Module):
         self.biaffine_for_weights = ShorterBiaffine(reduce_dim_arc)
         self.weight_biaffine = ShorterBiaffine(reduce_dim_arc)
         self.label_biaffine = LongerBiaffine(reduce_dim_label, reduce_dim_label, sizes['deprels'])
-
-        # ======
-        # for the pred_lang loss
-        self.lang_pred_hidden = torch.nn.Linear(400, 100)
-        self.lang_pred_out = torch.nn.Linear(100, sizes['misc'])
-        # ======
 
         self.criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
         self.weight_criterion = torch.nn.MSELoss()
@@ -73,18 +66,14 @@ class Parser(torch.nn.Module):
 
         composed_embeds = self.dropout(self.embeddings_rand(forms))
         if self.args.embed:
-            composed_embeds += self.compress_embeds(self.dropout(self.embeddings_forms(forms)))
+            composed_embeds += self.dropout(self.embeddings_forms(forms))
         if self.args.use_chars:
             (chars, _, char_pack) = batch.char
             composed_embeds += self.dropout(self.embeddings_chars(chars, char_pack))
 
         tag_embeds = self.dropout(self.embeddings_tags(tags))
-        langid_embeds = self.dropout(self.embeddings_langids(langids))
 
         embeds = torch.cat([composed_embeds, tag_embeds], dim=2)
-        if self.args.use_misc:
-            embeds = torch.cat([embeds, langid_embeds], dim=2)
-        # embeds = torch.cat([composed_embeds, tag_embeds, langid_embeds], dim=2)
 
         # pack/unpack for LSTM
         for_lstm = torch.nn.utils.rnn.pack_padded_sequence(embeds, form_pack.tolist(), batch_first=True)
@@ -126,12 +115,6 @@ class Parser(torch.nn.Module):
         if self.args.use_cuda:
             y_pred_label = y_pred_label.cuda()
 
-        # lang pred bollix
-        # langid = self.dropout(F.relu(self.lang_pred_hidden(embeds)))
-        # y_pred_langid = self.lang_pred_out(langid)
-        # if self.args.use_cuda:
-            # y_pred_langid = y_pred_langid.cuda()
-
         return y_pred_head, y_pred_label, (None, None) # (y_pred_weights, true_weights)
 
     '''
@@ -163,10 +146,6 @@ class Parser(torch.nn.Module):
             # * heads: (B x S) => (B * S)
             y_pred_deprels = y_pred_deprels.view(batch_size * longest_sentence_in_batch, -1)
             y_deprels = y_deprels.contiguous().view(batch_size * longest_sentence_in_batch)
-
-            # langid
-            # y_pred_langids = y_pred_langids.view(batch_size * longest_sentence_in_batch, -1)
-            # y_langids = y_langids.contiguous().view(batch_size * longest_sentence_in_batch)
 
             # sum losses
             train_loss = self.criterion(y_pred_heads, y_heads) + self.criterion(y_pred_deprels, y_deprels) # + self.criterion(y_pred_langids, y_langids)
