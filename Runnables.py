@@ -124,12 +124,12 @@ class Parser(torch.nn.Module):
             y_pred_label = y_pred_label.cuda()
 
         # lang pred bollix
-        langid = self.dropout(F.relu(self.lang_pred_hidden(embeds)))
-        y_pred_langid = self.lang_pred_out(langid)
-        if self.args.use_cuda:
-            y_pred_langid = y_pred_langid.cuda()
+        # langid = self.dropout(F.relu(self.lang_pred_hidden(embeds)))
+        # y_pred_langid = self.lang_pred_out(langid)
+        # if self.args.use_cuda:
+        #     y_pred_langid = y_pred_langid.cuda()
 
-        return y_pred_head, y_pred_label, y_pred_langid
+        return y_pred_head, y_pred_label, None
 
     '''
     1. the bare minimum that needs to be loaded is forms, upos, head, deprel (could change later); load those
@@ -159,11 +159,11 @@ class Parser(torch.nn.Module):
             y_deprels = y_deprels.contiguous().view(batch_size * longest_sentence_in_batch)
 
             # langid
-            y_pred_langids = y_pred_langids.view(batch_size * longest_sentence_in_batch, -1)
-            y_langids = y_langids.contiguous().view(batch_size * longest_sentence_in_batch)
+            # y_pred_langids = y_pred_langids.view(batch_size * longest_sentence_in_batch, -1)
+            # y_langids = y_langids.contiguous().view(batch_size * longest_sentence_in_batch)
 
             # sum losses
-            train_loss = self.criterion(y_pred_heads, y_heads) + self.criterion(y_pred_deprels, y_deprels)  + self.criterion(y_pred_langids, y_langids)
+            train_loss = self.criterion(y_pred_heads, y_heads) + self.criterion(y_pred_deprels, y_deprels)  # + self.criterion(y_pred_langids, y_langids)
 
             self.zero_grad()
             train_loss.backward()
