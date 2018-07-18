@@ -3,7 +3,6 @@ root="/home/ravishankar/personal_work_troja/vinparser"
 cd $root
 git checkout eval_codeswitch_domain
 mkdir -p "$root/thesis/conlls/domain"
-mkdir -p "$root/thesis/models/domain"
 git pull
 
 echo "$root/venv/bin/python -u $root/Runner.py --parse --use_cuda \

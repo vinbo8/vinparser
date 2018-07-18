@@ -5,18 +5,18 @@ import torch.nn.functional as F
 
 
 class DomainShiftFunction(torch.autograd.Function):
-    def forward(self, input):
+    def forward(self, input, param):
+        self.param = param
         return input
 
     def backward(self, grad_output):
         grad_input = grad_output.clone()
-        print("Hargle")
-        return 0.5  * grad_input
+        return self.param * grad_input
 
 
 class DomainShifter(torch.nn.Module):
-    def forward(self, input):
-        return DomainShiftFunction()(input)
+    def forward(self, input, param):
+        return DomainShiftFunction()(input, Variable(torch.FloatTensor([param])))
 
 
 class LangModel(torch.nn.Module):

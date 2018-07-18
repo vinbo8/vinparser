@@ -1,6 +1,7 @@
 import os
 import torch
 import pprint
+import math
 import Helpers
 from scripts import cle
 from torch.autograd import Variable
@@ -48,6 +49,7 @@ class Parser(torch.nn.Module):
         self.biaffine_for_weights = ShorterBiaffine(reduce_dim_arc)
         self.weight_biaffine = ShorterBiaffine(reduce_dim_arc)
         self.label_biaffine = LongerBiaffine(reduce_dim_label, reduce_dim_label, sizes['deprels'])
+        self.domain_rate = 0
 
         # domain predictor
         # hard-code sizes for now
@@ -132,7 +134,7 @@ class Parser(torch.nn.Module):
 
         # predict domain
         final_lstm_state = output[:, -1]
-        mlp_domain = self.dropout(self.relu(self.mlp_domain(self.weighter(final_lstm_state))))
+        mlp_domain = self.dropout(self.relu(self.mlp_domain(self.weighter(final_lstm_state, self.domain_rate))))
         y_pred_domain = self.domain_pred(mlp_domain)
         # ===
 
@@ -146,6 +148,7 @@ class Parser(torch.nn.Module):
     def train_(self, epoch, train_loader):
         self.train()
         train_loader.init_epoch()
+        self.domain_rate = 0
 
         for i, batch in enumerate(train_loader):
             y_heads, y_deprels, y_langids = batch.head, batch.deprel, batch.misc
@@ -177,8 +180,8 @@ class Parser(torch.nn.Module):
             y_deprels = y_deprels.contiguous().view(batch_size * longest_sentence_in_batch)
 
             # * domains
-            # y_pred_domains = y_pred_domains.view(batch_size * longest_sentence_in_batch, -1)
-            # y_domains = y_domains.contiguous().view(batch_size * longest_sentence_in_batch)
+            y_pred_domains = y_pred_domains.view(batch_size, -1)
+            y_domains = y_domains.contiguous().view(batch_size) # 2 domains
 
             # sum losses
             train_loss = self.criterion(y_pred_heads, y_heads) + self.criterion(y_pred_deprels, y_deprels) - self.criterion(y_pred_domains, y_domains)
@@ -187,7 +190,11 @@ class Parser(torch.nn.Module):
             train_loss.backward()
             self.optimiser.step()
 
-            print("Epoch: {}\t{}/{}\tloss: {}".format(epoch, (i + 1) * elements_per_batch, len(train_loader.dataset), train_loss.data[0]))
+            # adjust param
+            p = ((i + 1) * elements_per_batch / len(train_loader.dataset))
+            self.domain_rate = (2 / (1 + math.exp(-10 * p))) - 1
+
+            print("Epoch: {}\t{}/{}\trate: {}\tloss: {}".format(epoch, (i + 1) * elements_per_batch, len(train_loader.dataset), self.domain_rate, train_loss.data[0]))
 
     def evaluate_(self, test_loader, print_conll=False):
         las_correct, uas_correct, total = 0, 0, 0
