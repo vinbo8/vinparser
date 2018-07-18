@@ -8,7 +8,7 @@ mkdir -p "$root/thesis/conlls/embeds"
 
 echo "$root/venv/bin/python -u $root/Runner.py --parse --use_cuda --use_chars \
 --embed $root/thesis/embeds/en-hi-append.vec \
---train $root/thesis/data/en-hi/en-hi-test.conllu \
+--train $root/thesis/data/en-hi/en-hi-train-append.conllu \
 --dev $root/thesis/data/en-hi/en-hi-test.conllu \
 --test $root/thesis/data/en-hi/en-hi-test.conllu \
 --save $root/thesis/models/$1.vin \
