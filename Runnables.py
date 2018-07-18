@@ -1,4 +1,5 @@
 import os
+import math
 import torch
 import pprint
 import Helpers
@@ -14,7 +15,7 @@ class Parser(torch.nn.Module):
                  reduce_dim_arc=100, reduce_dim_label=100, learning_rate=1e-3):
         super().__init__()
 
-        self.print_something = False
+        self.current_weight = 0
         self.args = args
         self.vocab = vocab
 
@@ -124,7 +125,7 @@ class Parser(torch.nn.Module):
         # these are the actual weights
         batch_size, longest_word_in_batch, _ = y_pred_weights.size()
         true_weights = Variable(torch.ones(batch_size, longest_word_in_batch, longest_word_in_batch))
-        true_weights[:] = 0.9
+        true_weights[:] = self.current_weight
         enum = torch.LongTensor([i for i in range(longest_word_in_batch)])
         if self.args.use_cuda: 
             enum = enum.cuda()
@@ -250,6 +251,9 @@ class Parser(torch.nn.Module):
             self.zero_grad()
             dev_loss.backward()
             self.selective_optimiser.step()
+
+            p = ((i + 1) * batch_size) / len(dev_loader.dataset)
+            self.current_weight = (2 / (1 + math.exp(-p))) - 1
 
             print("Epoch: {}\t{}/{}\tloss: {}".format(epoch, (i + 1) * batch_size, len(dev_loader.dataset), dev_loss.data[0]))
 
