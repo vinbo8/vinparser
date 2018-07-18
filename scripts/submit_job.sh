@@ -8,7 +8,7 @@ mkdir -p "$root/thesis/conlls/modifs"
 
 echo "$root/venv/bin/python -u $root/Runner.py --parse --use_cuda \
 --embed $root/thesis/embeds/kpv-ru-mapped.vec \
---train $root/thesis/data/kpv-ru/kpv-ru-train-scrambled.100.conllu \
+--train $root/thesis/data/kpv-ru/kpv-ru-train-scrambled.25.conllu \
 --dev $root/thesis/data/kpv-ru/kpv-ru-test.conllu \
 --test $root/thesis/data/kpv-ru/kpv-ru-test.conllu \
 --save $root/thesis/models/$1.vin \
