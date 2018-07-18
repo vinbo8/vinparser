@@ -11,6 +11,7 @@ from torchtext import datasets
 import time
 
 random.seed(1337)
+np.random.seed(1337)
 csv.field_size_limit(sys.maxsize)
 
 ROOT_LINE = "0\t__ROOT\t_\t__ROOT\t_\t_\t0\t__ROOT\t_\t_"
