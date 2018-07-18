@@ -28,7 +28,7 @@ class CharEmbedding(torch.nn.Module):
         self.lstm = torch.nn.LSTM(100, int(150), 1,
                                   batch_first=True, bidirectional=False, dropout=0.33)
         self.attention = LinearAttention(int(150))
-        self.mlp = torch.nn.Linear(300, 100, bias=False)
+        self.mlp = torch.nn.Linear(300, embed_dim, bias=False)
 
     def forward(self, forms, pack_sent):
         # input: B x S x W
