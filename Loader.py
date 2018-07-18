@@ -100,7 +100,7 @@ def get_iterators(args, batch_size):
     train, dev, test = data.TabularDataset.splits(path=".tmp", train='train_{}.csv'.format(seconds_since_epoch),
                                                     validation='dev_{}.csv'.format(seconds_since_epoch), 
                                                     test='test_{}.csv'.format(seconds_since_epoch),
-                                                    format="csv", fields=field_tuples, random_state=1337)
+                                                    format="csv", fields=field_tuples)
 
     field_names = [i[1] for i in field_tuples]
     for field in field_names:
