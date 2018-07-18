@@ -16,7 +16,7 @@ class DomainShiftFunction(torch.autograd.Function):
 
 class DomainShifter(torch.nn.Module):
     def forward(self, input, param):
-        return DomainShiftFunction()(input, Variable(torch.FloatTensor([param])))
+        return DomainShiftFunction()(input, param)
 
 
 class LangModel(torch.nn.Module):

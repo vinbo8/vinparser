@@ -135,7 +135,10 @@ class Parser(torch.nn.Module):
 
         # predict domain
         final_lstm_state = output[:, -1]
-        mlp_domain = self.dropout(self.relu(self.mlp_domain(self.weighter(final_lstm_state, self.domain_rate))))
+        domain_rate = Variable(torch.FloatTensor([self.domain_rate]))
+        if self.args.use_cuda:
+            domain_rate = domain_rate.cuda()
+        mlp_domain = self.dropout(self.relu(self.mlp_domain(self.weighter(final_lstm_state, domain_rate))))
         mlp_domain = self.dropout(self.relu(self.mlp_domain_inner(mlp_domain)))
         y_pred_domain = self.domain_pred(mlp_domain)
         # ===
