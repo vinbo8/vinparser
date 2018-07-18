@@ -94,7 +94,11 @@ class Parser(torch.nn.Module):
         reduced_head_head = self.dropout(self.relu(self.mlp_head(output)))
         reduced_head_dep = self.dropout(self.relu(self.mlp_dep(output)))
         y_pred_head = self.biaffine(reduced_head_head, reduced_head_dep)
-        y_pred_head *= y_pred_weights
+        
+        # predict weights
+        y_pred_weights = self.biaffine(reduced_head_head, reduced_head_dep)
+        if dev or not self.training:
+            y_pred_head *= y_pred_weights
 
         # predict deprels using heads
         reduced_deprel_head = self.dropout(self.relu(self.mlp_deprel_head(output)))
@@ -116,16 +120,18 @@ class Parser(torch.nn.Module):
             if self.args.use_cuda:
                 predicted_labels = predicted_labels.cuda()
 
-        # batch_size, longest_word_in_batch, _ = y_pred_weights.size()
-        # true_weights = Variable(torch.zeros(batch_size, longest_word_in_batch, longest_word_in_batch))
-        # enum = torch.LongTensor([i for i in range(longest_word_in_batch)])
-        # if self.args.use_cuda: 
-        #     enum = enum.cuda()
-        #     true_weights = true_weights.cuda()
+        # these are the actual weights
+        batch_size, longest_word_in_batch, _ = y_pred_weights.size()
+        true_weights = Variable(torch.zeros(batch_size, longest_word_in_batch, longest_word_in_batch))
+        enum = torch.LongTensor([i for i in range(longest_word_in_batch)])
+        if self.args.use_cuda: 
+            enum = enum.cuda()
+            true_weights = true_weights.cuda()
 
-        # for batch in range(batch_size):
-        #     for n, i in enumerate(predicted_labels[batch].data):
-        #         true_weights[batch, n, i] = 1
+        for batch in range(batch_size):
+            for n, i in enumerate(predicted_labels[batch].data):
+                true_weights[batch, n, i] = 1
+        # ---
 
         selected_heads = torch.stack([torch.index_select(reduced_deprel_head[n], 0, predicted_labels[n])
                                         for n, _ in enumerate(predicted_labels)])
@@ -134,13 +140,7 @@ class Parser(torch.nn.Module):
         if self.args.use_cuda:
             y_pred_label = y_pred_label.cuda()
 
-        # lang pred bollix
-        # langid = self.dropout(F.relu(self.lang_pred_hidden(embeds)))
-        # y_pred_langid = self.lang_pred_out(langid)
-        # if self.args.use_cuda:
-            # y_pred_langid = y_pred_langid.cuda()
-
-        return y_pred_head, y_pred_label, (None, None) # (y_pred_weights, true_weights)
+        return y_pred_head, y_pred_label, (y_pred_weights, true_weights)
 
     '''
     1. the bare minimum that needs to be loaded is forms, upos, head, deprel (could change later); load those
@@ -156,9 +156,9 @@ class Parser(torch.nn.Module):
             elements_per_batch = len(y_heads)
             y_pred_heads, y_pred_deprels, (y_pred_weights, y_weights) = self(batch)
 
-            # all_ones = Variable(torch.ones(y_pred_weights.size()[0:2]).type(torch.LongTensor))
-            # if self.args.use_cuda:
-                # all_ones = all_ones.cuda()
+            all_ones = Variable(torch.ones(y_pred_weights.size()[0:2]).type(torch.LongTensor))
+            if self.args.use_cuda:
+                all_ones = all_ones.cuda()
             # reshape for cross-entropy
             batch_size, longest_sentence_in_batch = y_heads.size()
 
@@ -172,19 +172,17 @@ class Parser(torch.nn.Module):
             y_pred_deprels = y_pred_deprels.view(batch_size * longest_sentence_in_batch, -1)
             y_deprels = y_deprels.contiguous().view(batch_size * longest_sentence_in_batch)
 
-            # langid
-            # y_pred_langids = y_pred_langids.view(batch_size * longest_sentence_in_batch, -1)
-            # y_langids = y_langids.contiguous().view(batch_size * longest_sentence_in_batch)
-
             # sum losses
             train_loss = self.criterion(y_pred_heads, y_heads) + self.criterion(y_pred_deprels, y_deprels) # + self.criterion(y_pred_langids, y_langids)
-            # dev_loss = self.criterion(y_pred_weights.view(batch_size * longest_sentence_in_batch, -1), all_ones.view(batch_size * longest_sentence_in_batch))
+            dev_loss = self.criterion(y_pred_weights.view(batch_size * longest_sentence_in_batch, -1), all_ones.view(batch_size * longest_sentence_in_batch))
 
+            # TODO: do not zero grad
             self.zero_grad()
-            train_loss.backward()
-            # dev_loss.backward()
+            train_loss.backward(retain_graph=True)
             self.optimiser.step()
-            # self.selective_optimiser.step()
+            self.zero_grad()
+            dev_loss.backward()
+            self.selective_optimiser.step()
 
             print("Epoch: {}\t{}/{}\tloss: {}".format(epoch, (i + 1) * elements_per_batch, len(train_loader.dataset), train_loss.data[0]))
 

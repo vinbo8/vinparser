@@ -1,3 +1,5 @@
+import random
+random.seed(1337)
 import sys
 import os
 import codecs
@@ -12,7 +14,7 @@ csv.field_size_limit(sys.maxsize)
 
 ROOT_LINE = "0\t__ROOT\t_\t__ROOT\t_\t_\t0\t__ROOT\t_\t_"
 
-
+random.seed(1337)
 def conll_to_csv(args, fname, columns=10):
     col_range = range(columns)
 
@@ -98,7 +100,7 @@ def get_iterators(args, batch_size):
     train, dev, test = data.TabularDataset.splits(path=".tmp", train='train_{}.csv'.format(seconds_since_epoch),
                                                     validation='dev_{}.csv'.format(seconds_since_epoch), 
                                                     test='test_{}.csv'.format(seconds_since_epoch),
-                                                    format="csv", fields=field_tuples)
+                                                    format="csv", fields=field_tuples, random_state=1337)
 
     field_names = [i[1] for i in field_tuples]
     for field in field_names:
@@ -111,11 +113,12 @@ def get_iterators(args, batch_size):
     train_iterator = data.Iterator(train, batch_size=batch_size, sort_key=lambda x: len(x.form), train=True,
                                     sort_within_batch=True, device=device, repeat=False)
 
-    # dev_iterator = data.Iterator(dev, batch_size=batch_size, sort_key=lambda x: len(x.form), train=True,
-                                    # sort_within_batch=True, device=device, repeat=False)
+    # modifying this for dev learning
+    dev_iterator = data.Iterator(dev, batch_size=batch_size, sort_key=lambda x: len(x.form), train=True,
+                                    sort_within_batch=True, device=device, repeat=False)
 
-    dev_iterator = data.Iterator(dev, batch_size=batch_size, train=False, sort_within_batch=True, sort_key=lambda x: len(x.form),
-                                    sort=False, device=device, repeat=False)
+    # dev_iterator = data.Iterator(dev, batch_size=batch_size, train=False, sort_within_batch=True, sort_key=lambda x: len(x.form),
+    #                                 sort=False, device=device, repeat=False)
 
     test_iterator = data.Iterator(test, batch_size=1, train=False, sort_within_batch=True, sort_key=lambda x: len(x.form),
                                     sort=False, device=device, repeat=False)
