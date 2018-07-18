@@ -74,6 +74,9 @@ class Parser(torch.nn.Module):
 
         tag_embeds = self.dropout(self.embeddings_tags(tags))
         langid_embeds = self.dropout(self.embeddings_langids(langids))
+        langids = langids.type(torch.FloatTensor)
+        if self.args.use_cuda:
+            langids = langids.type(torch.cuda.FloatTensor)
 
         langids = langids.view(langids.size()[0], langids.size()[1], 1)    
         embeds = torch.cat([composed_embeds, tag_embeds, langids], dim=2)

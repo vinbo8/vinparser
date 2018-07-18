@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 root="/home/ravishankar/personal_work_troja/vinparser"
 cd $root
-git checkout eval_codeswitch_mtl
+git checkout eval_codeswitch_langid
 git pull
 
 mkdir -p "$root/thesis/conlls/langids"
