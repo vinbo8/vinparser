@@ -180,7 +180,6 @@ class Parser(torch.nn.Module):
             self.zero_grad()
             train_loss.backward(retain_graph=True)
             self.optimiser.step()
-            self.zero_grad()
             dev_loss.backward()
             self.selective_optimiser.step()
 
