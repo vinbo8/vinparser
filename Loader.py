@@ -108,9 +108,9 @@ def get_iterators(args, batch_size):
     for field in field_names:
         if field == FORM and args.embed:
             vecs = vocab.Vectors(name=args.embed)
-            field.build_vocab(train, vectors=vecs)
+            field.build_vocab(train, vectors=vecs, vectors_cache="/home/ravishankar/personal_work_troja/.vector_cache")
         else:
-            field.build_vocab(train)
+            field.build_vocab(train, vectors_cache="/home/ravishankar/personal_work_troja/.vector_cache")
 
     train_iterator = data.Iterator(train, batch_size=batch_size, sort_key=lambda x: len(x.form), train=True,
                                     sort_within_batch=True, device=device, repeat=False)
