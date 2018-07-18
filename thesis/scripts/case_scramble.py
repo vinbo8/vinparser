@@ -2,7 +2,7 @@ import sys
 import random
 
 random.seed(1337)
-tokens = [{'case': [], 'mark': [], 'det': []}, {'case': [], 'mark': [], 'det': []}]
+tokens = [{'case': [], 'conj': []}, {'case': [], 'conj': []}]
 # sample from first (english), modify second (hindi)
 for i in [0, 1]: 
     with open(sys.argv[i + 1], "r") as f:
@@ -12,7 +12,7 @@ for i in [0, 1]:
 
             cols = line.split("\t")
             form, deprel = cols[1], cols[7]
-            if deprel in ['case', 'mark', 'det']:
+            if deprel in ['case', 'conj']:
                 # TODO: compare this with sets
                 tokens[i][deprel].append(form)
 
@@ -23,7 +23,7 @@ for line in sys.stdin:
     else:
         cols = line.split("\t")
         deprel = cols[7]
-        if deprel in ['case', 'mark', 'det']:
+        if deprel in ['case', 'conj']:
             flip = random.randint(0, 0) == 0
             if flip:
                 form = cols[1]
