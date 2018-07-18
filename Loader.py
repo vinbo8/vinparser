@@ -113,9 +113,6 @@ def get_iterators(args, batch_size):
             else:
                 field.build_vocab(train, vectors=vecs)
         else:
-            if args.use_cuda:
-                field.build_vocab(train, vectors_cache="/home/ravishankar/personal_work_troja/.vector_cache")
-            else:
                 field.build_vocab(train)
 
     train_iterator = data.Iterator(train, batch_size=batch_size, sort_key=lambda x: len(x.form), train=True,
