@@ -56,7 +56,7 @@ class Parser(torch.nn.Module):
         self.weighter = DomainShifter()
         self.mlp_domain = torch.nn.Linear(2 * lstm_dim, 200)
         self.mlp_domain_inner = torch.nn.Linear(200, 100)
-        self.domain_pred = torch.nn.Linear(200, 2)
+        self.domain_pred = torch.nn.Linear(100, 2)
         # ======
 
         # ======
