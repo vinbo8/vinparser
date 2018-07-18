@@ -96,7 +96,7 @@ class Parser(torch.nn.Module):
         y_pred_head = self.biaffine(reduced_head_head, reduced_head_dep)
         
         # predict weights
-        y_pred_weights = self.biaffine(reduced_head_head, reduced_head_dep)
+        y_pred_weights = self.biaffine_for_weights(reduced_head_head, reduced_head_dep)
         if not self.training:
             y_pred_head *= y_pred_weights
 
