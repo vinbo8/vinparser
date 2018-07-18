@@ -125,7 +125,6 @@ class Parser(torch.nn.Module):
         # these are the actual weights
         batch_size, longest_word_in_batch, _ = y_pred_weights.size()
         true_weights = Variable(torch.ones(batch_size, longest_word_in_batch, longest_word_in_batch))
-        true_weights[:] = self.current_weight
         enum = torch.LongTensor([i for i in range(longest_word_in_batch)])
         if self.args.use_cuda: 
             enum = enum.cuda()
@@ -133,7 +132,7 @@ class Parser(torch.nn.Module):
 
         for batch in range(batch_size):
             for n, i in enumerate(predicted_labels[batch].data):
-                true_weights[batch, n, i] = 1
+                true_weights[batch, n, i] = 1.5
         # ---
 
         selected_heads = torch.stack([torch.index_select(reduced_deprel_head[n], 0, predicted_labels[n])
