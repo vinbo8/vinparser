@@ -132,7 +132,7 @@ class Parser(torch.nn.Module):
 
         for batch in range(batch_size):
             for n, i in enumerate(predicted_labels[batch].data):
-                true_weights[batch, n, i] = 1.5
+                true_weights[batch, n, i] = 1.1
         # ---
 
         selected_heads = torch.stack([torch.index_select(reduced_deprel_head[n], 0, predicted_labels[n])
