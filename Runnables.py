@@ -55,6 +55,7 @@ class Parser(torch.nn.Module):
         # hard-code sizes for now
         self.weighter = DomainShifter()
         self.mlp_domain = torch.nn.Linear(2 * lstm_dim, 200)
+        self.mlp_domain_inner = torch.nn.Linear(200, 100)
         self.domain_pred = torch.nn.Linear(200, 2)
         # ======
 
@@ -135,6 +136,7 @@ class Parser(torch.nn.Module):
         # predict domain
         final_lstm_state = output[:, -1]
         mlp_domain = self.dropout(self.relu(self.mlp_domain(self.weighter(final_lstm_state, self.domain_rate))))
+        mlp_domain = self.dropout(self.relu(self.mlp_domain_inner(mlp_domain)))
         y_pred_domain = self.domain_pred(mlp_domain)
         # ===
 
