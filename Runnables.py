@@ -14,6 +14,7 @@ class Parser(torch.nn.Module):
                  reduce_dim_arc=100, reduce_dim_label=100, learning_rate=1e-3):
         super().__init__()
 
+        self.print_something = False
         self.args = args
         self.vocab = vocab
 
@@ -106,6 +107,9 @@ class Parser(torch.nn.Module):
         predicted_labels = []
 
         if self.training:
+            if self.print_something:
+                print(y_pred_weights.data[0])
+                self.print_something = False
             predicted_labels = y_pred_head.max(2)[1]
 
         else:
