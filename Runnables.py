@@ -179,8 +179,8 @@ class Parser(torch.nn.Module):
             # TODO: do not zero grad
             self.zero_grad()
             train_loss.backward(retain_graph=True)
-            self.optimiser.step()
             dev_loss.backward()
+            self.optimiser.step()
             self.selective_optimiser.step()
 
             print("Epoch: {}\t{}/{}\tloss: {}".format(epoch, (i + 1) * elements_per_batch, len(train_loader.dataset), train_loss.data[0]))
