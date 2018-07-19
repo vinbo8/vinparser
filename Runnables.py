@@ -33,7 +33,7 @@ class Parser(torch.nn.Module):
         self.embeddings_langids = torch.nn.Embedding(sizes['misc'], 100)
 
         # size should be embed_size + whatever the other embeddings have
-        lstm_in_dim = 201
+        lstm_in_dim = 300
         self.lstm = torch.nn.LSTM(lstm_in_dim, lstm_dim, lstm_layers,
                                   batch_first=True, bidirectional=True, dropout=0.33)
         self.mlp_head = torch.nn.Linear(2 * lstm_dim, reduce_dim_arc)
@@ -79,7 +79,7 @@ class Parser(torch.nn.Module):
             langids = langids.type(torch.cuda.FloatTensor)
 
         langids = langids.view(langids.size()[0], langids.size()[1], 1)    
-        embeds = torch.cat([composed_embeds, tag_embeds, langids], dim=2)
+        embeds = torch.cat([composed_embeds, tag_embeds, langid_embeds], dim=2)
 
         # pack/unpack for LSTM
         for_lstm = torch.nn.utils.rnn.pack_padded_sequence(embeds, form_pack.tolist(), batch_first=True)
