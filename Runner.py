@@ -84,6 +84,7 @@ if __name__ == '__main__':
         print("Loading")
         with open(args.load, "rb") as f:
             runnable = torch.load(f, map_location=lambda storage, loc: storage)
+            runnable.cuda()
 
     else:
         print("Training")
