@@ -9,7 +9,7 @@ mkdir -p "$root/thesis/conlls/dev_learning"
 echo "$root/venv/bin/python -u $root/Runner.py --parse --use_cuda \
 --embed $root/thesis/embeds/kpv-ru-mapped.vec \
 --train $root/thesis/data/kpv-ru/kpv-ru-append.conllu \
---dev $root/thesis/data/kpv-ru/kpv-ru-dev.conllu \
+--dev $root/thesis/data/kpv-ru/kpv-ud-test-spoken.conllu \
 --test $root/thesis/data/kpv-ru/kpv-ru-test.conllu \
 --save $root/thesis/models/$1.vin \
 --outfile $root/thesis/conlls/dev_learning/$1.conllu \
