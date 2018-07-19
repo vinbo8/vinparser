@@ -6,10 +6,10 @@ mkdir -p "$root/thesis/conlls/domain"
 git pull
 
 echo "$root/venv/bin/python -u $root/Runner.py --parse --use_cuda \
---embed $root/thesis/embeds/ru-kpv-mapped.vec \
---train $root/thesis/data/ru-kpv/ru-kpv-train-domain.conllu \
---dev $root/thesis/data/ru-kpv/ru-kpv-test-domain.conllu \
---test $root/thesis/data/ru-kpv/ru-kpv-test-domain.conllu \
+--embed $root/thesis/embeds/kpv-ru-mapped.vec \
+--train $root/thesis/data/kpv-ru/kpv-ru-train-domain.conllu \
+--dev $root/thesis/data/kpv-ru/kpv-ru-test-domain.conllu \
+--test $root/thesis/data/kpv-ru/kpv-ru-test-domain.conllu \
 --save $root/thesis/models/domain/$1.vin \
 --outfile $root/thesis/conlls/domain/$1.conllu \
 --config $root/config.ini" > parse.sh
