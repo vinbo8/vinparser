@@ -10,7 +10,7 @@ echo "$root/venv/bin/python -u $root/Runner.py --parse --use_cuda \
 --embed $root/thesis/embeds/en-hi-mapped.vec \
 --train $root/thesis/data/en-hi/en-hi-train-langid.conllu \
 --dev $root/thesis/data/en-hi/en-hi-test.conllu \
---test $root/thesis/data/en-hi/en-hi-test.conllu \
+--test $root/thesis/data/en-hi/en-hi-normalise-test.conllu \
 --save $root/thesis/models/$1.vin \
 --outfile $root/thesis/conlls/langids/$1.conllu \
 --config $root/config.ini" > parse.sh
