@@ -77,21 +77,21 @@ for line in sys.stdin:
             # ---
 
             # other
-            head = int(row[6]) - 1
-            lang = row[9]
-            if head != -1:
-                parent_lang = blokk[head][9]
-                if parent_lang != lang:
-                    cl_in_sent += 1
-                    safe_increment(most_freq, row[7])
-                    if not l1 and not l2:
-                        l1 = row[9] ; l2 = blokk[head][9]
+            # head = int(row[6]) - 1
+            # lang = row[9]
+            # if head != -1:
+            #     parent_lang = blokk[head][9]
+            #     if parent_lang != lang:
+            #         cl_in_sent += 1
+            #         safe_increment(most_freq, row[7])
+            #         if not l1 and not l2:
+            #             l1 = row[9] ; l2 = blokk[head][9]
 
-                    if lang == l1 and parent_lang == l2:
-                        safe_increment(most_freq_d1, row[7])
+            #         if lang == l1 and parent_lang == l2:
+            #             safe_increment(most_freq_d1, row[7])
 
-                    elif lang == l2 and parent_lang == l1:
-                        safe_increment(most_freq_d2, row[7])
+            #         elif lang == l2 and parent_lang == l1:
+            #             safe_increment(most_freq_d2, row[7])
                         
         # ---
 
@@ -129,7 +129,7 @@ for line in sys.stdin:
         # span entropy
         span_ent = 0
         span_classes = set(spans)
-        for span in spans:
+        for span in span_classes:
             p = spans.count(span) / len(spans)
             span_ent -= p * math.log2(p)
 
@@ -147,14 +147,14 @@ for line in sys.stdin:
 processed = {k: v / total_sentences for (k, v) in stats.items()}
 print(processed)
 # print(most_freq)
-print(l1, l2)
+# print(l1, l2)
 
-most_freq = {k: (v / sum(most_freq.values())) for (k, v) in most_freq.items()}
-most_freq_d1 = {k: (v / sum(most_freq_d1.values())) for (k, v) in most_freq_d1.items()}
-most_freq_d2 = {k: (v / sum(most_freq_d2.values())) for (k, v) in most_freq_d2.items()}
+# most_freq = {k: (v / sum(most_freq.values())) for (k, v) in most_freq.items()}
+# most_freq_d1 = {k: (v / sum(most_freq_d1.values())) for (k, v) in most_freq_d1.items()}
+# most_freq_d2 = {k: (v / sum(most_freq_d2.values())) for (k, v) in most_freq_d2.items()}
 
-most_freq = Counter(most_freq_d2)
-for k, v in most_freq.most_common(10):
-    print("\\texttt{{{}}} & {:.2f} & ".format(k, v * 100))
-# print(Counter(most_freq_d1))
+# most_freq = Counter(most_freq_d2)
+# for k, v in most_freq.most_common(10):
+#     print("\\texttt{{{}}} & {:.2f} & ".format(k, v * 100))
+# # print(Counter(most_freq_d1))
 # print(Counter(most_freq_d2))
