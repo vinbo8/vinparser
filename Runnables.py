@@ -324,10 +324,10 @@ class LangSwitch(torch.nn.Module):
         self.chain = chain
         if self.args.embed:
             self.embeds.weight.data.copy_(vocab[0].vectors)
-        self.lstm = torch.nn.LSTM(3 * embed_dim, lstm_dim, lstm_layers, batch_first=True, bidirectional=False, dropout=0.5)
-        self.lstm_for_langid = torch.nn.LSTM(embed_dim, lstm_dim, lstm_layers, batch_first=True, bidirectional=False, dropout=0.5)
+        self.lstm = torch.nn.LSTM(2 * embed_dim, lstm_dim, lstm_layers, batch_first=True, bidirectional=True, dropout=0.5)
+        self.lstm_for_langid = torch.nn.LSTM(embed_dim, lstm_dim, lstm_layers, batch_first=True, bidirectional=True, dropout=0.5)
         self.relu = torch.nn.ReLU()
-        self.mlp = torch.nn.Linear(lstm_dim, mlp_dim)
+        self.mlp = torch.nn.Linear(2 * lstm_dim, mlp_dim)
         self.mlp_2 = torch.nn.Linear(mlp_dim, mlp_dim_2)
         self.out = torch.nn.Linear(mlp_dim_2, sizes['misc'])
 
@@ -346,7 +346,7 @@ class LangSwitch(torch.nn.Module):
         tag_embeds = self.dropout(self.tag_embeds(tags))
         previous_langid = self.dropout(self.previous_langid_embeds(misc))
 
-        embeds = torch.cat([form_embeds, tag_embeds, previous_langid], dim=2)
+        embeds = torch.cat([form_embeds, tag_embeds], dim=2)
 
         packed = torch.nn.utils.rnn.pack_padded_sequence(embeds, pack.tolist(), batch_first=True)
         lstm_out, _ = self.lstm(packed)
