@@ -1,11 +1,13 @@
 import os
 import torch
 import pprint
+import numpy as np
 import Helpers
 from scripts import cle
 from torch.autograd import Variable
 from collections import Counter
 import torch.nn.functional as F
+from allennlp.modules.elmo import Elmo, batch_to_ids
 from Modules import CharEmbedding, ShorterBiaffine, LongerBiaffine, LangModel
 
 
@@ -16,6 +18,11 @@ class Parser(torch.nn.Module):
 
         self.args = args
         self.vocab = vocab
+
+        options_file = "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_options.json"
+        weight_file = "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5"
+
+        self.elmo = Elmo(options_file, weight_file, 2, dropout=0)
 
         if self.args.use_chars:
             self.embeddings_chars = CharEmbedding(sizes['chars'], embed_dim, lstm_dim, lstm_layers)
@@ -71,6 +78,17 @@ class Parser(torch.nn.Module):
         chars, char_pack = None, None
         (forms, form_pack), tags = batch.form, batch.upos
 
+        raw_forms = []
+        for sent in forms.data:
+            current_sent = []
+            for word in sent:
+                itos = self.vocab['forms'].itos[word]
+                if itos not in ['<root>', '<pad>']:
+                    current_sent.append(itos)
+                raw_forms.append(current_sent)
+
+        character_ids = batch_to_ids(raw_forms)
+        elmo_embeds = self.elmo(character_ids)
         composed_embeds = self.dropout(self.embeddings_rand(forms))
         if self.args.embed:
             composed_embeds += self.compress_embeds(self.dropout(self.embeddings_forms(forms)))
