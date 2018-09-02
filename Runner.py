@@ -3,33 +3,41 @@ import torch
 import argparse
 import configparser
 import Loader
+from types import SimpleNamespace
+from sacred import Experiment
+from sacred.observers import TelegramObserver
 from Runnables import Parser, LangID, LangSwitch
 
+ex = Experiment('mnist')
 
-if __name__ == '__main__':
-    TAG_PARAMS, PARSE_PARAMS = {}, {}
+ex.observers.append(TelegramObserver.from_config('telegram.json'))
 
-    arg_parser = argparse.ArgumentParser()
-    arg_parser.add_argument('--debug_new', action='store_true')
-    arg_parser.add_argument('--langid', action='store_true')
-    arg_parser.add_argument('--use_misc', action='store_true')
-    arg_parser.add_argument('--fix_embeds', action='store_true')
-    arg_parser.add_argument('--parse', action='store_true')
-    arg_parser.add_argument('--config', default='./config.ini')
-    arg_parser.add_argument('--save', action='store')
-    arg_parser.add_argument('--load', action='store')
-    arg_parser.add_argument('--train', action='store')
-    arg_parser.add_argument('--dev', action='store')
-    arg_parser.add_argument('--test', action='store')
-    arg_parser.add_argument('--outfile', action='store')
-    arg_parser.add_argument('--embed', action='store')
-    arg_parser.add_argument('--use_chars', action='store_true')
-    arg_parser.add_argument('--use_cuda', action='store_true')
-    # aux tasks
-    arg_parser.add_argument('--semtag', action='store_true')
-    arg_parser.add_argument('--lm', action='store_true')
-    args = arg_parser.parse_args()
+TAG_PARAMS, PARSE_PARAMS = {}, {}
 
+arg_parser = argparse.ArgumentParser()
+arg_parser.add_argument('--debug_new', action='store_true')
+arg_parser.add_argument('--langid', action='store_true')
+arg_parser.add_argument('--use_misc', action='store_true')
+arg_parser.add_argument('--fix_embeds', action='store_true')
+arg_parser.add_argument('--parse', action='store_true')
+arg_parser.add_argument('--config', default='./config.ini')
+arg_parser.add_argument('--save', action='store')
+arg_parser.add_argument('--load', action='store')
+arg_parser.add_argument('--train', action='store')
+arg_parser.add_argument('--dev', action='store')
+arg_parser.add_argument('--test', action='store')
+arg_parser.add_argument('--outfile', action='store')
+arg_parser.add_argument('--embed', action='store')
+arg_parser.add_argument('--use_chars', action='store_true')
+arg_parser.add_argument('--use_cuda', action='store_true')
+# aux tasks
+arg_parser.add_argument('--semtag', action='store_true')
+arg_parser.add_argument('--lm', action='store_true')
+ex.add_config({'args': vars(arg_parser.parse_args())})
+
+@ex.main
+def main(_run, args):
+    args = SimpleNamespace(**args)
     config = configparser.ConfigParser()
     config.read(args.config)
 
@@ -98,3 +106,5 @@ if __name__ == '__main__':
         print("Saving..")
         with open(args.save, "wb") as f:
             torch.save(runnable, f)
+
+ex.run()
