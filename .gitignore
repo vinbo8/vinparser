@@ -110,3 +110,4 @@ ENV/
 # relevant to project
 .vector_cache/*
 scripts/parse.sh
+telegram.json
