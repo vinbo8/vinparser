@@ -64,6 +64,7 @@ def main(_run, args):
     # set seeds
     torch.manual_seed(1337)
     if args.use_cuda:
+        torch.backends.cudnn.enabled = False
         torch.cuda.manual_seed(1337)
         torch.cuda.manual_seed_all(1337)
 
