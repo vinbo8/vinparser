@@ -8,9 +8,9 @@ from sacred import Experiment
 from sacred.observers import TelegramObserver
 from Runnables import Parser, LangID, LangSwitch
 
-ex = Experiment('mnist')
+ex = Experiment('vinparser')
 
-ex.observers.append(TelegramObserver.from_config('telegram.json'))
+ex.observers.append(TelegramObserver.from_config('/home/ravishankar/personal_work_troja/vinparser/telegram.json'))
 
 TAG_PARAMS, PARSE_PARAMS = {}, {}
 

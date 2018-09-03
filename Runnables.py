@@ -22,7 +22,7 @@ class Parser(torch.nn.Module):
         options_file = "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_options.json"
         weight_file = "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5"
 
-        # self.elmo = Elmo(options_file, weight_file, 2, dropout=0)
+        self.elmo = Elmo(options_file, weight_file, 2, dropout=0)
 
         if self.args.use_chars:
             self.embeddings_chars = CharEmbedding(sizes['chars'], embed_dim, lstm_dim, lstm_layers)

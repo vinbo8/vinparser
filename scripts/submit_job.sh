@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 root="/home/ravishankar/personal_work_troja/vinparser"
+export PYTHONPATH=$root/allennlp
 cd $root
-git checkout parser_experiments
-git pull
+# git checkout parser_experiments
+# git pull
 
 mkdir -p "$root/experiments/conlls/embeds"
 
