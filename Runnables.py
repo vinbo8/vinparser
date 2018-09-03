@@ -70,6 +70,7 @@ class Parser(torch.nn.Module):
         self.selective_optimiser = torch.optim.Adam(selective_params, lr=learning_rate, betas=(0.9, 0.9))
 
         if self.args.use_cuda:
+            self.elmo.cuda()
             self.biaffine.cuda()
             self.biaffine_for_weights.cuda()
             self.label_biaffine.cuda()

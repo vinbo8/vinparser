@@ -111,3 +111,4 @@ ENV/
 .vector_cache/*
 scripts/parse.sh
 telegram.json
+allennlp/*
