@@ -89,6 +89,8 @@ class Parser(torch.nn.Module):
                 raw_forms.append(current_sent)
 
         character_ids = batch_to_ids(raw_forms)
+        if self.args.use_cuda:
+            character_ids = character_ids.cuda()
         elmo_embeds = self.elmo(character_ids)
         composed_embeds = self.dropout(self.embeddings_rand(forms))
         if self.args.embed:
