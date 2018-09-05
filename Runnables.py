@@ -87,16 +87,16 @@ class Parser(torch.nn.Module):
             current_sent = []
             for word in sent:
                 itos = self.vocab['forms'].itos[word]
-                if itos not in ['<root>', '<pad>']:
+                if itos not in ['<pad>']:
                     current_sent.append(itos)
-                raw_forms.append(current_sent)
+            raw_forms.append(current_sent)
 
         character_ids = batch_to_ids(raw_forms)
         if self.args.use_cuda:
             character_ids = character_ids.contiguous().cuda()
 
         if self.args.elmo:
-            composed_embeds = self.compress_elmo(self.elmo(character_ids))
+            composed_embeds = self.compress_elmo(self.elmo(character_ids)['elmo_representations'][-1])
 
         else:
             composed_embeds = self.dropout(self.embeddings_rand(forms))

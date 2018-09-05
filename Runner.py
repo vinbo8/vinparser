@@ -10,7 +10,7 @@ from Runnables import Parser, LangID, LangSwitch
 
 ex = Experiment('vinparser')
 
-ex.observers.append(TelegramObserver.from_config('/home/ravishankar/personal_work_troja/vinparser/telegram.json'))
+ex.observers.append(TelegramObserver.from_config('./telegram.json'))
 
 TAG_PARAMS, PARSE_PARAMS = {}, {}
 
