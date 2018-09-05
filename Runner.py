@@ -30,6 +30,7 @@ arg_parser.add_argument('--outfile', action='store')
 arg_parser.add_argument('--embed', action='store')
 arg_parser.add_argument('--use_chars', action='store_true')
 arg_parser.add_argument('--use_cuda', action='store_true')
+arg_parser.add_argument('--elmo', action='store_true')
 # aux tasks
 arg_parser.add_argument('--semtag', action='store_true')
 arg_parser.add_argument('--lm', action='store_true')

@@ -22,7 +22,9 @@ class Parser(torch.nn.Module):
         options_file = "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_options.json"
         weight_file = "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5"
 
-        self.elmo = Elmo(options_file, weight_file, 2, dropout=0)
+        if self.args.elmo:
+            self.elmo = Elmo(options_file, weight_file, 2, dropout=0)
+            self.compress_elmo = torch.nn.Linear(1024, embed_dim)
 
         if self.args.use_chars:
             self.embeddings_chars = CharEmbedding(sizes['chars'], embed_dim, lstm_dim, lstm_layers)
@@ -70,7 +72,8 @@ class Parser(torch.nn.Module):
         self.selective_optimiser = torch.optim.Adam(selective_params, lr=learning_rate, betas=(0.9, 0.9))
 
         if self.args.use_cuda:
-            self.elmo.cuda()
+            if self.args.elmo:
+                self.elmo.cuda()
             self.biaffine.cuda()
             self.biaffine_for_weights.cuda()
             self.label_biaffine.cuda()
@@ -91,16 +94,20 @@ class Parser(torch.nn.Module):
         character_ids = batch_to_ids(raw_forms)
         if self.args.use_cuda:
             character_ids = character_ids.contiguous().cuda()
-        elmo_embeds = self.elmo(character_ids)
-        composed_embeds = self.dropout(self.embeddings_rand(forms))
-        if self.args.embed:
-            composed_embeds += self.compress_embeds(self.dropout(self.embeddings_forms(forms)))
-        if self.args.use_chars:
-            (chars, _, char_pack) = batch.char
-            composed_embeds += self.dropout(self.embeddings_chars(chars, char_pack))
+
+        if self.args.elmo:
+            composed_embeds = self.compress_elmo(self.elmo(character_ids))
+
+        else:
+            composed_embeds = self.dropout(self.embeddings_rand(forms))
+            if self.args.embed:
+                composed_embeds += self.compress_embeds(self.dropout(self.embeddings_forms(forms)))
+            if self.args.use_chars:
+                (chars, _, char_pack) = batch.char
+                composed_embeds += self.dropout(self.embeddings_chars(chars, char_pack))
+
 
         tag_embeds = self.dropout(self.embeddings_tags(tags))
-
         embeds = torch.cat([composed_embeds, tag_embeds], dim=2)
 
         # pack/unpack for LSTM
