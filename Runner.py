@@ -10,7 +10,6 @@ from Runnables import Parser, MTMapper
 
 ex = Experiment('vinparser')
 
-
 TAG_PARAMS, PARSE_PARAMS = {}, {}
 
 arg_parser = argparse.ArgumentParser()
@@ -39,6 +38,10 @@ arg_parser.add_argument('--save_src', action='store')
 arg_parser.add_argument('--load_src', action='store')
 
 ex.add_config({'args': vars(arg_parser.parse_args())})
+
+if torch.cuda.is_available():
+    ex.observers.append(TelegramObserver.from_config('/home/ravishankar/personal_work_troja/vinparser/telegram.json'))
+
 
 @ex.main
 def main(_run, args):
