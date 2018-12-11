@@ -44,7 +44,10 @@ ex.add_config({'args': vars(arg_parser.parse_args())})
 def main(_run, args):
     args = SimpleNamespace(**args)
 
-    train_iterator, vocabs = Loader.get_iterators(args, args.src)
+    train_iterator, fields, vocabs = Loader.get_iterators(args, args.src)
+    if args.src_dev:
+        dev_iterator, _, _ = Loader.get_iterators(args, args.src_dev, train_fields=fields)
+
     runnable = Parser(args, vocabs).to(args.device)
 
     # load/train parser on source lang
@@ -57,7 +60,8 @@ def main(_run, args):
         print("Training")
         for epoch in range(args.epochs):
             runnable.train_(epoch, train_iterator)
-
+            if dev_iterator:
+                runnable.evaluate_(dev_iterator)
 
     if args.save_src:
         print("Saving..")

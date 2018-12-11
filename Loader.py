@@ -53,15 +53,11 @@ def dep_to_int(tensor, vocab):
 4. add the vocab to the vocab dict at the end if you are using them 
 '''
 
-def get_iterators(args, src_file, embed_file=None, train=True):
-    # TODO: fix
-    # device = -(not args.use_cuda)
+def get_iterators(args, src_file, embed_file=None, train_fields=None):
     tokeniser = lambda x: x.split(',')
 
     ID = data.Field(tokenize=tokeniser, batch_first=True, init_token='0')
     FORM = data.Field(tokenize=tokeniser, batch_first=True, include_lengths=True, init_token='<root>')
-    CHAR = data.Field(tokenize=list, batch_first=True, init_token='<w>')
-    NEST = data.NestedField(CHAR, tokenize=tokeniser, include_lengths=True, init_token='_')
     LEMMA = data.Field(tokenize=tokeniser, batch_first=True, init_token='<root>')
     UPOS = data.Field(tokenize=tokeniser, batch_first=True, init_token='_')
     XPOS = data.Field(tokenize=tokeniser, batch_first=True, init_token='_')
@@ -77,6 +73,9 @@ def get_iterators(args, src_file, embed_file=None, train=True):
     field_tuples = [('id', ID), ('form', FORM), ('lemma', LEMMA), ('upos', UPOS), ('xpos', XPOS),
                     ('feats', FEATS), ('head', HEAD), ('deprel', DEPREL), ('deps', DEPS), ('misc', MISC)]
 
+    if train_fields:
+        field_tuples = train_fields
+
     if not os.path.exists(".tmp"):
         os.makedirs(".tmp")
 
@@ -89,24 +88,22 @@ def get_iterators(args, src_file, embed_file=None, train=True):
 
     src_dataset = data.TabularDataset(path=".tmp/src_{}.csv".format(seconds_since_epoch), format="csv", fields=field_tuples)
 
-    field_names = [i[1] for i in field_tuples]
-    for field in field_names:
-        if field == FORM and embed_file:
-            vecs = vocab.Vectors(name=embed_file)
-            field.build_vocab(src_dataset, vectors=vecs)
-        else:
-            field.build_vocab(src_dataset)
+    if not train_fields:
+        field_names = [i[1] for i in field_tuples]
+        for field in field_names:
+            if field == FORM and embed_file:
+                vecs = vocab.Vectors(name=embed_file)
+                field.build_vocab(src_dataset, vectors=vecs)
+            else:
+                field.build_vocab(src_dataset)
 
-    if train:
-        out_iterator = data.Iterator(src_dataset, batch_size=args.batch_size, sort_key=lambda x: len(x.form), train=True, 
-                                     sort_within_batch=True, device=args.device, repeat=False)
-    else:
-        out_iterator = data.Iterator(src_dataset, batch_size=1, 
+    out_iterator = data.Iterator(src_dataset, batch_size=args.batch_size, sort_key=lambda x: len(x.form), train=not train_fields,
+                                 sort_within_batch=True, device=args.device, repeat=False)
 
     vocabs = {'forms': FORM.vocab, 'postags': UPOS.vocab, 'deprels': DEPREL.vocab, 
-             'feats': FEATS.vocab, 'misc': MISC.vocab}
+              'feats': FEATS.vocab, 'misc': MISC.vocab} if not train_fields else None
 
-    return out_iterator, vocabs
+    return out_iterator, field_tuples, vocabs
 
 
 def get_mt(args, vocab_from_dep):

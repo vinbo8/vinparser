@@ -45,8 +45,8 @@ class Parser(nn.Module):
             (forms, form_pack), tags = batch.form, batch.upos
         else:
             forms, form_pack = batch[0], batch[1]
-            longest = forms.size(1)
-
+            
+        longest = forms.size(1)
         embeds = self.dropout(self.embeddings_rand(forms))
         if self.args.src_embed_file:
             embeds += self.compress_embeds(self.dropout(self.embeddings_forms(forms)))
@@ -132,7 +132,7 @@ class Parser(nn.Module):
             self.optimiser.step()
             # self.selective_optimiser.step()
 
-            print("Epoch: {}\t{}/{}\tloss: {}".format(epoch, (i + 1) * elements_per_batch, len(train_loader.dataset), train_loss.data[0]))
+            print("Epoch: {}\t{}/{}\tloss: {}".format(epoch, (i + 1) * elements_per_batch, len(train_loader.dataset), train_loss.item()))
 
     def evaluate_(self, test_loader, print_conll=False):
         las_correct, uas_correct, total = 0, 0, 0
@@ -140,14 +140,13 @@ class Parser(nn.Module):
         for i, batch in enumerate(test_loader):
             form_pack, y_heads, y_deprels = batch.form[1], batch.head, batch.deprel
             
-            y_pred_heads, y_pred_deprels, _ = self(batch)
+            y_pred_heads, y_pred_deprels = self(batch)
             y_pred_heads = y_pred_heads.max(2)[1]
             y_pred_deprels = y_pred_deprels.max(2)[1]
 
             mask = torch.zeros(form_pack.size()[0], max(form_pack)).type(torch.LongTensor)
             for n, size in enumerate(form_pack): mask[n, 0:size] = 1
-            mask = mask.type(torch.ByteTensor)
-            mask = mask.cuda() if self.args.use_cuda else mask
+            mask = mask.type(torch.ByteTensor).to(self.args.device)
             mask = Variable(mask)
             mask[0, 0] = 0
 
@@ -173,8 +172,7 @@ class Parser(nn.Module):
 
                 heads_softmaxes = self(batch)[0][0]
                 heads_softmaxes = F.softmax(heads_softmaxes, dim=1)
-                if self.args.use_cuda:
-                    heads_softmaxes = heads_softmaxes.cpu()
+                heads_softmaxes = heads_softmaxes.cpu()
 
                 json = cle.mst(heads_softmaxes.data.numpy())
 
