@@ -125,6 +125,7 @@ def get_mt(args, vocab_from_dep):
     mt_iterator = data.Iterator(mt_data, batch_size=args.batch_size, train=True,
                                 repeat=False, shuffle=True, device=args.device)
 
+    trg_field = trg_lang
     vocabs = {'src': src_lang.vocab, 'trg': trg_lang.vocab}
     
-    return mt_iterator, vocabs
+    return mt_iterator, trg_field, vocabs
