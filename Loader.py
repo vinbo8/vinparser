@@ -7,7 +7,7 @@ import numpy as np
 from torchtext import data, datasets, vocab
 import csv
 import re
-from torchtext import datasets
+from torchtext import datasets, data, vocab
 import time
 
 random.seed(1337)
@@ -37,14 +37,12 @@ def conll_to_csv(args, fname, columns=10):
 
             cols = [i.replace('"', '<qt>').replace(',', '<cm>') for i in line.rstrip("\n").split("\t")]
             if '.' in cols[0] or '-' in cols[0]: continue
-            if args.use_chars:
-                cols = cols[:2] + [cols[1]] + cols[2:]
             blokk = list(map(lambda x, y: x + y + ",", blokk, cols))
 
     return "\n".join(rows)
 
 
-def dep_to_int(tensor, vocab, _):
+def dep_to_int(tensor, vocab):
     fn = np.vectorize(lambda x: int(vocab.itos[x]))
     return fn(tensor)
 
@@ -55,10 +53,9 @@ def dep_to_int(tensor, vocab, _):
 4. add the vocab to the vocab dict at the end if you are using them 
 '''
 
-
-# MASSIVE TODO: write iterator getter for single treebank files for running loaded models
-def get_iterators(args, batch_size):
-    device = -(not args.use_cuda)
+def get_iterators(args, src_file, embed_file=None, train=True):
+    # TODO: fix
+    # device = -(not args.use_cuda)
     tokeniser = lambda x: x.split(',')
 
     ID = data.Field(tokenize=tokeniser, batch_first=True, init_token='0')
@@ -70,7 +67,7 @@ def get_iterators(args, batch_size):
     XPOS = data.Field(tokenize=tokeniser, batch_first=True, init_token='_')
     FEATS = data.Field(tokenize=tokeniser, batch_first=True, init_token='_')
     HEAD = data.Field(tokenize=tokeniser, batch_first=True, pad_token='-1', init_token='0',
-                        unk_token='-1', postprocessing=lambda x, y, z: dep_to_int(x, y, z))
+                        unk_token='-1', postprocessing=lambda x, y: dep_to_int(x, y))
     DEPREL = data.Field(tokenize=tokeniser, batch_first=True, init_token='<root>')
     DEPS = data.Field(tokenize=tokeniser, batch_first=True, init_token='_')
     MISC = data.Field(tokenize=tokeniser, batch_first=True, init_token='_')
@@ -80,155 +77,57 @@ def get_iterators(args, batch_size):
     field_tuples = [('id', ID), ('form', FORM), ('lemma', LEMMA), ('upos', UPOS), ('xpos', XPOS),
                     ('feats', FEATS), ('head', HEAD), ('deprel', DEPREL), ('deps', DEPS), ('misc', MISC)]
 
-    if args.use_chars:
-        field_tuples.insert(2, ('char', NEST))
-
-    if args.semtag:
-        field_tuples.append(('sem', SEM))
-
     if not os.path.exists(".tmp"):
         os.makedirs(".tmp")
 
     # ===== breaking here
-    train_csv = conll_to_csv(args, args.train, len(field_tuples))
-    dev_csv = conll_to_csv(args, args.dev, len(field_tuples))
-    test_csv = conll_to_csv(args, args.test, len(field_tuples))
+    src_csv = conll_to_csv(args, src_file, len(field_tuples))
 
     seconds_since_epoch = time.mktime(time.localtime())
-    for file, text in zip(["train", "dev", "test"], [train_csv, dev_csv, test_csv]):
-        with open(os.path.join(".tmp", "{}_{}.csv".format(file, seconds_since_epoch)), "w") as f:
-            f.write(text)
+    with open(os.path.join(".tmp", "src_{}.csv".format(seconds_since_epoch)), "w") as f:
+        f.write(src_csv)
 
-    train, dev, test = data.TabularDataset.splits(path=".tmp", train='train_{}.csv'.format(seconds_since_epoch),
-                                                    validation='dev_{}.csv'.format(seconds_since_epoch), 
-                                                    test='test_{}.csv'.format(seconds_since_epoch),
-                                                    format="csv", fields=field_tuples)
+    src_dataset = data.TabularDataset(path=".tmp/src_{}.csv".format(seconds_since_epoch), format="csv", fields=field_tuples)
 
     field_names = [i[1] for i in field_tuples]
     for field in field_names:
-        if field == FORM and args.embed:
-            vecs = vocab.Vectors(name=args.embed)
-            if args.use_cuda:
-                field.build_vocab(train, vectors=vecs, vectors_cache="/home/ravishankar/personal_work_troja/.vector_cache")
-            else:
-                field.build_vocab(train, vectors=vecs)
+        if field == FORM and embed_file:
+            vecs = vocab.Vectors(name=embed_file)
+            field.build_vocab(src_dataset, vectors=vecs)
         else:
-                field.build_vocab(train)
+            field.build_vocab(src_dataset)
 
-    train_iterator = data.Iterator(train, batch_size=batch_size, sort_key=lambda x: len(x.form), train=True,
-                                    sort_within_batch=True, device=device, repeat=False)
-
-    # dev_iterator = data.Iterator(dev, batch_size=batch_size, sort_key=lambda x: len(x.form), train=True,
-                                    # sort_within_batch=True, device=device, repeat=False)
-
-    dev_iterator = data.Iterator(dev, batch_size=batch_size, train=False, sort_within_batch=True, sort_key=lambda x: len(x.form),
-                                    sort=False, device=device, repeat=False)
-
-    test_iterator = data.Iterator(test, batch_size=1, train=False, sort_within_batch=True, sort_key=lambda x: len(x.form),
-                                    sort=False, device=device, repeat=False)
-
-    current_iterator = [train_iterator, dev_iterator, test_iterator]
+    if train:
+        out_iterator = data.Iterator(src_dataset, batch_size=args.batch_size, sort_key=lambda x: len(x.form), train=True, 
+                                     sort_within_batch=True, device=args.device, repeat=False)
+    else:
+        out_iterator = data.Iterator(src_dataset, batch_size=1, 
 
     vocabs = {'forms': FORM.vocab, 'postags': UPOS.vocab, 'deprels': DEPREL.vocab, 
              'feats': FEATS.vocab, 'misc': MISC.vocab}
-    sizes = {k: len(v) for (k, v) in vocabs.items()}
 
-    if args.use_chars:
-        vocabs['chars'] = CHAR.vocab
-        sizes['chars'] = len(CHAR.vocab)
-
-    return (current_iterator, sizes, vocabs)
-
-def get_treebank_and_txt(args, batch_size):
-    device = -(not args.use_cuda)
-
-    tokeniser = lambda x: x.split(',')
-    txt_tok = lambda x: x.split(" ")
-
-    ID = data.Field(tokenize=tokeniser, batch_first=True, init_token='0')
-    FORM = data.Field(tokenize=tokeniser, batch_first=True, include_lengths=True, init_token='<root>')
-    CHAR = data.Field(tokenize=list, batch_first=True, init_token='<w>')
-    NEST = data.NestedField(CHAR, tokenize=tokeniser, include_lengths=True, init_token='_')
-    LEMMA = data.Field(tokenize=tokeniser, batch_first=True, init_token='<root>')
-    UPOS = data.Field(tokenize=tokeniser, batch_first=True, init_token='_')
-    XPOS = data.Field(tokenize=tokeniser, batch_first=True, init_token='_')
-    FEATS = data.Field(tokenize=tokeniser, batch_first=True, init_token='_')
-    HEAD = data.Field(tokenize=tokeniser, batch_first=True, pad_token='-1', init_token='0',
-                      unk_token='-1', postprocessing=lambda x, y, z: dep_to_int(x, y, z))
-    DEPREL = data.Field(tokenize=tokeniser, batch_first=True, init_token='<root>')
-    DEPS = data.Field(tokenize=tokeniser, batch_first=True, init_token='_')
-    MISC = data.Field(tokenize=tokeniser, batch_first=True, init_token='_')
-    SEM = data.Field(tokenize=tokeniser, batch_first=True, init_token='_')
-
-    LM_FORM = data.Field(tokenize=txt_tok, batch_first=True, include_lengths=True)
-    # bare conllu
-    field_tuples = [('id', ID), ('form', FORM), ('lemma', LEMMA), ('upos', UPOS), ('xpos', XPOS),
-                    ('feats', FEATS), ('head', HEAD), ('deprel', DEPREL), ('deps', DEPS), ('misc', MISC)]
-
-    if args.use_chars:
-        field_tuples.insert(2, ('char', NEST))
-
-    if args.semtag:
-        field_tuples.append(('sem', SEM))
-
-    if not os.path.exists(".tmp"):
-        os.makedirs(".tmp")
-
-    # ===== breaking here
-    train_csv = conll_to_csv(args, args.train[0], len(field_tuples))
-    dev_csv = conll_to_csv(args, args.dev[0], len(field_tuples))
-    test_csv = conll_to_csv(args, args.test[0], len(field_tuples))
-
-    for file, text in zip(["train", "dev", "test"], [train_csv, dev_csv, test_csv]):
-        with open(os.path.join(".tmp", "{}_{}.csv".format(file, 0)), "w") as f:
-            f.write(text)
-
-    train, dev, test = data.TabularDataset.splits(path=".tmp", train='train_%s.csv' % 0,
-                                                  validation='dev_%s.csv' % 0, test='test_%s.csv' % 0,
-                                                  format="csv", fields=field_tuples)
-
-    lm_corpus = data.TabularDataset(path=args.lm[0], format="tsv", fields=[('form', FORM)])
-
-    field_names = [i[1] for i in field_tuples]
-    for field in field_names:
-        if field == FORM and args.embed:
-            field.build_vocab(train)
-            field.build_vocab(lm_corpus)
-        else:
-            field.build_vocab(train)
-
-    treebank_iterator = data.Iterator.splits((train, dev, test), batch_sizes=(batch_size, batch_size, batch_size),
-                                            sort_key=lambda x: len(x.form), sort_within_batch=True,
-                                            device=device, repeat=False)
-
-    lm_iterator = data.Iterator(lm_corpus, batch_size=batch_size, sort_key=lambda x: len(x.form),
-                                sort_within_batch=True, repeat=False, device=device)
-
-    sizes = {'vocab': len(FORM.vocab), 'postags': len(UPOS.vocab), 'deprels': len(DEPREL.vocab)}
-
-    if args.use_chars:
-        sizes['chars'] = len(CHAR.vocab)
-
-    if args.semtag:
-        sizes['semtags'] = len(SEM.vocab)
-
-    return treebank_iterator, lm_iterator, sizes, FORM.vocab
+    return out_iterator, vocabs
 
 
+def get_mt(args, vocab_from_dep):
+    src_lang = data.Field(lower=True, batch_first=True, include_lengths=True)
+    trg_lang = data.Field(lower=True, batch_first=True, include_lengths=True)
 
-def load_pos():
-    WORD = data.Field(init_token="<bos>", eos_token="<eos>", batch_first=True, include_lengths=True)
-    LANG = data.Field(init_token="<bos>", eos_token="<eos>", batch_first=True)
-    TAG = data.Field(init_token="<bos>", eos_token="<eos>", batch_first=True)
+    mt_data = datasets.TranslationDataset(os.path.join(args.mt, ''),
+                                          ('en.txt', '%s.txt' % args.lang),
+                                          (src_lang, trg_lang))
 
-    train, dev, test = datasets.UDPOS.splits(fields=(('word', WORD), ('lang', LANG), ('tag', TAG)),
-                                             path="./data/codeswitch/en-hi", train="langid_train.txt",
-                                             validation="langid_dev.txt", test="langid_test.txt")
+    src_lang.vocab = vocab_from_dep
+    
+    if args.trg_embed_file:
+        vecs = vocab.Vectors(name=args.trg_embed_file)
+        trg_lang.build_vocab(mt_data, vectors=vecs)
+    else:
+        trg_lang.build_vocab(mt_data)
 
-    WORD.build_vocab(train)
-    LANG.build_vocab(train)
-    TAG.build_vocab(train)
+    mt_iterator = data.Iterator(mt_data, batch_size=args.batch_size, train=True,
+                                repeat=False, shuffle=True, device=args.device)
 
-    vocab = {'word': len(WORD.vocab), 'lang': len(LANG.vocab), 'tag': len(TAG.vocab)}
-    current_iterator = data.Iterator.splits((train, dev, test), batch_sizes=(10, 1, 1), sort_within_batch=True, repeat=False)
-    return current_iterator, vocab
+    vocabs = {'src': src_lang.vocab, 'trg': trg_lang.vocab}
+    
+    return mt_iterator, vocabs
