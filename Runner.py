@@ -56,30 +56,33 @@ def main(_run, args):
     # load/train parser on source lang
     if args.load_src:
         print("Loading")
-        with open(args.load, "rb") as f:
+        with open(args.load_src, "rb") as f:
             runnable.load_state_dict(torch.load(f, map_location=lambda storage, loc: storage))
 
     else:
         print("Training")
         for epoch in range(args.epochs):
             runnable.train_(epoch, train_iterator)
-            if dev_iterator:
+            if args.src_dev:
                 runnable.evaluate_(dev_iterator)
 
     if args.save_src:
         print("Saving..")
-        with open(args.save, "wb") as f:
+        with open(args.save_src, "wb") as f:
             torch.save(runnable, f)
 
     # load MT data
-    mt_iterator, vocabs = Loader.get_mt(args, runnable.vocabs['forms'])
+    mt_iterator, trg_field, vocabs = Loader.get_mt(args, runnable.vocabs['forms'])
     mapper = MTMapper(args, vocabs, runnable)
 
     print("Training mapper")
     for epoch in range(args.epochs):
-        mapper.train_(epoch, mt_iterator)
+        pass
+        # mapper.train_(epoch, mt_iterator)
 
     print("evaluating mapped parser..")
+    fields = [(i, j) if i != 'form' else ('form', trg_field) for (i, j) in fields]
+    train_iterator, fields, vocabs = Loader.get_iterators(args, args.trg, train_fields=fields)
 
 
 ex.run()
