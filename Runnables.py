@@ -19,12 +19,15 @@ class Parser(nn.Module):
         
         self.embeddings_rand = nn.Embedding(len(vocabs['forms']), args.embed_dim)
         self.embeddings_forms = nn.Embedding(len(vocabs['forms']), args.embed_dim)
-        if args.src_embed_file:
-            self.embeddings_forms.weight.data.copy_(vocabs['forms'].vectors)
+        
+        # assume that embeddings exist
+        self.embeddings_forms.weight.data.copy_(vocabs['forms'].vectors)
 
         # size should be embed_size + whatever the other embeddings have
         self.lstm = nn.LSTM(args.embed_dim, args.lstm_dim, args.lstm_layers,
-                                  batch_first=True, bidirectional=True, dropout=args.dropout)
+                            batch_first=True, bidirectional=True, dropout=args.dropout)
+
+        self.lstm = nn.DataParallel(self.lstm)
 
         self.mlp_arc_parent = nn.Linear(2 * args.lstm_dim, args.mlp_arc_dim)
         self.mlp_arc_child = nn.Linear(2 * args.lstm_dim, args.mlp_arc_dim)
@@ -46,15 +49,15 @@ class Parser(nn.Module):
         else:
             forms, form_pack = batch[0], batch[1]
             
-        longest = forms.size(1)
         embeds = self.dropout(self.embeddings_rand(forms))
         if self.args.src_embed_file:
-            embeds += self.compress_embeds(self.dropout(self.embeddings_forms(forms)))
+            embeds += self.dropout(self.embeddings_forms(forms))
 
         # pack/unpack for LSTM
+        total_length = forms.size(1)
         for_lstm = nn.utils.rnn.pack_padded_sequence(embeds, form_pack.tolist(), batch_first=True)
         output, _ = self.lstm(for_lstm)
-        output, _ = nn.utils.rnn.pad_packed_sequence(output, batch_first=True, total_length=longest)
+        output, _ = nn.utils.rnn.pad_packed_sequence(output, batch_first=True, total_length=total_length)
 
         # predict heads
         reduced_arc_parent = self.dropout(self.relu(self.mlp_arc_parent(output)))
@@ -102,10 +105,6 @@ class Parser(nn.Module):
             elements_per_batch = len(y_heads)
             y_pred_heads, y_pred_deprels = self(batch)
 
-            # all_ones = Variable(torch.ones(y_pred_weights.size()[0:2]).type(torch.LongTensor))
-            # if self.args.use_cuda:
-                # all_ones = all_ones.cuda()
-            # reshape for cross-entropy
             batch_size, longest_sentence_in_batch = y_heads.size()
 
             # * predictions: (B x S x S) => (B * S x S)
@@ -118,19 +117,12 @@ class Parser(nn.Module):
             y_pred_deprels = y_pred_deprels.view(batch_size * longest_sentence_in_batch, -1)
             y_deprels = y_deprels.contiguous().view(batch_size * longest_sentence_in_batch)
 
-            # langid
-            # y_pred_langids = y_pred_langids.view(batch_size * longest_sentence_in_batch, -1)
-            # y_langids = y_langids.contiguous().view(batch_size * longest_sentence_in_batch)
-
             # sum losses
-            train_loss = self.criterion(y_pred_heads, y_heads) + self.criterion(y_pred_deprels, y_deprels) # + self.criterion(y_pred_langids, y_langids)
-            # dev_loss = self.criterion(y_pred_weights.view(batch_size * longest_sentence_in_batch, -1), all_ones.view(batch_size * longest_sentence_in_batch))
+            train_loss = self.criterion(y_pred_heads, y_heads) + self.criterion(y_pred_deprels, y_deprels)
 
             self.zero_grad()
             train_loss.backward()
-            # dev_loss.backward()
             self.optimiser.step()
-            # self.selective_optimiser.step()
 
             print("Epoch: {}\t{}/{}\tloss: {}".format(epoch, (i + 1) * elements_per_batch, len(train_loader.dataset), train_loss.item()))
 

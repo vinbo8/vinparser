@@ -3,6 +3,7 @@ import torch
 import argparse
 import configparser
 import Loader
+from torch import nn
 from types import SimpleNamespace
 from sacred import Experiment
 from sacred.observers import TelegramObserver

@@ -1,14 +1,22 @@
 import math
 import torch
-from torch.autograd import Variable
 import torch.nn.functional as F
+from torch.autograd import Variable
+from torch import nn
 
 
-class ShorterBiaffine(torch.nn.Module):
+class ParallelLSTM(nn.Module):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+        self.lstm = nn.LSTM(*args, **kwargs)
+
+
+
+class ShorterBiaffine(nn.Module):
     def __init__(self, in_features):
         super().__init__()
         self.in_features = in_features,
-        self.weight = torch.nn.Parameter(torch.rand(in_features + 1, in_features, 1))
+        self.weight = nn.Parameter(torch.rand(in_features + 1, in_features, 1))
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -33,14 +41,14 @@ class ShorterBiaffine(torch.nn.Module):
         return biaffine
 
 
-class LongerBiaffine(torch.nn.Module):
+class LongerBiaffine(nn.Module):
     def __init__(self, in1_features, in2_features, dep_labels):
         super().__init__()
         self.in1_features = in1_features
         self.in2_features = in2_features
         self.dep_labels = dep_labels
-        self.weight = torch.nn.Parameter(torch.rand(in1_features + 1, in2_features + 1, dep_labels))
-        self.bias = torch.nn.Parameter(torch.rand(dep_labels))
+        self.weight = nn.Parameter(torch.rand(in1_features + 1, in2_features + 1, dep_labels))
+        self.bias = nn.Parameter(torch.rand(dep_labels))
         self.reset_parameters()
 
     def reset_parameters(self):

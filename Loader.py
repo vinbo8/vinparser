@@ -94,6 +94,7 @@ def get_iterators(args, src_file, embed_file=None, train_fields=None):
             if field == FORM and embed_file:
                 vecs = vocab.Vectors(name=embed_file)
                 field.build_vocab(src_dataset, vectors=vecs)
+                print("* using source language embeddings")
             else:
                 field.build_vocab(src_dataset)
 
@@ -119,6 +120,7 @@ def get_mt(args, vocab_from_dep):
     if args.trg_embed_file:
         vecs = vocab.Vectors(name=args.trg_embed_file)
         trg_lang.build_vocab(mt_data, vectors=vecs)
+        print("* using target language embeddings")
     else:
         trg_lang.build_vocab(mt_data)
 
