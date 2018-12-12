@@ -204,9 +204,10 @@ class MTMapper(nn.Module):
         src, src_unsort = self.sort(batch.src)
         trg, trg_unsort = self.sort(batch.trg)
 
-        parsed_trg, _ = self.trg_parser(trg, downstream=True)
         with torch.no_grad():
             parsed_src, _ = self.src_parser(src, downstream=True)
+
+        parsed_trg, _ = self.trg_parser(trg, downstream=True)
 
         assert parsed_src.size() == parsed_trg.size()
 

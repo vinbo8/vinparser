@@ -78,7 +78,7 @@ def main(_run, args):
 
     # load MT data
     mt_iterator, trg_field, vocabs = Loader.get_mt(args, src_parser.vocabs['forms'])
-    mapper = MTMapper(args, vocabs, src_parser)
+    mapper = MTMapper(args, vocabs, src_parser).to(args.device)
 
     fields = [(i, j) if i != 'form' else ('form', trg_field) for (i, j) in fields]
     eval_iterator, fields, vocabs = Loader.get_iterators(args, args.trg_eval, train_fields=fields)
