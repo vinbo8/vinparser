@@ -8,7 +8,7 @@ from scripts import cle
 from torch.autograd import Variable
 from collections import Counter
 import torch.nn.functional as F
-from Modules import ShorterBiaffine, LongerBiaffine
+from Modules import ShorterBiaffine, LongerBiaffine, ParallelLSTM
 
 class Parser(nn.Module):
     def __init__(self, args, vocabs):
@@ -24,8 +24,8 @@ class Parser(nn.Module):
         self.embeddings_forms.weight.data.copy_(vocabs['forms'].vectors)
 
         # size should be embed_size + whatever the other embeddings have
-        self.lstm = nn.LSTM(args.embed_dim, args.lstm_dim, args.lstm_layers,
-                            batch_first=True, bidirectional=True, dropout=args.dropout)
+        self.lstm = ParallelLSTM(args.embed_dim, args.lstm_dim, args.lstm_layers,
+                                 batch_first=True, bidirectional=True, dropout=args.dropout)
 
         self.lstm = nn.DataParallel(self.lstm)
 
@@ -54,10 +54,7 @@ class Parser(nn.Module):
             embeds += self.dropout(self.embeddings_forms(forms))
 
         # pack/unpack for LSTM
-        total_length = forms.size(1)
-        for_lstm = nn.utils.rnn.pack_padded_sequence(embeds, form_pack.tolist(), batch_first=True)
-        output, _ = self.lstm(for_lstm)
-        output, _ = nn.utils.rnn.pad_packed_sequence(output, batch_first=True, total_length=total_length)
+        output = self.lstm(embeds, forms, form_pack)
 
         # predict heads
         reduced_arc_parent = self.dropout(self.relu(self.mlp_arc_parent(output)))
