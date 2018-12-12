@@ -80,6 +80,9 @@ def main(_run, args):
     mt_iterator, trg_field, vocabs = Loader.get_mt(args, src_parser.vocabs['forms'])
     mapper = MTMapper(args, vocabs, src_parser)
 
+    fields = [(i, j) if i != 'form' else ('form', trg_field) for (i, j) in fields]
+    eval_iterator, fields, vocabs = Loader.get_iterators(args, args.trg_eval, train_fields=fields)
+
     if args.load_trg:
         print("loading mapped target parser..")
         with open(args.load_trg, "rb") as f:
@@ -89,6 +92,8 @@ def main(_run, args):
         print("training mapped target parser..")
         for epoch in range(args.epochs):
             mapper.train_(epoch, mt_iterator)
+            trg_parser = mapper.trg_parser
+            trg_parser.evaluate(eval_iterator)
 
         if args.save_trg:
             print("saving mapped target parser..")
@@ -96,9 +101,6 @@ def main(_run, args):
                 torch.save(mapper.state_dict(), f)
 
     print("evaluating mapped parser..")
-    fields = [(i, j) if i != 'form' else ('form', trg_field) for (i, j) in fields]
-    eval_iterator, fields, vocabs = Loader.get_iterators(args, args.trg_eval, train_fields=fields)
-
     trg_parser = mapper.trg_parser
     trg_parser.evaluate_(eval_iterator)
 
