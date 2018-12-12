@@ -10,6 +10,13 @@ class ParallelLSTM(nn.Module):
         super().__init__()
         self.lstm = nn.LSTM(*args, **kwargs)
 
+    def forward(self, embeds, forms, form_pack):
+        total_length = forms.size(1)
+        for_lstm = nn.utils.rnn.pack_padded_sequence(embeds, form_pack.tolist(), batch_first=True)
+        output, _ = self.lstm(for_lstm)
+        output, _ = nn.utils.rnn.pad_packed_sequence(output, batch_first=True, total_length=total_length)
+
+        return output
 
 
 class ShorterBiaffine(nn.Module):
