@@ -194,7 +194,7 @@ class MTMapper(nn.Module):
         trg_vocabs = self.src_parser.vocabs
         trg_vocabs['forms'] = self.vocabs['trg']
 
-        self.trg_parser = Parser(args, trg_vocabs)
+        self.trg_parser = Parser(args, trg_vocabs).to(self.args.device)
 
         self.optimiser = torch.optim.Adam(self.parameters(), lr=args.lr)
         self.criterion = nn.MSELoss()
@@ -207,8 +207,7 @@ class MTMapper(nn.Module):
 
         return (sent.index_select(0, idx_sort), np.sort(sent_len)[::-1]), idx_unsort
 
-    def unsort(self, batch, idx_unsort):
-        sent, _ = batch
+    def unsort(self, sent, idx_unsort):
         idx_unsort = idx_unsort.to(self.args.device)
         return sent.index_select(0, idx_unsort)
 
@@ -222,14 +221,14 @@ class MTMapper(nn.Module):
 
         assert parsed_src.size() == parsed_trg.size()
 
-        return self.unsort(parsed_src), self.unsort(parsed_trg)
+        return self.unsort(parsed_src, src_unsort), self.unsort(parsed_trg, trg_unsort)
 
     def train_(self, epoch, train_iterator):
         self.train()
         train_iterator.init_epoch()
         sqrt_crit = lambda u, v: torch.sqrt(self.criterion(u, v))
 
-        for batch in train_iterator:
+        for i, batch in enumerate(train_iterator):
             pad_len = max(batch.src[0].size(1), batch.trg[0].size(1))
 
             SRC_PAD = pad_len - batch.src[0].size(1)
@@ -250,4 +249,4 @@ class MTMapper(nn.Module):
             self.optimiser.step()
 
             if i % self.args.print_every == 0:
-                print("aligner epoch: {}\t{}/{}\tloss={}".format(epoch, i * len(batch), len(train_loader.dataset), loss.item()))
+                print("aligner epoch: {}\t{}/{}\tloss={}".format(epoch, i * len(batch), len(train_iterator.dataset), loss.item()))

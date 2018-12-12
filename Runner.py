@@ -39,6 +39,8 @@ arg_parser.add_argument('--load_src', action='store')
 arg_parser.add_argument('--save_trg', action='store')
 arg_parser.add_argument('--load_trg', action='store')
 
+arg_parser.add_argument('--print_every', action='store', type=int, default=100)
+
 ex.add_config({'args': vars(arg_parser.parse_args())})
 
 if torch.cuda.is_available():
@@ -71,7 +73,7 @@ def main(_run, args):
         if args.save_src:
             print("saving source language parser..")
             with open(args.save_src, "wb") as f:
-                torch.save(src_parser, f)
+                torch.save(src_parser.state_dict(), f)
 
     # load MT data
     mt_iterator, trg_field, vocabs = Loader.get_mt(args, src_parser.vocabs['forms'])
@@ -90,7 +92,7 @@ def main(_run, args):
         if args.save_trg:
             print("saving mapped target parser..")
             with open(args.save_trg, "wb") as f:
-                torch.save(mapper, f)
+                torch.save(mapper.state_dict(), f)
 
     print("evaluating mapped parser..")
     fields = [(i, j) if i != 'form' else ('form', trg_field) for (i, j) in fields]
