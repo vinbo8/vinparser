@@ -53,7 +53,7 @@ def dep_to_int(tensor, vocab):
 4. add the vocab to the vocab dict at the end if you are using them 
 '''
 
-def get_iterators(args, src_file, embed_file=None, train_fields=None):
+def get_iterators(args, src_file, train_fields=None):
     tokeniser = lambda x: x.split(',')
 
     ID = data.Field(tokenize=tokeniser, batch_first=True, init_token='0')
@@ -91,8 +91,8 @@ def get_iterators(args, src_file, embed_file=None, train_fields=None):
     if not train_fields:
         field_names = [i[1] for i in field_tuples]
         for field in field_names:
-            if field == FORM and embed_file:
-                vecs = vocab.Vectors(name=embed_file)
+            if field == FORM and self.args.src_embed_file:
+                vecs = vocab.Vectors(name=self.args.src_embed_file)
                 field.build_vocab(src_dataset, vectors=vecs)
                 print("* using source language embeddings")
             else:
