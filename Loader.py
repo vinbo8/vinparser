@@ -91,8 +91,8 @@ def get_iterators(args, src_file, train_fields=None):
     if not train_fields:
         field_names = [i[1] for i in field_tuples]
         for field in field_names:
-            if field == FORM and self.args.src_embed_file:
-                vecs = vocab.Vectors(name=self.args.src_embed_file)
+            if field == FORM and args.src_embed_file:
+                vecs = vocab.Vectors(name=args.src_embed_file)
                 field.build_vocab(src_dataset, vectors=vecs)
                 print("* using source language embeddings")
             else:
