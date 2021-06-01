@@ -43,6 +43,6 @@ torch==0.3.1
 torchtext==0.2.1
 torchwordemb==0.0.8
 tqdm==4.19.9
-urllib3==1.22
+urllib3==1.26.5
 Werkzeug==0.14.1
 wrapt==1.10.11
