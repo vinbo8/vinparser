@@ -37,7 +37,7 @@ scipy==1.0.1
 six==1.11.0
 smart-open==1.5.7
 tensorboard==1.6.0
-tensorflow==1.6.0
+tensorflow==2.7.2
 termcolor==1.1.0
 torch==0.3.1
 torchtext==0.2.1
